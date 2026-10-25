@@ -39,9 +39,13 @@ const deferred = <T>() => {
     return {promise, resolve, reject};
 };
 const flush = async () => { for (let turn = 0; turn < 20; turn++) await Promise.resolve(); };
+const restoreAnimationPorts: Array<() => void> = [];
 
 function setup(bitmapSize = {width:400,height:200}) {
     const {document, window: domWindow} = parseHTML('<html><head><title>Image fixture</title></head><body><div id="clip"><img src="https://example.test/source.png" srcset="https://example.test/source.png 1x" /></div></body></html>');
+    const prototype = domWindow.Element.prototype, animationPort = Object.getOwnPropertyDescriptor(prototype, 'getAnimations');
+    Object.defineProperty(prototype, 'getAnimations', {configurable: true, value: () => []});
+    restoreAnimationPorts.push(() => {if (animationPort) Object.defineProperty(prototype, 'getAnimations', animationPort);else Reflect.deleteProperty(prototype, 'getAnimations');});
     const originalCreate = document.createElement.bind(document);
     const image = document.querySelector('img') as HTMLImageElement;
     // linkedom 尚不实现 CSSStyleDeclaration priority；保留真实样式序列化并补足浏览器的单属性优先级语义。
@@ -104,7 +108,8 @@ function setup(bitmapSize = {width:400,height:200}) {
         if (tag === 'img') decorateStyle(element as HTMLElement);
         if (tag === 'canvas') {
             const canvas = element as HTMLCanvasElement;
-            canvas.getContext = vi.fn(() => ({drawImage: draw, getImageData: vi.fn(() => ({data: new Uint8ClampedArray(8 * 8 * 4).fill(255)}))})) as never;
+            decorateStyle(canvas);
+            canvas.getContext = vi.fn(() => ({drawImage: draw, clearRect: vi.fn(), getImageData: vi.fn(() => ({data: new Uint8ClampedArray(8 * 8 * 4).fill(255)}))})) as never;
             canvas.toDataURL = () => 'data:image/png;base64,source';
             canvas.toBlob = vi.fn((callback: BlobCallback) => {
                 if (autoEncode) callback(new Blob(['source'])); else pendingPng.push(callback);
@@ -219,7 +224,7 @@ beforeEach(() => {
     client.fetch.mockReset();
     client.settings.mockReset().mockResolvedValue({success: true});
 });
-afterEach(() => {unmountImageTranslator(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();});
+afterEach(() => {unmountImageTranslator();while (restoreAnimationPorts.length) restoreAnimationPorts.pop()!(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();});
 
 describe('图片翻译前台交互与生命周期', () => {
     it('打开宿主大图后撤下被遮挡的缩略译图与文字面板，关闭后复用同一译图', async () => {

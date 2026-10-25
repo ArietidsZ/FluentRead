@@ -92,6 +92,23 @@ describe('漫画专用完整排版',()=>{
 describe('原图背景与字体层次',()=>{
     const width=1000,height=400,pixels=new Uint8ClampedArray(width*height*4).fill(255);
     const region={text:'你好世界',fontSize:70,bbox:{x0:100,y0:100,x1:400,y1:250}};
+    it.each([128,180,254,255])('沿用原图 alpha=%i 的分类，修补后半透明边缘不再追加不透明 fillRect',alpha=>{
+        const w=64,h=48,source=new Uint8ClampedArray(w*h*4).fill(255);
+        for(let offset=3;offset<source.length;offset+=4)source[offset]=alpha;
+        const item={text:'译文',fontSize:8,bbox:{x0:16,y0:12,x1:48,y1:36}},backgrounds=sampleMangaBackgrounds(source,w,h,[item]),c=context();
+        expect(backgrounds).toEqual([{color:'rgb(255,255,255)',uniform:alpha===255}]);
+        drawMangaTranslations(c as any,source,w,h,[item],true,backgrounds);
+        expect(c.fillRect).toHaveBeenCalledTimes(alpha===255?1:0);
+        expect(c.fillText.mock.calls.map(call=>call[0]).join('')).toBe('译文');
+        if(alpha===255){
+            const previous=context();
+            drawMangaTranslations(previous as any,source,w,h,[item],true,[{color:'rgb(255,255,255)',uniform:true}]);
+            expect(c.fillRect.mock.calls).toEqual(previous.fillRect.mock.calls);
+            expect(c.strokeText.mock.calls).toEqual(previous.strokeText.mock.calls);
+            expect(c.fillText.mock.calls).toEqual(previous.fillText.mock.calls);
+            expect(c.font).toBe(previous.font);expect(c.lineWidth).toBe(previous.lineWidth);
+        }else expect(c.strokeStyle).toBe('#ffffff');
+    });
     it('紧贴字形的单行使用真实上下界及描边居中，不扩大清字和裁剪范围',()=>{
         for(const height of [7,8,13.333333,16]){
             const c=Object.assign(context(),{textBaseline:''}),bbox={x0:40,y0:40,x1:276,y1:40+height};

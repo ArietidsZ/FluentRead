@@ -165,7 +165,7 @@ describe('漫画局部神经修补',()=>{
             }
         }
     });
-    it('只回写原始行的 RGB，图外和行间画面与 alpha 完全不变',()=>{
+    it('不透明补丁沿用原始行的 RGB，图外和行间画面与 alpha 完全不变',()=>{
         const input=pixels(),result=new Uint8ClampedArray(input),r={...region,sourceBoxes:[{x0:30,y0:30,x1:60,y1:50}]},mapping=createMangaPatch(input,128,128,r);
         const output=zero(mapping.patch);output.fill(2,0,mapping.patch.width*mapping.patch.height);applyMangaPatch(result,128,r,mapping,output);
         expect(Array.from(result.slice((35*128+35)*4,(35*128+35)*4+4))).toEqual([255,0,0,255]);
@@ -173,6 +173,77 @@ describe('漫画局部神经修补',()=>{
         applyMangaPatch(result,128,region,mapping,zero(mapping.patch));
         expect(()=>applyMangaPatch(result,128,region,mapping,new Float32Array(1))).toThrow('无效');
         const bad=zero(mapping.patch);bad[0]=NaN;expect(()=>applyMangaPatch(result,128,region,mapping,bad)).toThrow('无效');
+    });
+    it.each([0,1,24,30,128,254])('完整外周 alpha=%i 恢复蒙版内透明度，框外逐字节保留且 RGB 仍使用模型',alpha=>{
+        const width=80,height=64,input=new Uint8ClampedArray(width*height*4),candidate={...region,fontSize:10,bbox:{x0:20,y0:20,x1:60,y1:40}};
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++)input.set([x*3%256,y*5%256,(x+y)%256,alpha],(y*width+x)*4);
+        for(let y=23;y<37;y++)for(let x=24;x<55;x++)input[(y*width+x)*4+3]=255;
+        const before=input.slice(),mapping=createMangaPatch(input,width,height,candidate),result=input.slice(),count=mapping.patch.width*mapping.patch.height;
+        const output=new Float32Array(count*3);output.fill(.25,0,count);output.fill(.5,count,count*2);output.fill(.75,count*2);
+        expect(mapping.alpha).toBe(alpha);applyMangaPatch(result,width,candidate,mapping,output);
+        const boxes=mangaMaskBoxes(candidate,width,height);
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+            const offset=(y*width+x)*4,inside=boxes.some(box=>x>=box.x0&&x<box.x1&&y>=box.y0&&y<box.y1);
+            expect(Array.from(result.slice(offset,offset+4))).toEqual(inside?[64,128,191,alpha]:Array.from(before.slice(offset,offset+4)));
+        }
+        expect(input).toEqual(before);
+    });
+    it.each(['top','bottom','left','right'] as const)('完整外周任一 %s 像素 alpha 不同便保留原透明度',side=>{
+        const input=pixels(),candidate={...region,fontSize:10,bbox:{x0:30,y0:30,x1:90,y1:70}},[box]=mangaMaskBoxes(candidate,128,128);
+        for(let i=3;i<input.length;i+=4)input[i]=24;
+        input[(40*128+40)*4+3]=190;
+        const x=side==='right'?box.x1:box.x0-1,y=side==='top'?box.y0-1:side==='bottom'?box.y1:box.y0;
+        input[(y*128+x)*4+3]=25;
+        const mapping=createMangaPatch(input,128,128,candidate),result=input.slice();expect(mapping.alpha).toBeUndefined();
+        applyMangaPatch(result,128,candidate,mapping,zero(mapping.patch));
+        for(let i=3;i<input.length;i+=4)expect(result[i]).toBe(input[i]);
+    });
+    it('仅清除 source-over 增加的 alpha，蒙版内更透明的孔洞与减 alpha 刻字不被填平',()=>{
+        const input=pixels();for(let i=3;i<input.length;i+=4)input[i]=128;
+        const candidate={...region,fontSize:10,bbox:{x0:30,y0:30,x1:90,y1:70}};
+        for(const [x,a] of [[40,0],[50,96],[60,128],[70,210],[80,255]])input[(40*128+x)*4+3]=a;
+        input.set([211,31,171,0],(40*128+40)*4);
+        const mapping=createMangaPatch(input,128,128,candidate),result=input.slice();expect(mapping.alpha).toBe(128);
+        applyMangaPatch(result,128,candidate,mapping,zero(mapping.patch));
+        for(const [x,a] of [[40,0],[50,96],[60,128],[70,128],[80,128]])expect(result[(40*128+x)*4+3]).toBe(a);
+        for(let i=3;i<input.length;i+=4)expect(result[i]).toBeLessThanOrEqual(input[i]);
+        expect(input.slice((40*128+40)*4,(40*128+40)*4+4)).toEqual(new Uint8ClampedArray([211,31,171,0]));
+    });
+    it.each([
+        {x0:0,y0:20,x1:40,y1:40},{x0:20,y0:0,x1:40,y1:40},
+        {x0:80,y0:20,x1:128,y1:40},{x0:20,y0:80,x1:40,y1:128},
+        {x0:160,y0:20,x1:180,y1:40},{x0:20,y0:160,x1:40,y1:180},
+        {x0:60,y0:20,x1:20,y1:40},{x0:20,y0:60,x1:40,y1:20},
+    ])('触边或图外蒙版不补造完整 alpha 外周：%j',bbox=>{
+        const input=pixels();for(let i=3;i<input.length;i+=4)input[i]=24;
+        const candidate={...region,sourceBoxes:[bbox]},mapping=createMangaPatch(input,128,128,candidate);
+        expect(mapping.alpha).toBeUndefined();
+    });
+    it('分离行和行间孔洞仍逐字节保留，原透明度在模型等待前冻结且不分配额外像素数组',()=>{
+        const input=pixels();for(let i=3;i<input.length;i+=4)input[i]=24;
+        const candidate={...region,sourceBoxes:[{x0:30,y0:30,x1:60,y1:40},{x0:30,y0:60,x1:80,y1:70}]};
+        input.set([211,31,171,0],(50*128+50)*4);
+        const Float=Float32Array,Byte=Uint8Array,Clamped=Uint8ClampedArray,allocations:number[]=[];
+        vi.stubGlobal('Float32Array',class extends Float {constructor(n:number){super(n);allocations.push(this.byteLength);}});
+        vi.stubGlobal('Uint8Array',class extends Byte {constructor(n:number){super(n);throw new Error('extra mask');}});
+        vi.stubGlobal('Uint8ClampedArray',class extends Clamped {constructor(n:number){super(n);throw new Error('extra pixels');}});
+        const mapping=createMangaPatch(input,128,128,candidate);
+        expect(allocations).toEqual([mapping.patch.width*mapping.patch.height*12,mapping.patch.width*mapping.patch.height*4]);
+        vi.stubGlobal('Float32Array',Float);vi.stubGlobal('Uint8Array',Byte);vi.stubGlobal('Uint8ClampedArray',Clamped);
+        const result=input.slice(),before=result.slice();result[(26*128+26)*4+3]=99;
+        expect(mapping.alpha).toBe(24);applyMangaPatch(result,128,candidate,mapping,zero(mapping.patch));
+        expect(result[(26*128+26)*4+3]).toBe(24);
+        expect(result.slice((50*128+50)*4,(50*128+50)*4+4)).toEqual(before.slice((50*128+50)*4,(50*128+50)*4+4));
+        expect(createMangaPatch(input,128,128,{...region,sourceBoxes:[]}).alpha).toBeUndefined();
+    });
+    it('重叠内周不一致只会保守拒绝，全部一致的重叠行仍不擦除并集以外画面',()=>{
+        const input=pixels();for(let i=3;i<input.length;i+=4)input[i]=24;
+        const candidate={...region,sourceBoxes:[{x0:30,y0:30,x1:65,y1:50},{x0:60,y0:40,x1:90,y1:70}]};
+        const accepted=createMangaPatch(input,128,128,candidate);expect(accepted.alpha).toBe(24);
+        const result=input.slice();applyMangaPatch(result,128,candidate,accepted,zero(accepted.patch));
+        expect(result[(27*128+87)*4]).toBe(255);expect(result[(27*128+87)*4+3]).toBe(24);
+        input[(40*128+69)*4+3]=190;
+        expect(createMangaPatch(input,128,128,candidate).alpha).toBeUndefined();
     });
     it('均匀气泡不下载模型，复杂区域才按需初始化并复用会话',async()=>{
         const port={run:vi.fn(async patch=>zero(patch)),release:vi.fn()},create=vi.fn(async()=>port),runtime=createMangaInpaintingRuntime(create),progress=vi.fn();

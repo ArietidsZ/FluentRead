@@ -393,3 +393,115 @@ describe('固定彩色文字场景进入常规质量回归',()=>{
         }
     });
 });
+
+describe('固定透明度与段落结构场景进入常规质量回归',()=>{
+    // 首次真实baseline仅26/29 anchors、0/6 strict且破坏保护像素；以下冻结真值回放不是OCR通过证明。
+    const root=new URL('./fixtures/manga-alpha/',import.meta.url);
+    const manifestBytes=readFileSync(new URL('manifest.json',root));
+    const manifest=JSON.parse(manifestBytes.toString());
+    // 只构造已声明真值的transport，测试验收门禁；不模拟生产OCR或分组算法。
+    const sourceTransport=(f:any,overrides:Record<string,string>={})=>{
+        const byId=new Map<string,any>(f.regions.map((region:any)=>[region.id,region]));
+        const texts=f.paragraphGroups.map((group:string[])=>group.map(id=>overrides[id]??byId.get(id).text).join(' '));
+        const lines=f.paragraphGroups.map((group:string[],index:number)=>{
+            const boxes=group.map(id=>byId.get(id).bbox);
+            return text(texts[index],box(Math.min(...boxes.map(b=>b.x0)),Math.min(...boxes.map(b=>b.y0)),Math.max(...boxes.map(b=>b.x1)),Math.max(...boxes.map(b=>b.y1))),boxes);
+        });
+        return {texts,lines};
+    };
+    it('完整manifest与设计先于OCR冻结，六张RGBA PNG的尺寸和散列不能自洽替换真值',()=>{
+        expect(createHash('sha256').update(manifestBytes).digest('hex')).toBe('d5067fdf9438ff253c2124aaf665094f67ac5361847c56ccabfe806cded10060');
+        const designBytes=readFileSync(new URL('design.json',root)),design=JSON.parse(designBytes.toString());
+        expect(createHash('sha256').update(designBytes).digest('hex')).toBe('0a576bb798af2ae15632ac9a3e1576fe9dfc84c35e34756e4f01efd48afd5de7');
+        expect(manifest.designSha256).toBe('0a576bb798af2ae15632ac9a3e1576fe9dfc84c35e34756e4f01efd48afd5de7');
+        expect(manifest.fixtures.map((f:any)=>f.name)).toEqual(['transparent-lantern-bridge-balloons','translucent-riverside-notice','perforated-alpha-dock-note','same-tone-cabin-controls','inverse-neighbor-tidal-balloons','bound-atlas-rule-and-inset-card']);
+        expect(manifest.fixtures.reduce((sum:number,f:any)=>sum+f.regions.length,0)).toBe(29);
+        expect(manifest.fixtures.reduce((sum:number,f:any)=>sum+f.paragraphGroups.length,0)).toBe(20);
+        const provenance=JSON.parse(readFileSync(new URL('provenance.json',root),'utf8'));
+        expect(provenance).toMatchObject({designFreezeUtc:'2026-10-25 13:42:24 UTC',sourceTruthDesignedBeforeAnyOcr:true,selectionByOcrResult:false,pixelRefinementByOcrResult:false,sourceTextOrGroupsChangedAfterDesignFreeze:false,fontFilesBundled:false,modelWeightsBundled:false,generatedByAiImageTool:false,firstPixelFreezeManifestSha256:'d5067fdf9438ff253c2124aaf665094f67ac5361847c56ccabfe806cded10060'});
+        for(const f of manifest.fixtures){
+            const png=readFileSync(new URL(f.file,root));
+            expect(png.subarray(0,8)).toEqual(Buffer.from([137,80,78,71,13,10,26,10]));
+            expect(png.readUInt32BE(8)).toBe(13);expect(png.toString('ascii',12,16)).toBe('IHDR');
+            expect(png.readUInt32BE(16)).toBe(f.width);expect(png.readUInt32BE(20)).toBe(f.height);
+            expect([...png.subarray(24,29)]).toEqual([8,6,0,0,0]); // 固定8位、非交错RGBA，不能悄悄扁平化alpha。
+            expect(png.length).toBe(f.bytes);expect(createHash('sha256').update(png).digest('hex')).toBe(f.sha256);
+            expect(f.imageMode).toBe('RGBA');expect(f.decodedRgbaSha256).toMatch(/^[a-f0-9]{64}$/u);
+            expect(f.provenance).toMatchObject({originalArtworkAndText:true,sourceDesignedBeforeAnyOcr:true,selectionByOcrResult:false,existing51Unmodified:true,designSha256:manifest.designSha256});
+            expect(f.expectedSource).toEqual(f.regions.map((r:any)=>r.text));expect(f.expectedAnchors).toEqual(f.expectedSource);
+            expect(f.regions.map((r:any)=>r.text)).toEqual(design.scenes.find((s:any)=>s.name===f.name).regions.map((r:any)=>r.text));
+            expect(()=>validateQualityFixtureExpectations(f)).not.toThrow();
+            expect(f.paragraphGroups.flat().sort()).toEqual(f.regions.map((r:any)=>r.id).sort());
+            expect(new Set(f.paragraphGroups.flat()).size).toBe(f.regions.length);
+            expect(f.forbiddenRegions.length).toBeGreaterThan(0);
+            expect(()=>validateQualityFixtureExpectations({...f,forbiddenRegions:[{id:'text-is-not-art',bbox:f.regions[0].bbox}]})).toThrow('negative region contains no declared source text');
+        }
+        expect(readFileSync(new URL('manifest.json',root))).toEqual(manifestBytes);
+    });
+    it('RGBA源probe和孔洞是额外源证据：不把opaque通知或离线元数据当作浏览器alpha修补通过',()=>{
+        let alphaProbes=0,opaqueProbes=0;
+        for(const f of manifest.fixtures){
+            const coverage=f.alphaCoverage;
+            expect(Object.values(coverage).every(value=>Number.isSafeInteger(value)&&Number(value)>=0)).toBe(true);
+            expect(coverage.transparentPixels+coverage.partialPixels+coverage.opaquePixels).toBe(f.width*f.height);
+            expect(coverage.transparentPixels).toBeGreaterThan(0);
+            expect(f.protectedProbes).toHaveLength(3);opaqueProbes+=f.protectedProbes.length;alphaProbes+=f.protectedAlphaProbes.length;
+            for(const probe of [...f.protectedProbes,...f.protectedAlphaProbes]){
+                expect(Number.isInteger(probe.x)&&probe.x>=0&&probe.x<f.width).toBe(true);
+                expect(Number.isInteger(probe.y)&&probe.y>=0&&probe.y<f.height).toBe(true);
+                const values=probe.rgba??probe.rgb;
+                expect(values).toHaveLength(probe.rgba?4:3);expect(values.every((v:number)=>Number.isInteger(v)&&v>=0&&v<=255)).toBe(true);
+                if(probe.rgb)expect(f.regions.some((r:any)=>probe.x>=r.bbox.x0&&probe.x<r.bbox.x1&&probe.y>=r.bbox.y0&&probe.y<r.bbox.y1)).toBe(false);
+            }
+        }
+        expect(opaqueProbes).toBe(18);expect(alphaProbes).toBe(25);
+        expect(manifest.fixtures.filter((f:any)=>f.alphaCoverage.partialPixels>0)).toHaveLength(4);
+        const balloons=manifest.fixtures.find((f:any)=>f.name==='transparent-lantern-bridge-balloons');
+        expect(balloons.alphaCoverage.partialPixels).toBeGreaterThan(0);
+        expect(balloons.protectedAlphaProbes.map((p:any)=>p.rgba[3])).toEqual([0,0,0,0]); // 已冻结probe未覆盖208/224泡内，不能据此宣称半透明修补通过。
+        const notice=manifest.fixtures.find((f:any)=>f.name==='translucent-riverside-notice');
+        expect(notice.alphaCoverage.partialPixels).toBe(0); // alpha156白层已与opaque市场底合成，不能称其内部仍有部分alpha。
+        expect(notice.protectedAlphaProbes.find((p:any)=>p.x===150&&p.y===200).rgba[3]).toBe(255);
+        const dock=manifest.fixtures.find((f:any)=>f.name==='perforated-alpha-dock-note');
+        expect(dock.sourceAlphaHoles.map((hole:any)=>hole.alpha)).toEqual([0,96]);
+        for(const hole of dock.sourceAlphaHoles){
+            const region=dock.regions.find((r:any)=>r.id===hole.regionId),b=hole.bbox;
+            expect(hole.sourceGlyphMaskCoverage).toBe(0);expect(b.x1-b.x0).toBe(6);expect(b.y1-b.y0).toBe(18);
+            expect(b.x0>=region.bbox.x0&&b.y0>=region.bbox.y0&&b.x1<=region.bbox.x1&&b.y1<=region.bbox.y1).toBe(true);
+            expect(hole.probe.x>=b.x0&&hole.probe.x<b.x1&&hole.probe.y>=b.y0&&hole.probe.y<b.y1).toBe(true);
+            const probe=dock.protectedAlphaProbes.find((p:any)=>p.regionId===hole.regionId);
+            expect(probe).toMatchObject(hole.probe);expect(probe.rgba[3]).toBe(hole.alpha);
+        }
+        // 不引入PNG解码/字体/Pillow依赖。固定PNG SHA绑定独立Pillow源像素证据；这里不声称runner已读取额外RGBA字段。
+    });
+    for(const f of manifest.fixtures)it(`${f.name}：完整truth回放及严格的错字、独立段落、负区和多字门禁`,()=>{
+        const perfect=sourceTransport(f),before=JSON.stringify(f);
+        expect(evaluateQualityFixture(f,perfect).qualityFailures).toEqual([]);
+        expect(evaluateQualityReadingOrder(f,perfect.texts).qualityFailures).toEqual([]);
+        for(const region of f.regions){
+            const wrong=sourceTransport(f,{[region.id]:'X'+Array.from(region.text).slice(1).join('')});
+            expect(evaluateQualityFixture(f,wrong).qualityFailures).toContainEqual(expect.objectContaining({type:'ocr-anchor',anchor:region.anchor}));
+        }
+        const merged=perfect.texts.join(' '),allBoxes=f.regions.map((r:any)=>r.bbox);
+        expect(evaluateQualityFixture(f,{texts:[merged],lines:[text(merged,allBoxes[0],allBoxes)]}).qualityFailures).toEqual([]);
+        expect(evaluateQualityReadingOrder(f,[merged]).qualityFailures).toContainEqual(expect.objectContaining({type:'paragraph-order'}));
+        const reversed=[...perfect.texts],index=f.paragraphGroups.findIndex((group:string[])=>group.length>1);
+        reversed[index]=[...f.paragraphGroups[index]].reverse().map(id=>f.regions.find((r:any)=>r.id===id).text).join(' ');
+        expect(evaluateQualityReadingOrder(f,reversed).qualityFailures).toContainEqual(expect.objectContaining({type:'paragraph-order'}));
+        if(f.name==='same-tone-cabin-controls'){
+            const statusMerged=[perfect.texts[0],`${perfect.texts[1]} ${perfect.texts[2]}`,perfect.texts[3]];
+            const order=evaluateQualityReadingOrder(f,statusMerged);
+            expect(order.paragraphGroups[0].found).toBe(true);expect(order.paragraphGroups[3].found).toBe(true);
+            expect(order.qualityFailures).toHaveLength(2);expect(order.qualityFailures.every((failure:any)=>failure.type==='paragraph-order')).toBe(true);
+        }
+        const art=evaluateQualityFixture(f,{texts:perfect.texts,lines:[...perfect.lines,text('…',f.forbiddenRegions[0].bbox)]});
+        expect(art.anchors.every((anchor:any)=>anchor.found)).toBe(true);expect(art.sourceCharacterInventory.excess).toEqual([]);
+        expect(art.qualityFailures).toEqual([expect.objectContaining({type:'artwork-ocr-false-positive',sourceText:'…'})]);
+        const extra=evaluateQualityFixture(f,{texts:perfect.texts,lines:perfect.lines.map((line:any,index:number)=>index===0?{...line,sourceText:line.sourceText+'Q'}:line)});
+        expect(extra.anchors.every((anchor:any)=>anchor.found)).toBe(true);expect(extra.negativeDetections).toEqual([]);
+        expect(extra.qualityFailures).toContainEqual(expect.objectContaining({type:'unexpected-ocr-characters'}));
+        const first=f.regions[0],duplicate=evaluateQualityFixture(f,{texts:[...perfect.texts,first.text],lines:[...perfect.lines,text(first.text,first.bbox)]});
+        expect(duplicate.qualityFailures).toContainEqual(expect.objectContaining({type:'duplicate-anchor',anchor:first.anchor}));
+        expect(JSON.stringify(f)).toBe(before);
+    });
+});
