@@ -1947,15 +1947,52 @@ describe('state 克隆、重挂与能力缺失的公共契约', () => {
 
     it('overflow 来源身份忽略装饰样式，保留可见性语义变化', async () => {
         const {getTranslationOverflowGenerationIdentity} = await import('@/src/features/full-page-translation/content/state');
-        const {document} = parseHTML('<html><body><p><span style="visibility:hidden;color:red">Protected source</span></p></body></html>');
+        const {document} = parseHTML('<html><body><p><span style="visibility:hidden;color:red">Protected source</span>' +
+            '<a href="../paper"><img src="../icon.png" srcset="../icon@2x.png 2x">Reference</a></p></body></html>');
         const owner = document.querySelector<HTMLElement>('p')!;
         const child = owner.querySelector<HTMLElement>('span')!;
+        const link = owner.querySelector('a')!, image = owner.querySelector('img')!;
+        const source = child.firstChild;
         const before = getTranslationOverflowGenerationIdentity(owner);
         child.style.color = 'blue'; child.className = 'hover';
         expect(getTranslationOverflowGenerationIdentity(owner)).toBe(before);
         child.style.visibility = 'visible';
         expect(getTranslationOverflowGenerationIdentity(owner)).not.toBe(before);
         expect(child.style.color).toBe('blue');
+        expect(owner.querySelector('img')).toBe(image); expect(child.firstChild).toBe(source);
+        expect(link.getAttribute('href')).toBe('../paper');
+        expect(image.getAttribute('srcset')).toBe('../icon@2x.png 2x');
+    });
+
+    it('合成段来源归档与译文漂移复验保留来源资源、原始属性及真实节点身份', async () => {
+        const {isTrustedBilingualArtifactWithHostClass} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><div><span id="owner" data-fr-translation-segment="true">' +
+            '<a href="../paper">Source text.</a><img src="../source-icon.png"></span></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const link = owner.querySelector('a')!, image = owner.querySelector('img')!;
+        const source = link.firstChild as Text, sourceHTML = owner.innerHTML;
+        const sourceNodes = Array.from(owner.childNodes);
+        const attempt = beginTranslation(owner, 'bilingual', 'content', true, 'Source text.', [source])!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content'; wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.innerHTML = '<a href="../translated-paper"><img src="../translated-icon.png">译文</a>';
+        owner.appendChild(wrapper); setBilingualContent(owner, wrapper);
+        try {
+            const translatedImage = wrapper.querySelector('img')!;
+            expect(attempt.state.sourceHTML).toBe(sourceHTML);
+            expect(attempt.state.syntheticSourceNodes).toEqual(sourceNodes);
+            expect(owner.querySelector('a')).toBe(link); expect(owner.querySelector('img')).toBe(image);
+            expect(link.firstChild).toBe(source);
+            translatedImage.setAttribute('data-spai-bg-prepared', '1');
+            const before = owner.outerHTML;
+            expect(isTrustedBilingualArtifactWithHostClass(wrapper, attempt.state)).toBe(true);
+            expect(owner.outerHTML).toBe(before);
+            expect(wrapper.querySelector('img')).toBe(translatedImage);
+            expect(translatedImage.getAttribute('src')).toBe('../translated-icon.png');
+            translatedImage.setAttribute('src', '../tampered.png');
+            expect(isTrustedBilingualArtifactWithHostClass(wrapper, attempt.state)).toBe(false);
+        } finally {restoreTranslation(owner);}
+        expect(link.firstChild).toBe(source); expect(image.getAttribute('src')).toBe('../source-icon.png');
     });
 
     it('可信译文 wrapper 接受 ShortPixel 扫描标记，但拒绝属性与 class 丢失', async () => {

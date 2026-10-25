@@ -368,6 +368,8 @@ async function releaseFacebookReadingDialog(page) {
 // Predicate and failure details share exactly the same eligibility decisions.
 function readCoverageReadinessInPage({coverageRules, excludedSelector, protectedSelector,
   nonDialogExcludedSelector, readingPostDialog, technicalWords, diagnostics = false}) {
+  // 只浅复制 Document 壳；在无窗口文档中 import，避免只读探针重新请求来源图片。
+  const snapshotDocument = document.cloneNode(false);
   const excludedAncestor = node => {
     let ancestor = node.closest(excludedSelector);
     while (ancestor && ancestor === readingPostDialog && !ancestor.matches(nonDialogExcludedSelector)) {
@@ -389,7 +391,7 @@ function readCoverageReadinessInPage({coverageRules, excludedSelector, protected
     return letters >= 2 && letters >= cjk;
   };
   const sourceText = node => {
-    const clone = node.cloneNode(true);
+    const clone = snapshotDocument.importNode(node, true);
     clone.querySelectorAll('.fluent-read-bilingual-content, .fluent-read-loading, .fluent-read-retry-wrapper, [data-fr-translation-owned="true"]')
       .forEach(owned => owned.remove());
     clone.querySelectorAll('[data-fr-translation-segment="true"]').forEach(segment => segment.replaceWith(...segment.childNodes));
@@ -454,6 +456,7 @@ async function installCoverageTracker(page, rules) {
   await page.evaluate(({coverageRules, trackerKey, excludedSelector, protectedSelector,
     nonDialogExcludedSelector, nonDialogProtectedSelector, readingPostDialog, technicalWords}) => {
     window[trackerKey]?.stop?.();
+    const snapshotDocument = document.cloneNode(false);
     const ownedSelector = [
       '.fluent-read-bilingual-content',
       '.fluent-read-loading',
@@ -496,7 +499,7 @@ async function installCoverageTracker(page, rules) {
     };
     const canonicalSnapshot = (node, structurePhase) => {
       metrics.canonicalSnapshotCalls += 1;
-      const clone = node.cloneNode(true);
+      const clone = snapshotDocument.importNode(node, true);
       clone.querySelectorAll(ownedSelector).forEach((owned) => owned.remove());
       clone.querySelectorAll('[data-fr-translation-segment="true"]').forEach((segment) => {
         segment.replaceWith(...segment.childNodes);
@@ -817,7 +820,7 @@ async function installCoverageTracker(page, rules) {
     // Only bounded missing-owner queries use presentation-filtered source. Raw
     // canonical text/structure still guard coverage identity and restoration.
     const completionQuerySource = (node) => {
-      const clone = node.cloneNode(true);
+      const clone = snapshotDocument.importNode(node, true);
       const liveDescendants = node.querySelectorAll('*');
       const clonedDescendants = clone.querySelectorAll('*');
       liveDescendants.forEach((live, index) => {
@@ -1840,6 +1843,7 @@ function readPageContractStateInPage({
   required, forbidden = [], interactions = [], dynamicForbidden = [], optionalForbidden = [],
   mutableForbidden = [], baselineState, url, captureIdentity = false, navIdentity,
 }) {
+  const snapshotDocument = document.cloneNode(false);
   const normalizeText = (value) => String(value || '').replace(/\s+/gu, ' ').trim();
   const ownedSelector = [
     '.fluent-read-bilingual-content', '.fluent-read-loading', '.fluent-read-retry-wrapper',
@@ -1938,7 +1942,7 @@ function readPageContractStateInPage({
   });
   const semanticSnapshot = (node) => {
     if (!node) return {sourceText: '', structure: ''};
-    const clone = node.cloneNode(true);
+    const clone = snapshotDocument.importNode(node, true);
     clone.querySelectorAll(ownedSelector).forEach((owned) => owned.remove());
     clone.querySelectorAll('[data-fr-translation-segment="true"]').forEach((segment) => segment.replaceWith(...segment.childNodes));
     return {sourceText: normalizeText(clone.textContent), structure: JSON.stringify(visit(clone, null))};
@@ -2110,10 +2114,11 @@ async function assertPageContract(page, baseline, requiredSelectors, expectedUrl
 
 async function assertRequiredRestored(page, baseline, phase) {
   const restored = await page.evaluate((requiredState) => requiredState.map(({selector}) => {
+    const snapshotDocument = document.cloneNode(false);
     const normalizeText = (value) => String(value || '').replace(/\s+/gu, ' ').trim();
     const semanticSnapshot = (node) => {
       if (!node) return {sourceText: '', structure: ''};
-      const clone = node.cloneNode(true);
+      const clone = snapshotDocument.importNode(node, true);
       clone.querySelectorAll(
         '.fluent-read-bilingual-content, .fluent-read-loading, .fluent-read-retry-wrapper, [data-fr-translation-owned="true"]',
       ).forEach((owned) => owned.remove());
@@ -2730,6 +2735,7 @@ function findHoverTargetInPage({
   readingPostDialog,
   technicalWords,
 }) {
+  const snapshotDocument = document.cloneNode(false);
   const normalizeText = (value) => String(value || '').replace(/\s+/gu, ' ').trim();
   const technicalWordSet = new Set(technicalWords);
   const naturalLanguage = (text) => {
@@ -2746,7 +2752,7 @@ function findHoverTargetInPage({
     return letters >= 2 && letters >= cjk;
   };
   const sourceText = (node) => {
-    const clone = node.cloneNode(true);
+    const clone = snapshotDocument.importNode(node, true);
     clone.querySelectorAll(
       `.fluent-read-bilingual-content, .fluent-read-loading, .fluent-read-retry-wrapper, ` +
       `[data-fr-translation-owned="true"], ${protectedSelector}`,
@@ -3212,7 +3218,8 @@ function readFullPageFailureSnapshotInPage(targetSelector) {
 }
 
 function readSanitizedFailureDomInPage() {
-  const clone = document.documentElement.cloneNode(true);
+  const snapshotDocument = document.cloneNode(false);
+  const clone = snapshotDocument.importNode(document.documentElement, true);
   clone.querySelectorAll('script,noscript,style').forEach(node => node.remove());
   clone.querySelectorAll('input').forEach(node => node.removeAttribute('value'));
   clone.querySelectorAll('textarea').forEach(node => {node.textContent = '';});

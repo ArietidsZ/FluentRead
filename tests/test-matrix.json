@@ -806,6 +806,7 @@
       "tests/fullPageHostClassPreservation.test.ts",
       "tests/pageTranslationAdvanced.test.ts",
       "tests/mainWorldBridgeCore.test.ts",
+      "tests/inertTranslationClone.test.ts",
       "tests/serializationPerformance.test.ts",
       "tests/translationLayoutMeasurements.test.ts",
       "tests/siteTranslationHarness.test.ts",

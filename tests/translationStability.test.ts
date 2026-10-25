@@ -70,6 +70,30 @@ function childListRecord(
 }
 
 describe('动态翻译稳定性判定', () => {
+    it('来源 HTML 回退复验保留图片与相对链接原属性、实时 Text 身份及宿主节点', () => {
+        const {document} = parseHTML('<html><body><p id="owner"><a href="../paper">Source text.</a>' +
+            '<img src="../icon.png" srcset="../icon@2x.png 2x"></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const link = owner.querySelector('a')!;
+        const image = owner.querySelector('img')!;
+        const source = link.firstChild as Text;
+        const current = state({phase: 'translated', sourceText: 'Source text.', sourceHTML: owner.innerHTML,
+            sourceTextNodes: [source], sourceStructureSignature: undefined});
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content'; wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '译文'; owner.appendChild(wrapper);
+        const before = owner.outerHTML;
+        expect(statefulSourceAndTextSlotsAreCurrent(owner, current)).toBe(true);
+        expect(owner.outerHTML).toBe(before);
+        expect(current.sourceTextNodes).toEqual([source]);
+        expect(owner.querySelector('a')).toBe(link); expect(owner.querySelector('img')).toBe(image);
+        expect(link.getAttribute('href')).toBe('../paper');
+        expect(image.getAttribute('srcset')).toBe('../icon@2x.png 2x');
+        image.setAttribute('src', '../changed-icon.png');
+        expect(statefulSourceAndTextSlotsAreCurrent(owner, current)).toBe(false);
+        expect(link.firstChild).toBe(source); expect(image.parentElement).toBe(owner);
+    });
+
     it('单个直接文本重挂时只遍历一次，并同时取得规范化原文与精确槽身份', () => {
         const {document} = parseHTML('<html><body><p>  Read\n the source.  </p></body></html>');
         const owner = document.querySelector<HTMLElement>('p')!;
