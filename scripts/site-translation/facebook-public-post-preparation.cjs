@@ -33,6 +33,38 @@ const FACEBOOK_PUBLIC_POST_SELECTORS = Object.freeze({
   publicArticle: '[role="article"][aria-posinset="1"]',
 });
 
+// 仅等待原生帖子空壳完成 hydration；错误页面或已出现的歧义绝不当作加载中放行。
+// 与最终准备检查一样，此回调必须能够独立序列化执行。
+function readFacebookPublicPostHydrationInPage({expectedUrl}) {
+  const reject = reason => {throw new Error('Facebook public post hydration refused: ' + reason);};
+  let expected;
+  try {expected = new URL(expectedUrl);} catch {reject('invalid public post URL');}
+  if (expected.origin !== 'https://www.facebook.com' || !/^\/[^/]+\/posts\/[^/]+(?:\/[^/]+)*\/?$/u.test(expected.pathname) ||
+      expected.username || expected.password || location.href !== expectedUrl) reject('exact public post URL changed or unsupported');
+  if (document.querySelector('iframe[src*="captcha"],iframe[src*="challenges.cloudflare.com"],form[action*="checkpoint"],form[action*="captcha"],#challenge-running,#cf-challenge-running') ||
+      /^(?:Just a moment|Verify you are human|Access Denied|Robot Check)/iu.test(document.title)) reject('authentication/challenge');
+  const canonicals = [...document.querySelectorAll('link[rel="canonical"]')];
+  if (canonicals.length > 1) reject('canonical public URL ambiguous');
+  if (canonicals.length === 1) {
+    let canonical;
+    try {canonical = new URL(canonicals[0].getAttribute('href'), location.href).href;} catch {reject('canonical public URL mismatch');}
+    if (!canonicals[0].hasAttribute('href') || canonical !== expectedUrl) reject('canonical public URL mismatch');
+  }
+  const messages = [...document.querySelectorAll('[data-ad-preview="message"][data-ad-comet-preview="message"]')];
+  if (messages.length > 1) reject('public message ambiguous');
+  const promotions = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]:has(form#login_popup_cta_form)')];
+  if (promotions.length > 1) reject('promotion ambiguous');
+  const message = messages[0], promotion = promotions[0];
+  const postDialog = message?.closest('[role="dialog"][aria-modal="true"]');
+  const allDialogs = [...document.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog[open],[aria-modal="true"]')];
+  if (allDialogs.some(node => node !== promotion && node !== postDialog)) reject('unrecognized dialog');
+  if (!message) return false;
+  const article = message.closest('[role="article"][aria-posinset="1"]');
+  if (!article || !postDialog || article.closest('[role="dialog"]') !== postDialog || promotion === postDialog ||
+      promotion?.contains(message) || postDialog.contains(promotion)) reject('native public post/promotion relationship changed');
+  return canonicals.length === 1 && Boolean(message.textContent.trim());
+}
+
 // 此函数直接序列化给 page.evaluate/waitForFunction，不能依赖模块作用域或 require。
 function readFacebookPublicPostPreparationStateInPage({expectedUrl, afterDismissal = false}) {
   const reject = reason => {throw new Error('Facebook public post preparation refused: ' + reason);};
@@ -169,8 +201,15 @@ async function prepareFacebookPublicPost(page, expectedUrl, timeout) {
     return value;
   };
   const argument = {expectedUrl};
-  let stage = 'preflight', before, after, nativeClicks = 0, nativeClickAttempts = 0;
+  let stage = 'hydration', before, after, nativeClicks = 0, nativeClickAttempts = 0, hydrationWaited = false;
   try {
+    if (!await page.evaluate(readFacebookPublicPostHydrationInPage, argument)) {
+      hydrationWaited = true;
+      const hydrated = await page.waitForFunction(readFacebookPublicPostHydrationInPage, argument, {timeout: remaining(), polling: 100});
+      await hydrated.dispose();
+    }
+    remaining();
+    stage = 'preflight';
     before = await page.evaluate(readFacebookPublicPostPreparationStateInPage, argument);
     remaining();
     const sourceBefore = await page.evaluate(readFacebookCaptionSnapshotInPage);
@@ -196,7 +235,7 @@ async function prepareFacebookPublicPost(page, expectedUrl, timeout) {
     if (!after || after.action !== 'none' || page.url() !== expectedUrl || JSON.stringify(sourceBefore) !== JSON.stringify(sourceAfter)) {
       throw new Error('Facebook complete public caption/source links changed or remained unreadable');
     }
-    const result = freezeEvidence({status: nativeClicks ? 'dismissed' : 'not-present', url: expectedUrl, nativeClicks, nativeClickAttempts, before, after,
+    const result = freezeEvidence({status: nativeClicks ? 'dismissed' : 'not-present', url: expectedUrl, nativeClicks, nativeClickAttempts, hydrationWaited, before, after,
       captionParts: sourceAfter.parts, captionLinkCount: sourceAfter.links.length,
       sourceAndLinkSnapshotSha256: createHash('sha256').update(JSON.stringify(sourceAfter)).digest('hex'),
       sourceAndLinksUnchanged: true, accountFormActions: 0, visibilityOrAriaWrites: 0, readingPostScope: after.readingPostScope});
@@ -204,7 +243,7 @@ async function prepareFacebookPublicPost(page, expectedUrl, timeout) {
     verifiedPreparationPages.set(result, page);
     return result;
   } catch (error) {
-    const details = {status: 'failed', stage, nativeClicks, nativeClickAttempts, before, after,
+    const details = {status: 'failed', stage, nativeClicks, nativeClickAttempts, hydrationWaited, before, after,
       accountFormActions: 0, visibilityOrAriaWrites: 0};
     // Keep the original failure object/stack; never retry, click again or turn a failed preparation into success.
     if (error && (typeof error === 'object' || typeof error === 'function') && Object.isExtensible(error)) error.facebookPreparation = details;
@@ -213,4 +252,4 @@ async function prepareFacebookPublicPost(page, expectedUrl, timeout) {
 }
 
 module.exports = {FACEBOOK_PUBLIC_POST_SELECTORS, isSupportedFacebookPublicPostUrl, isVerifiedFacebookPublicPostPreparation,
-  readFacebookPublicPostPreparationStateInPage, readFacebookCaptionSnapshotInPage, prepareFacebookPublicPost};
+  readFacebookPublicPostHydrationInPage, readFacebookPublicPostPreparationStateInPage, readFacebookCaptionSnapshotInPage, prepareFacebookPublicPost};

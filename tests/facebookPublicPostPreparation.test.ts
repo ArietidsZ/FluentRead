@@ -5,7 +5,8 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {FACEBOOK_PUBLIC_POST_SELECTORS: selectors, isSupportedFacebookPublicPostUrl,
-    isVerifiedFacebookPublicPostPreparation, readFacebookPublicPostPreparationStateInPage: readState,
+    isVerifiedFacebookPublicPostPreparation, readFacebookPublicPostHydrationInPage: readHydration,
+    readFacebookPublicPostPreparationStateInPage: readState,
     readFacebookCaptionSnapshotInPage: readCaption, prepareFacebookPublicPost} =
     require('../scripts/site-translation/facebook-public-post-preparation.cjs');
 const expectedUrl = 'https://www.facebook.com/FixturePublisher/posts/a-public-story/123/';
@@ -51,7 +52,8 @@ const dismissHost = (state: Fixture) => {
 };
 
 function fakePage(state: Fixture, options: {onClick?: () => void; clickError?: unknown; keepPromotion?: boolean;
-    beforeEvaluate?: (fn: Function) => void; disposeError?: unknown} = {}) {
+    beforeEvaluate?: (fn: Function) => void; beforeWait?: (fn: Function) => void; waitError?: unknown;
+    disposeError?: unknown} = {}) {
     const calls: {action: string; selector?: string; timeout?: number; polling?: number}[] = [];
     let handleDisposals = 0;
     // Compile each page function in isolation, exactly as a serialized evaluate callback with no module closure.
@@ -67,6 +69,8 @@ function fakePage(state: Fixture, options: {onClick?: () => void; clickError?: u
         }}),
         waitForFunction: async (fn: Function, arg: unknown, configuration: {timeout: number; polling: number}) => {
             calls.push({action: 'native-state-poll', ...configuration});
+            options.beforeWait?.(fn);
+            if (options.waitError) throw options.waitError;
             if (!inPage(fn, arg)) throw new Error('Native readiness predicate remained false');
             return {dispose: async () => {handleDisposals++;if (options.disposeError) throw options.disposeError;}};
         },
@@ -75,6 +79,71 @@ function fakePage(state: Fixture, options: {onClick?: () => void; clickError?: u
 }
 
 afterEach(() => {vi.unstubAllGlobals();vi.restoreAllMocks();});
+
+describe('bounded native Facebook hydration before strict preparation', () => {
+    it('waits on an initially empty public shell then runs the same strict source/links/native close protocol', async () => {
+        const state = fixture(), children = [...state.document.body.childNodes];state.document.body.replaceChildren();
+        expect(readHydration({expectedUrl})).toBe(false);
+        const page = fakePage(state, {beforeWait(fn) {if (fn === readHydration) state.document.body.append(...children);}});
+        const result = await prepareFacebookPublicPost(page, expectedUrl, 1000);
+        expect(result).toMatchObject({hydrationWaited: true, nativeClicks: 1, sourceAndLinksUnchanged: true});
+        expect(result.captionParts.map((part: {text: string}) => part.text).join('')).toBe(message);
+        expect(page.calls.map(call => call.action)).toEqual(['native-state-poll', 'native-click', 'native-state-poll']);
+        expect(page.handleDisposals).toBe(2);expect(isVerifiedFacebookPublicPostPreparation(result, page)).toBe(true);
+    });
+
+    it('keeps a hydration timeout as the same original error and records zero pointer actions', async () => {
+        const state = fixture();state.document.body.replaceChildren();
+        const failure: any = new Error('Original browser hydration timeout'), page = fakePage(state, {waitError: failure});
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toBe(failure);
+        expect(failure.facebookPreparation).toMatchObject({stage: 'hydration', hydrationWaited: true, nativeClicks: 0, nativeClickAttempts: 0});
+        expect(page.calls.map(call => call.action)).toEqual(['native-state-poll']);
+        expect(isVerifiedFacebookPublicPostPreparation(failure.facebookPreparation, page)).toBe(false);
+    });
+
+    it.each(['wrong-url', 'wrong-canonical', 'duplicate-canonical', 'malformed-canonical', 'captcha', 'ambiguous-message',
+        'unknown-dialog', 'unknown-hidden-dialog'])(
+        'never treats unsafe rendered state as loading: %s', async variant => {
+            const state = fixture(), d = state.document;
+            if (variant === 'ambiguous-message') d.querySelector(selectors.message).after(d.querySelector(selectors.message).cloneNode(true));
+            else d.body.replaceChildren();
+            if (variant === 'wrong-url') vi.stubGlobal('location', new URL('https://www.facebook.com/checkpoint/'));
+            if (variant === 'wrong-canonical') d.querySelector('link[rel="canonical"]').setAttribute('href', 'https://www.facebook.com/Other/posts/123/');
+            if (variant === 'duplicate-canonical') d.head.append(d.querySelector('link[rel="canonical"]').cloneNode(true));
+            if (variant === 'malformed-canonical') d.querySelector('link[rel="canonical"]').setAttribute('href', 'https://[');
+            if (variant === 'captcha') d.body.insertAdjacentHTML('beforeend', '<iframe src="https://public.example/captcha"></iframe>');
+            if (variant.startsWith('unknown')) d.body.insertAdjacentHTML('beforeend', `<div role="dialog" ${variant.includes('hidden') ? 'aria-hidden="true"' : ''}></div>`);
+            const page = fakePage(state);
+            await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toThrow('hydration refused');
+            expect(page.calls).toEqual([]);
+        });
+
+    it('refuses a new unsafe canonical observed during polling rather than waiting or clicking through it', async () => {
+        const state = fixture();state.document.body.replaceChildren();
+        const page = fakePage(state, {beforeWait() {state.document.querySelector('link[rel="canonical"]').setAttribute('href', 'https://www.facebook.com/Other/posts/123/');}});
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toThrow('canonical public URL mismatch');
+        expect(page.calls.filter(call => call.action === 'native-click')).toEqual([]);
+    });
+
+    it('does not bypass the reviewed close shape after the public shell hydrates', async () => {
+        const state = fixture(), children = [...state.document.body.childNodes];state.document.body.replaceChildren();
+        const page = fakePage(state, {beforeWait(fn) {
+            if (fn === readHydration) {state.document.body.append(...children);state.document.querySelector(selectors.close).setAttribute('aria-label', 'Close');}
+        }});
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toThrow('reviewed Chinese native close shape changed');
+        expect(page.calls.filter(call => call.action === 'native-click')).toEqual([]);
+    });
+
+    it('uses the original total deadline after hydration consumes time', async () => {
+        let clock = 0;vi.spyOn(Date, 'now').mockImplementation(() => clock);
+        const state = fixture(), children = [...state.document.body.childNodes];state.document.body.replaceChildren();
+        const page = fakePage(state, {beforeWait(fn) {if (fn === readHydration) {clock = 40;state.document.body.append(...children);}}});
+        await prepareFacebookPublicPost(page, expectedUrl, 100);
+        expect(page.calls[0]).toMatchObject({action: 'native-state-poll', timeout: 100});
+        expect(page.calls[1]).toMatchObject({action: 'native-click', timeout: 60});
+        expect(page.calls[2]).toMatchObject({action: 'native-state-poll', timeout: 60});
+    });
+});
 
 describe('Facebook public-post preparation URL and native scope', () => {
     it.each([
@@ -231,7 +300,7 @@ describe('reviewed Chinese rolebutton, native visibility and exact caption', () 
 describe('one normal native click, total deadline and immutable success authority', () => {
     it('performs only one normal close, requires full preserved source and authenticates only this returned object', async () => {
         const page = fakePage(fixture()), result = await prepareFacebookPublicPost(page, expectedUrl, 1000);
-        expect(result).toMatchObject({status: 'dismissed', url: expectedUrl, nativeClicks: 1, nativeClickAttempts: 1,
+        expect(result).toMatchObject({status: 'dismissed', url: expectedUrl, hydrationWaited: false, nativeClicks: 1, nativeClickAttempts: 1,
             sourceAndLinksUnchanged: true, accountFormActions: 0, visibilityOrAriaWrites: 0, captionLinkCount: 1});
         expect(page.calls.map(call => call.action)).toEqual(['native-click', 'native-state-poll']);
         expect(page.calls[0]).toMatchObject({selector: selectors.close});
