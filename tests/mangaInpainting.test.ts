@@ -8,6 +8,7 @@ vi.mock('onnxruntime-web/webgpu',()=>({env:{wasm:mocks.wasm},InferenceSession:{c
 vi.mock('@/src/features/image-translation/services/mangaInferenceClient',async original=>({...await original<any>(),mangaInferenceClient:{prepare:mocks.workerPrepare,request:mocks.workerRequest,release:mocks.workerRelease}}));
 import {applyMangaPatch,createBrowserMangaInpainter,createMangaInpaintingRuntime,createMangaPatch,mangaInpaintingRuntime} from '@/src/features/image-translation/services/mangaInpainting';
 import {mangaMaskBoxes} from '@/src/features/image-translation/mangaPatchResult';
+import {planMangaAlphaProtection} from '@/src/features/image-translation/services/mangaAlphaProtection';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
 import {withMangaModelRemoval} from '@/src/features/image-translation/services/mangaOcrAssets';
 const region={text:'Hello world',fontSize:20,bbox:{x0:30,y0:30,x1:90,y1:70}};
@@ -20,6 +21,19 @@ beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.gpu.mockResolvedValu
 });
 afterEach(async()=>{await mangaInpaintingRuntime.dispose().catch(()=>undefined);vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('漫画局部神经修补',()=>{
+    it.each([false,true])('共享全局保护在重叠的未知外周区域仍跳过全部RGBA，写入反序=%s',async reverse=>{
+        const input=pixels(),other={...region,bbox:{x0:40,y0:40,x1:100,y1:80}};
+        input.set([211,31,171,96],(50*128+50)*4);input.set([0,0,0,0],(50*128+51)*4);
+        const [b]=mangaMaskBoxes(other,128,128);input[(50*128+b.x1)*4+3]=120;
+        const original=input.slice(),regions=reverse?[other,region]:[region,other];
+        const protection=planMangaAlphaProtection(input,128,128,regions)!;
+        expect(protection).toBeDefined();expect(createMangaPatch(input,128,128,other).alpha).toBeUndefined();
+        const port={run:vi.fn(async patch=>zero(patch)),release:vi.fn()},runtime=createMangaInpaintingRuntime(async()=>port);
+        const result=await runtime.repair(input,128,128,regions,undefined,undefined,undefined,undefined,{protection});
+        expect(port.run).toHaveBeenCalledTimes(2);expect(input).toEqual(original);
+        expect(result.slice((50*128+50)*4,(50*128+52)*4)).toEqual(original.slice((50*128+50)*4,(50*128+52)*4));
+        expect(result[(50*128+54)*4]).toBe(0);await runtime.dispose();
+    });
     it('默认 Worker 只修补复杂背景，转发补丁和进度，复用端口并空闲释放',async()=>{
         const input=pixels(),controller=new AbortController(),progress=vi.fn(),repairing=vi.fn();
         mocks.workerPrepare.mockImplementation(async(kind,_signal,notify)=>{

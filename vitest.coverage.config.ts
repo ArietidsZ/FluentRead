@@ -189,6 +189,7 @@ export default defineConfig({
                 'src/core/i18n/messages/onboarding.ts',
                 'src/core/i18n/messages/pdfReading.ts',
                 'src/core/i18n/messages/siteRules.ts',
+                'src/features/image-translation/services/mangaAlphaProtection.ts',
                 'src/features/image-translation/services/mangaTypography.ts',
                 'src/services/model-usage/types.ts',
                 'src/services/translation-stats/types.ts',
