@@ -62,10 +62,82 @@ function commitBilingual(owner: HTMLElement, core = createTranslationCore()) {
     expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
     const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
     setBilingualContent(owner, wrapper, {sources, translations, targetLanguage: 'zh-Hans', style: 1});
-    return {wrapper, sources, state: attempt.state};
+    return {wrapper, sources, snapshot, state: attempt.state};
 }
 
 describe('双语快照展示保护', () => {
+    it.each(['del', 's'])('%s 删除语义保留在最终译文中，两轮翻译恢复不改宿主节点或安全边界', (tag) => {
+        const {owner} = page(`Was <${tag} id="deleted" class="host-deletion" onclick="unsafe()">ten</${tag}> ` +
+            'now <strong id="replacement">eight</strong>. <code id="source-code">const value = 10;</code> ' +
+            '<a id="source-link" href="https://example.org/guide" title="Guide">Read the guide</a> ' +
+            '<a id="unsafe-link" href="javascript:unsafe()">Read the warning</a>');
+        const sourceHTML = owner.innerHTML;
+        const sourceChildren = [...owner.childNodes];
+        const deleted = owner.querySelector<HTMLElement>('#deleted')!;
+        const deletedText = deleted.firstChild;
+        const replacement = owner.querySelector('#replacement')!;
+        const link = owner.querySelector<HTMLAnchorElement>('#source-link')!;
+        const linkText = link.firstChild;
+        const code = owner.querySelector('#source-code')!;
+        const codeText = code.firstChild;
+        const originalDeletedHTML = deleted.outerHTML;
+        let previousWrapper: HTMLElement | undefined;
+
+        for (let cycle = 0; cycle < 2; cycle += 1) {
+            const {wrapper, sources, snapshot} = commitBilingual(owner);
+            const translatedDeleted = wrapper.querySelector(tag)!;
+            expect(translatedDeleted, '最终 wrapper 必须保留删除语义，而不只是快照含有标签').not.toBeNull();
+            expect(translatedDeleted.textContent).toBe('译:ten');
+            expect(snapshot.clone.querySelector(tag)?.textContent).toBe('译:ten');
+            expect(wrapper.querySelector('strong')?.textContent).toBe('译:eight');
+            expect(translatedDeleted.hasAttribute('id')).toBe(false);
+            expect(translatedDeleted.hasAttribute('class')).toBe(false);
+            expect(wrapper.querySelector('[onclick]')).toBeNull();
+            expect(wrapper.querySelector('a')?.getAttribute('href')).toBe('https://example.org/guide');
+            expect(wrapper.querySelector('a')?.getAttribute('title')).toBe('Guide');
+            expect(wrapper.querySelectorAll('a')[1]?.hasAttribute('href')).toBe(false);
+            expect(sources).not.toContain('const value = 10;');
+            expect(wrapper.querySelector('code')?.textContent).toBe('const value = 10;');
+            expect(wrapper).not.toBe(previousWrapper);
+            expect(owner.querySelector('#deleted')).toBe(deleted);
+            expect(deleted.firstChild).toBe(deletedText);
+            expect(deleted.outerHTML).toBe(originalDeletedHTML);
+            expect(owner.querySelector('#replacement')).toBe(replacement);
+            expect(owner.querySelector('#source-link')).toBe(link);
+            expect(link.firstChild).toBe(linkText);
+            expect(owner.querySelector('#source-code')).toBe(code);
+            expect(code.firstChild).toBe(codeText);
+
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(owner.innerHTML).toBe(sourceHTML);
+            expect([...owner.childNodes]).toEqual(sourceChildren);
+            sourceChildren.forEach((node, index) => expect(owner.childNodes[index]).toBe(node));
+            expect(wrapper.isConnected).toBe(false);
+            previousWrapper = wrapper;
+        }
+    });
+
+    it.each(['del', 's'])('服务 HTML 的 %s 仅保留删除语义，不放行属性、脚本或危险链接', (tag) => {
+        const {owner} = page('Original source remains unchanged.');
+        const sourceHTML = owner.innerHTML;
+        vi.stubGlobal('DOMParser', class FixtureDOMParser {
+            parseFromString(source: string) {
+                return parseHTML(`<html><body>${source}</body></html>`).document;
+            }
+        });
+        const wrapper = appendBilingualTranslation(owner,
+            `<${tag} onclick="unsafe()" class="host" style="position:fixed" cite="javascript:unsafe()" datetime="2026-10-26">` +
+            `<a href="javascript:unsafe()">已撤回的建议</a><script>unsafe()</script></${tag}>`);
+        const deleted = wrapper.querySelector(tag)!;
+        expect(deleted.textContent).toBe('已撤回的建议');
+        expect([...deleted.attributes]).toEqual([]);
+        expect(deleted.querySelector('a')?.hasAttribute('href')).toBe(false);
+        expect(wrapper.querySelector('script')).toBeNull();
+        wrapper.remove();
+        expect(owner.innerHTML).toBe(sourceHTML);
+    });
+
     it.each([
         ['inline RGB', '<a href="https://example.org/guide" style="color:rgb(220, 38, 38)"><span>@steipete</span></a>', 'rgb(220, 38, 38)'],
         ['class', '<a href="https://example.org/guide" class="host-link"><span>@steipete</span></a>', 'rgb(31, 111, 235)'],
