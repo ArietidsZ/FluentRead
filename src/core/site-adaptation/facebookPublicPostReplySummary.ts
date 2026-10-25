@@ -6,44 +6,19 @@
  * 模块边界：仅纯只读 DOM 与内置 adapter 装饰，不点击、不读取图像 URL、不匹配固定姓名；
  * 未知 locale、额外阅读文字或关系变化均保留通用路径，用户覆盖/停用撤销本能力。
  */
-import {getFacebookPublicPostContext} from './facebookPublicPostDialogLabel';
-import type {AdapterContext, TranslationSiteAdapter} from '../translation/types';
+import {
+    getFacebookPublicPostContext, withFacebookPublicPostProtection,
+    isFacebookOwned as isOwned, facebookNativeElements as nativeElements,
+    facebookNativeChildren as children, facebookNativeTextValue as text,
+    facebookOnlyNativeChild as onlyChild, facebookControlSemanticAttributes as blockedAttributes,
+} from './facebookPublicPostDialogLabel';
+import type {TranslationSiteAdapter} from '../translation/types';
 
-const ownedSelector = '[data-fr-translation-owned="true"]';
 const bodySelector = '[data-ad-preview="message"], span[dir="auto"][lang]';
-const blockedAttributes = ['role', 'tabindex', 'contenteditable', 'href', 'aria-label', 'aria-labelledby'];
-
-function isOwned(element: Element): boolean {
-    return element.closest(ownedSelector) !== null;
-}
-
-function children(element: Element): Element[] {
-    return [...element.children].filter(child => !isOwned(child));
-}
-
-function nativeElements(element: Element, selector: string): Element[] {
-    return [...element.querySelectorAll(selector)].filter(child => !isOwned(child));
-}
-
-function nativeText(node: Node): string {
-    if (node.nodeType === 3) return node.textContent!;
-    if (node.nodeType !== 1 || isOwned(node as Element)) return '';
-    return [...node.childNodes].map(nativeText).join('');
-}
-
-function text(element: Element): string {
-    return nativeText(element).replace(/\s+/gu, ' ').trim();
-}
 
 function wrapper(element: Element, tag = 'div'): boolean {
     return element.localName === tag && !blockedAttributes.some(attribute => element.hasAttribute(attribute))
         && ![...element.childNodes].some(node => node.nodeType === 3 && node.textContent!.trim().length > 0);
-}
-
-/** 只接受当前组件的单个原生包装；own 副本不能补足缺失结构。 */
-function onlyChild(element: Element, tag: string): Element | null {
-    const nodes = children(element);
-    return nodes.length === 1 && nodes[0]!.localName === tag ? nodes[0]! : null;
 }
 
 function textSlot(element: Element, separator = false): boolean {
@@ -62,17 +37,8 @@ function avatarSlot(element: Element): boolean {
         && nativeElements(svg, 'mask').length === 1 && nativeElements(svg, 'image').length === 1;
 }
 
-export function isFacebookPublicPostReplySummary(element: Element): boolean {
-    const button = element.closest('div[role="button"][tabindex="0"]');
-    if (!button || isOwned(element) || button.closest(bodySelector)
-        || ['contenteditable', 'href', 'aria-label', 'aria-labelledby'].some(attribute => button.hasAttribute(attribute))) return false;
-    const dialog = button.closest('[role="dialog"][aria-modal="true"]');
-    if (!dialog) return false;
-    const heading = nativeElements(dialog, 'h2[dir="auto"]').find(node => !node.closest('[role="article"]'));
-    const context = heading && getFacebookPublicPostContext(heading);
-    if (!context || button.closest('[role="article"]') !== context.article) return false;
-
-    // 原生摘要在评论 article 外，是同一卡片的第二个子树，不能伪造评论祖先。
+/** 调用方先核对主帖上下文；原生回复控件是评论 article 外的同卡片第二子树。 */
+export function hasFacebookPublicPostReplyCard(button: Element): boolean {
     const leaf = button.parentElement!;
     const branch = leaf.parentElement!;
     const replies = branch.parentElement;
@@ -86,6 +52,18 @@ export function isFacebookPublicPostReplySummary(element: Element): boolean {
         || onlyChild(replies, 'div') !== branch || onlyChild(branch, 'div') !== leaf
         || leafParts.length !== 2 || leafParts[1] !== button || !wrapper(leafParts[0]!)
         || children(leafParts[0]!).length !== 0) return false;
+    return true;
+}
+
+export function isFacebookPublicPostReplySummary(element: Element): boolean {
+    const button = element.closest('div[role="button"][tabindex="0"]');
+    if (!button || isOwned(element) || button.closest(bodySelector) || nativeElements(button, bodySelector).length > 0
+        || ['contenteditable', 'href', 'aria-label', 'aria-labelledby'].some(attribute => button.hasAttribute(attribute))) return false;
+    const dialog = button.closest('[role="dialog"][aria-modal="true"]');
+    if (!dialog) return false;
+    const heading = nativeElements(dialog, 'h2[dir="auto"]').find(node => !node.closest('[role="article"]'));
+    const context = heading && getFacebookPublicPostContext(heading);
+    if (!context || button.closest('[role="article"]') !== context.article || !hasFacebookPublicPostReplyCard(button)) return false;
 
     if ([...button.childNodes].some(node => node.nodeType === 3 && node.textContent!.trim().length > 0)) return false;
     const outer = onlyChild(button, 'span');
@@ -112,23 +90,6 @@ export function isFacebookPublicPostReplySummary(element: Element): boolean {
 }
 
 export function withFacebookPublicPostReplySummaryProtection(adapter: TranslationSiteAdapter): TranslationSiteAdapter {
-    const matchesSummary = (element: Element, context: AdapterContext) => adapter.matches(context.url)
-        && context.url.hostname === 'www.facebook.com' && /^\/[^/]+\/posts\/[^/]+(?:\/[^/]+)*\/?$/u.test(context.url.pathname)
-        && isFacebookPublicPostReplySummary(element);
-    const wrapped = Object.create(Object.getPrototypeOf(adapter), Object.getOwnPropertyDescriptors(adapter)) as TranslationSiteAdapter;
-    Object.defineProperty(wrapped, 'observedAttributes', {enumerable: true, get() {
-        const attributes = adapter.observedAttributes;
-        return attributes === null ? null : [...new Set([...(attributes ?? []), ...blockedAttributes,
-            'id', 'dir', 'lang', 'aria-hidden', 'aria-modal', 'aria-posinset',
-            'data-ad-preview', 'data-ad-comet-preview', 'data-ad-rendering-role', 'data-fr-translation-owned'])];
-    }});
-    wrapped.decide = (element, context) => matchesSummary(element, context)
-        ? {kind: 'prune-subtree', reason: 'facebook-public-post:reply-summary'} : adapter.decide(element, context);
-    wrapped.shouldStayOriginal = (element, context) => matchesSummary(element, context)
-        || adapter.shouldStayOriginal?.(element, context) === true;
-    wrapped.shouldOmitFromTranslation = (element, context) => matchesSummary(element, context)
-        || adapter.shouldOmitFromTranslation?.(element, context) === true;
-    wrapped.shouldIgnoreMutation = (element, context) => matchesSummary(element, context)
-        || adapter.shouldIgnoreMutation?.(element, context) === true;
-    return wrapped;
+    return withFacebookPublicPostProtection(adapter, isFacebookPublicPostReplySummary,
+        'facebook-public-post:reply-summary', ['lang', 'aria-hidden', 'data-ad-rendering-role']);
 }

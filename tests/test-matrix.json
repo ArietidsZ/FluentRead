@@ -840,6 +840,7 @@
       "tests/facebookPublicPostRules.test.ts",
       "tests/facebookPublicPostDialogLabel.test.ts",
       "tests/facebookPublicPostReplySummary.test.ts",
+      "tests/facebookPublicPostControls.test.ts",
       "tests/facebookPublicPostPreparation.test.ts",
       "tests/facebookPublicPostHarness.test.ts"
     ]

@@ -13,12 +13,20 @@ const url = 'https://www.facebook.com/FixturePublisher/posts/native-public-story
 const rules = [{name: 'body', selector: '#caption', kind: 'content', minInitial: 1, minSeen: 1,
     sourceIncludes: [], minTextLength: 0, trackDynamic: true}];
 
+type FixtureWindow = Record<string, unknown> & {
+    HTMLElement: {prototype: object};
+    HTMLAnchorElement: unknown;
+    Node: unknown;
+};
+
 function fixture() {
-    const {document, window} = parseHTML(`<html><head><link rel="canonical" href="${url}"></head><body>
+    const parsed = parseHTML(`<html><head><link rel="canonical" href="${url}"></head><body>
       <div id="post" role="dialog" aria-modal="true"><div role="article" aria-posinset="1">
         <a role="link" tabindex="0" aria-label="Published yesterday" href="https://www.facebook.com/FixturePublisher/posts/pfbidFixture">Yesterday</a>
         <div data-ad-preview="message" data-ad-comet-preview="message"><p id="caption">Complete public source remains readable.</p></div>
       </div></div></body></html>`);
+    const document = parsed.document as unknown as Document;
+    const window = parsed.window as unknown as FixtureWindow;
     Object.defineProperty(window.HTMLElement.prototype, 'getBoundingClientRect', {configurable: true,
         value() {return {x: 10, y: 20, width: 400, height: 40};}});
     Object.defineProperty(document, 'createRange', {configurable: true, value: () => ({selectNodeContents() {},
@@ -31,10 +39,11 @@ function fixture() {
         observe() {}
         disconnect() {}
     }
-    for (const [name, value] of Object.entries({document, window, HTMLElement: window.HTMLElement,
+    const globals: Record<string, unknown> = {document, window, HTMLElement: window.HTMLElement,
         HTMLAnchorElement: window.HTMLAnchorElement, Node: window.Node,
         MutationObserver: Observer, NodeFilter: {SHOW_TEXT: 4}, location: new URL(url), innerWidth: 1280, innerHeight: 900,
-        getComputedStyle: () => ({display: 'block', visibility: 'visible', opacity: '1'})})) vi.stubGlobal(name, value);
+        getComputedStyle: () => ({display: 'block', visibility: 'visible', opacity: '1'})};
+    for (const [name, value] of Object.entries(globals)) vi.stubGlobal(name, value);
     const handles: Array<{value: unknown; asElement: () => unknown; dispose: ReturnType<typeof vi.fn>}> = [];
     const unwrap = (value: any): any => {
         if (handles.includes(value)) return value.value;

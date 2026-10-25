@@ -185,6 +185,14 @@ describe('Facebook 原生中文 reply summary', () => {
             expect(isFacebookPublicPostReplySummary(button)).toBe(false);
         });
 
+    it.each(['language-body', 'caption'])('后代出现真实 %s 标记时撤销整块摘要保护', marker => {
+        const {button, author} = nativeFixture();
+        const span = author.querySelector('span')!;
+        if (marker === 'language-body') {span.setAttribute('dir', 'auto'); span.setAttribute('lang', 'en');}
+        else span.setAttribute('data-ad-preview', 'message');
+        expect(isFacebookPublicPostReplySummary(button)).toBe(false);
+    });
+
     it.each(['9 replies', '九条回复', '-1条回复', '1.5条回复', '1,000条回复', '9条回复 More reading', '回复 9', ''])('不猜其它 locale/近似计数 %s', value => {
         const {button, count} = nativeFixture(); count.textContent = value;
         expect(isFacebookPublicPostReplySummary(button)).toBe(false);
