@@ -1,12 +1,12 @@
 /**
  * @file src/features/image-translation/services/mangaRendering.ts
  * 文件职责：在整段漫画区域中绘制适合阅读的译文，避免整行逐框放大和复杂背景扩散条纹。
- * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；边缘采样全部不透明时才允许均匀背景按原始行及描边蒙版清字；清字和绘字共同扣除原图冻结的低 alpha 并集，再在原框内无孔连续矩形完整重排，选择最大可用字号而不切除译文字形；页内度量以固定字体族下的字重、字号与全文短键复用，仍保持有界缓存；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
+ * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；边缘采样全部不透明时才允许均匀背景按原始行及描边蒙版清字；清字和绘字共同扣除原图冻结的低 alpha 并集，再在原框内无孔连续矩形完整重排，选择最大可用字号而不切除译文字形；多候选共享分词，按原序预检最大字号后用二分上界跳过必输搜索，保留原候选顺序的平局及页内准入；页内度量以固定字体族下的字重、字号与全文短键复用，仍保持有界缓存；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
  * 模块边界：只操作调用方提供的画布和像素，不运行 OCR/翻译、不修改宿主页面；绘制区域局限于识别框，完整原图仍可通过现有按钮对照。
  */
 import type {MangaRegion} from './mangaRegions';
 import {getImageTextColor, getImageTextBackgroundColor} from './rendering';
-import {layoutMangaTranslationText, MANGA_TEXT_FONT} from './mangaTypography';
+import {createMangaTranslationSearch, layoutMangaTranslationText, MANGA_TEXT_FONT} from './mangaTypography';
 import {mangaMaskBoxes} from '../mangaPatchResult';
 import {mangaAlphaClearRects,type MangaAlphaProtection} from './mangaAlphaProtection';
 
@@ -110,13 +110,46 @@ export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels:
             const available=protection?mangaAlphaClearRects(protection,bounds,alphaLayoutBudget):[bounds];
             if(!available.length)throw new Error('漫画透明图案遮挡译文区域，已保留原图');
             const affected=available.length!==1||available[0]!==bounds;
-            let best:ReturnType<typeof fit>|undefined=fit(available[0]);
-            if(affected&&!best.fits)best=undefined;
-            for(let candidate=1;candidate<available.length;candidate++){
-                if(best?.layout.fontSize===maxSize)break;
-                if(++additionalLayouts>512)throw new Error('漫画透明图案过于复杂，已保留原图');
-                const next=fit(available[candidate]);
-                if(next.fits&&(!best||next.layout.fontSize>best.layout.fontSize))best=next;
+            let best:ReturnType<typeof fit>|undefined;
+            if(!affected||available.length===1||!(maxSize>.99)){
+                best=fit(available[0]);if(affected&&!best.fits)best=undefined;
+                for(let candidate=1;candidate<available.length;candidate++){
+                    if(best?.layout.fontSize===maxSize)break;
+                    if(++additionalLayouts>512)throw new Error('漫画透明图案过于复杂，已保留原图');
+                    const next=fit(available[candidate]);
+                    if(next.fits&&(!best||next.layout.fontSize>best.layout.fontSize))best=next;
+                }
+            }else{
+                // 私有离屏原生 context 在本次同步绘制中不加载字体；同一字号/全文的数值度量稳定。
+                const search=createMangaTranslationSearch(region.text,(text,size)=>measure(text,size).width,maxSize,(text,size)=>{
+                    const {ascent,descent}=measure(text,size);
+                    if(![ascent,descent].every(Number.isFinite)||ascent+descent<=0)return undefined;
+                    const padding=lineWidth(size)/2+.5;return{ascent:ascent+padding,descent:descent+padding};
+                });
+                // state 仅含尺寸；不保留失败最大布局、分词副本或每候选闭包。
+                const jobs:Array<{candidate:number;bounds:typeof bounds;w:number;h:number;inset:number;state:ReturnType<typeof search.prepare>}>=[];
+                for(let candidate=0;candidate<available.length;candidate++){
+                    if(candidate&&++additionalLayouts>512)throw new Error('漫画透明图案过于复杂，已保留原图');
+                    const bounds=available[candidate],w=bounds.x1-bounds.x0,h=bounds.y1-bounds.y0;
+                    const inset=Math.min(display ? Math.max(3,maxSize*.12) : Math.min(4,maxSize*.1),w/4,h/4);
+                    const state=search.prepare(w-inset*2,h);
+                    jobs.push({candidate,bounds,w,h,inset,state});
+                    // 与旧路径同样选择首个最大字号候选，后续候选不扣准入预算。
+                    if(state.maximum?.fontSize===maxSize){best={bounds,layout:state.maximum,fits:true};break;}
+                }
+                if(!best){
+                    let bestIndex=Infinity;
+                    // 面积只决定计算先后；上界和原索引负责精确的输赢与平局，不用面积拒绝候选。
+                    jobs.sort((a,b)=>b.w*b.h-a.w*a.h||a.candidate-b.candidate);
+                    for(const job of jobs){
+                        const layout=search.finish(job.state,best?.layout.fontSize??-Infinity,job.candidate<bestIndex);
+                        if(!layout)continue;
+                        const fits=(layout.ink?.height??layout.lines.length*layout.lineHeight)<=job.h&&layout.lines.every(line=>measure(line,layout.fontSize).width<=job.w-job.inset*2);
+                        if(fits&&(!best||layout.fontSize>best.layout.fontSize||(layout.fontSize===best.layout.fontSize&&job.candidate<bestIndex))){
+                            best={bounds:job.bounds,layout,fits};bestIndex=job.candidate;
+                        }
+                    }
+                }
             }
             if(!best)throw new Error('漫画透明图案遮挡译文区域，已保留原图');
             const layout=best.layout;
