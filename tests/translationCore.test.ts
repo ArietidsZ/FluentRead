@@ -2704,6 +2704,108 @@ describe('translation candidate core', () => {
         expect(core.resolve(document.querySelector('#unscoped-copy')?.firstChild)).toBeNull();
     });
 
+    it.each([
+        ['slot', '<div slot="comment" data-comment-body>', '</div>'],
+        ['rtjson', '<div id="t1_rich-comment-rtjson-content" data-comment-body>', '</div>'],
+    ])('Reddit 普通评论 %s 的完整富文本块同时支持全文发现与悬浮，保留操作和代码', (_name, open, close) => {
+        const headings = Array.from({length: 6}, (_, index) =>
+            `<h${index + 1} id="rich-heading-${index + 1}">Readable section heading number ${index + 1}</h${index + 1}>`).join('');
+        const {document, core} = page(`<main><shreddit-comment>
+            <h3 id="comment-author">Example reader with a long display name</h3>
+            ${open}<p id="rich-paragraph">An ordinary paragraph keeps its reading context.</p>${headings}
+                <ul><li id="rich-list">A separate list item describes another useful detail.</li></ul>
+                <blockquote id="rich-quote">A quoted explanation stays independently readable.</blockquote>
+                <table><thead><tr><th id="rich-table-heading">Reading method</th></tr></thead><tbody>
+                    <tr><td id="rich-table-cell">Follow <a id="rich-link" href="/r/example/wiki/">this practical guide</a> and keep <code id="rich-code">KEEP_SOURCE_CODE</code>.</td></tr>
+                    <tr><td id="rich-table-paragraph-cell"><p id="rich-table-paragraph">A paragraph inside a cell must be translated only once.</p></td></tr>
+                </tbody></table>
+                <pre id="rich-pre"><code>KEEP_BLOCK_CODE</code></pre>
+                <button id="rich-button"><span>Reply to this comment</span></button>
+                <div contenteditable="true"><h3 id="rich-draft">A private reply draft remains unchanged.</h3></div>
+                <h3 id="rich-no-translate" translate="no">Original protected heading</h3>
+            ${close}<button id="outside-button">Open comment options</button>
+        </shreddit-comment><h3 id="outside-heading">Other page navigation remains original</h3>
+        <div slot="comment"><h3 id="unscoped-slot">A matching slot outside a comment is not body content</h3></div>
+        <shreddit-comment><div id="t1_rich-comment-rtjson-content-extra"><h3 id="near-miss-body">A near-miss content identifier remains outside the body</h3></div></shreddit-comment></main>`,
+        'https://www.reddit.com/r/example/comments/123/topic/');
+        const before = document.body.innerHTML;
+        const protectedCode = document.getElementById('rich-code')!;
+        const protectedCodeText = protectedCode.firstChild;
+        const originalCodeHTML = protectedCode.outerHTML;
+        const required = ['rich-paragraph', ...Array.from({length: 6}, (_, index) => `rich-heading-${index + 1}`),
+            'rich-list', 'rich-quote', 'rich-table-heading', 'rich-table-cell', 'rich-table-paragraph-cell'];
+        const candidates = core.discover(document);
+        expect(candidates.map(candidate => candidate.element.id).sort()).toEqual([...required].sort());
+        const sourceText = candidates.map(candidate => extractTranslationTextFromNodes(
+            candidate.nodes ?? [candidate.element], core.shouldStayOriginal)).join('\n');
+        for (const id of required) {
+            const owner = document.getElementById(id)!;
+            const text = id === 'rich-table-cell' ? owner.querySelector('a')!.firstChild
+                : id === 'rich-table-paragraph-cell' ? owner.querySelector('p')!.firstChild : owner.firstChild;
+            const resolved = core.resolve(text);
+            // 仅含一个 P 的单元格，全文由原子 TD 持有；悬浮使用更细的 P，完整来源必须相同。
+            const hoverOwner = id === 'rich-table-paragraph-cell' ? owner.querySelector('p')! : owner;
+            expect({id: resolved?.element.id, adapterId: resolved?.adapterId, reason: resolved?.reason}, id)
+                .toEqual({id: hoverOwner.id, adapterId: 'reddit', reason: 'reddit-comment-prose'});
+            expect(resolved?.element, id).toBe(hoverOwner);
+            if (id === 'rich-table-paragraph-cell') {
+                const fullOwner = candidates.filter(candidate => candidate.element === owner);
+                expect(fullOwner).toHaveLength(1);
+                const fullSource = extractTranslationTextFromNodes(
+                    fullOwner[0]!.nodes ?? [owner], core.shouldStayOriginal);
+                const hoverSource = extractTranslationTextFromNodes(
+                    resolved!.nodes ?? [resolved!.element], core.shouldStayOriginal);
+                expect(fullSource).toBe('A paragraph inside a cell must be translated only once.');
+                expect(hoverSource).toBe(fullSource);
+                expect(resolved!.nodes).toBeUndefined();
+            }
+        }
+        // 显式表格单元格是原子 owner；其内部 P 不应再成为第二个翻译目标。
+        expect(candidates.some(candidate => candidate.element.id === 'rich-table-paragraph')).toBe(false);
+        expect(sourceText).toContain('this practical guide');
+        expect(sourceText.match(/A paragraph inside a cell must be translated only once\./g)).toHaveLength(1);
+        expect(sourceText).not.toMatch(/KEEP_SOURCE_CODE|KEEP_BLOCK_CODE|Reply to|private reply|protected heading|display name|navigation|matching slot|near-miss/);
+        for (const id of ['comment-author', 'rich-pre', 'rich-button', 'rich-draft', 'rich-no-translate',
+            'outside-button', 'outside-heading', 'unscoped-slot', 'near-miss-body']) {
+            expect(core.resolve(document.getElementById(id)!.firstChild), id).toBeNull();
+        }
+        const cell = document.getElementById('rich-table-cell')!;
+        const link = document.getElementById('rich-link')!;
+        // 命中 inline code 可解析到包围正文，但代码本身不能进入翻译槽或被改写。
+        expect(core.resolve(protectedCodeText)?.element).toBe(cell);
+        const snapshot = createTranslationSourceSnapshot(cell as unknown as HTMLElement, core.shouldStayOriginal);
+        expect(snapshot.slots.map(slot => slot.source).join(' ')).not.toContain('KEEP_SOURCE_CODE');
+        const output = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '已翻译的阅读内容'));
+        expect(output).toContain('href="/r/example/wiki/"');
+        expect(output).toContain(originalCodeHTML);
+        expect(document.getElementById('rich-code')).toBe(protectedCode);
+        expect(protectedCode.firstChild).toBe(protectedCodeText);
+        expect(protectedCode.outerHTML).toBe(originalCodeHTML);
+        expect(link.getAttribute('href')).toBe('/r/example/wiki/');
+        expect(document.getElementById('rich-link')).toBe(link);
+        expect(document.body.innerHTML).toBe(before);
+    });
+
+    it('Reddit 普通评论富文本在正文标记变化和动态新增后重新验证候选', () => {
+        const {document, core} = page('<main><shreddit-comment><div id="t1_dynamic-comment-rtjson-content">'
+            + '<h3 id="dynamic-heading">A dynamically loaded section remains readable.</h3></div></shreddit-comment></main>',
+        'https://www.reddit.com/r/example/comments/123/topic/');
+        const body = document.getElementById('t1_dynamic-comment-rtjson-content')!;
+        const heading = document.getElementById('dynamic-heading')!;
+        expect(core.discover(document).map(candidate => candidate.element.id)).toEqual(['dynamic-heading']);
+        expect(core.resolve(heading.firstChild)?.element).toBe(heading);
+        body.removeAttribute('id');
+        expect(core.discover(document)).toEqual([]);
+        expect(core.resolve(heading.firstChild)).toBeNull();
+        body.setAttribute('slot', 'comment');
+        body.insertAdjacentHTML('beforeend', '<table><tr><td id="dynamic-cell">Another readable comparison loaded later.</td></tr></table>');
+        const cell = document.getElementById('dynamic-cell')!;
+        expect(core.discover(body).map(candidate => candidate.element.id)).toEqual(['dynamic-heading', 'dynamic-cell']);
+        expect(core.resolve(cell.firstChild)?.element).toBe(cell);
+        body.remove();
+        expect(core.discover(document)).toEqual([]);
+    });
+
     it.each(['/search/?q=language&type=posts', '/r/languagelearning/search/?q=reading&type=comments'])(
         'Reddit 搜索 %s 在 focus 范围发现 SDUI 标题和评论，保护元数据与操作', (pathname) => {
             const fixture = readFileSync(new URL('./fixtures/translation-pages/reddit-search.html', import.meta.url), 'utf8');
