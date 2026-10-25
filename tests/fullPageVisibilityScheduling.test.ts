@@ -7806,6 +7806,8 @@ describe("全文翻译可见性锚点", () => {
 
     it('materialize source moves delivered before the deferred spinner preserve the pending synthetic attempt', async () => {
         const f = beforeSpinnerInlineFixture();
+        const icon = document.createElement('img'); icon.setAttribute('src', '../source-icon.png');
+        f.strong.appendChild(icon);
         try {
             autoTranslateEnglishPage();
             await vi.advanceTimersByTimeAsync(50);
@@ -7820,6 +7822,7 @@ describe("全文翻译可见性锚点", () => {
             expect(loading.spinner).toBeUndefined();
             expect(Array.from(segment.childNodes)).toEqual(f.sources);
             expect(loading.sourceTextNodes).toEqual([f.first, f.second]);
+            expect(loading.sourceHTML).toContain('src="../source-icon.png"');
             expect(f.block.parentNode).toBe(f.host);
 
             // The actual renderer inserted this segment, then moved first Text and strong into it.
@@ -7854,6 +7857,8 @@ describe("全文翻译可见性锚点", () => {
             expect(f.host.querySelector('[data-fr-translation-segment="true"]')).toBe(segment);
             expect(Array.from(segment.childNodes)).toEqual(f.sources);
             expect(f.strong.firstChild).toBe(f.second);
+            expect(f.strong.querySelector('img')).toBe(icon);
+            expect(icon.getAttribute('src')).toBe('../source-icon.png');
             expect(runtime.requests).toHaveBeenCalledTimes(1);
 
             await vi.advanceTimersByTimeAsync(100);

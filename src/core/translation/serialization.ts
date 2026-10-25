@@ -19,6 +19,7 @@ import {
     isTranslationTooltip,
 } from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
+import {cloneTranslationElementInert} from './inertClone';
 
 const translationArtifactSelector = [
     '.fluent-read-bilingual-content',
@@ -229,7 +230,7 @@ export function createTranslationSourceSnapshot(
     protectionOptions?: TranslationTextProtectionOptions,
     shouldOmitFromTranslation?: (element: Element) => boolean,
 ): TranslationSourceSnapshot {
-    const clone = node.cloneNode(true) as HTMLElement;
+    const clone = cloneTranslationElementInert(node);
     // 外部译文属于展示产物，不是需要保留的 code/notranslate 原文。连同其已接管
     // 的最小来源单元一起省略，防止 sanitizer 去掉标记后再次展示一份旧译文。
     if (isForeignTranslationBoundary(node)) {

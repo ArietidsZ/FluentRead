@@ -527,6 +527,9 @@ describe('translation truncation layout', () => {
         source.textContent = 'Same   source';
         const clone = document.createElement('p');
         clone.textContent = 'Same source';
+        const sourceImage = document.createElement('img'); sourceImage.setAttribute('src', '../source-icon.png');
+        const replacementImage = sourceImage.cloneNode(true) as HTMLImageElement;
+        source.appendChild(sourceImage); clone.appendChild(replacementImage);
         const record = (type: MutationRecordType, added: Node[], removed: Node[]) => ({
             type,
             addedNodes: added as unknown as NodeList,
@@ -538,7 +541,11 @@ describe('translation truncation layout', () => {
         artifact.setAttribute('data-fr-translation-owned', 'true');
         source.appendChild(artifact);
         clone.appendChild(artifact.cloneNode(true));
+        const sourceBefore = source.outerHTML, replacementBefore = clone.outerHTML;
         expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(true);
+        expect(source.outerHTML).toBe(sourceBefore); expect(clone.outerHTML).toBe(replacementBefore);
+        expect(source.querySelector('img')).toBe(sourceImage); expect(clone.querySelector('img')).toBe(replacementImage);
+        expect(replacementImage.getAttribute('src')).toBe('../source-icon.png');
         expect(isTextEquivalentHostReplacement(record(
             'childList',
             [clone, document.createComment('new framework marker')],

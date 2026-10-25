@@ -712,6 +712,7 @@ export default defineConfig({
                 'src/core/translation/lineBreak.ts',
                 'src/core/translation/registry.ts',
                 'src/core/translation/serialization.ts',
+                'src/core/translation/inertClone.ts',
                 'src/core/translation/slotProtocol.ts',
                 'src/core/translation/layoutMeasurements.ts',
                 'src/core/translation/text.ts',

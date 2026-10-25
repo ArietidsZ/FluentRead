@@ -2,9 +2,10 @@
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
  * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、离线模板仅省略外层属性自比较并保留内容与复制工件复验、双语重放对象的纯组装与扩展源语言边界、已提交译文的前后位置及骨架重放换行快照、保留请求代次的显示工件切换、含固定高度 line-clamp 的共享样式租约、同批布局与来源保护读数复用及写入失效（释放最后一个旧祖先租约也立即失效）、窗口及外观变化后的手册缩进和栏宽复核并同步可信模板、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、逐父节点单次读取子列表的移除子树所有者枚举、按真实状态变更发布增量阶段通知、清除通知携带旧来源以协调延迟区域任务，以及沿用当前 owner 快照并保护各滚动面的全量恢复。
- * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；自动应用外壳许可随状态保存并在提交、修复和独立观察时向核心复验；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，重挂时撤下旧译文尺寸隔离并同步可信模板，避免跨 session 误删新结果。
+ * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；来源指纹、合成段归档及漂移比对使用惰性文档副本，实际重挂仍保持真实页面节点；自动应用外壳许可随状态保存并在提交、修复和独立观察时向核心复验；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，重挂时撤下旧译文尺寸隔离并同步可信模板，避免跨 session 误删新结果。
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
+import {cloneTranslationElementInert} from '@/src/core/translation/inertClone';
 import {isIdentifierLikeText, isTranslationTextNodeProtected} from "@/src/core/translation/text";
 import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
 import {withFullPageRestorationAnchors} from './viewportStability';
@@ -384,7 +385,7 @@ export function isTranslationSourceStructureOverflow(signature: string | undefin
 export function getTranslationOverflowGenerationIdentity(
     owner: HTMLElement,
 ): string {
-    const clone = owner.cloneNode(true) as HTMLElement;
+    const clone = cloneTranslationElementInert(owner);
     Array.from(clone.querySelectorAll('[data-fr-translation-owned="true"]'))
         .forEach((artifact) => artifact.remove());
     Array.from(clone.querySelectorAll<HTMLElement>('*')).forEach((element) => {
@@ -709,8 +710,10 @@ export function setBilingualContent(
             state.syntheticHost = node.parentElement ?? state.syntheticHost;
             state.syntheticSourceNodes = Array.from(node.childNodes).filter((child) =>
                 child.nodeType !== 1 || !(child as Element).matches('[data-fr-translation-owned="true"]'));
-            const sourceClone = node.cloneNode(false) as HTMLElement;
-            state.syntheticSourceNodes.forEach((child) => sourceClone.appendChild(child.cloneNode(true)));
+            const sourceClone = cloneTranslationElementInert(node, false);
+            state.syntheticSourceNodes.forEach((child) => sourceClone.appendChild(
+                sourceClone.ownerDocument.importNode(child, true),
+            ));
             state.sourceHTML = sourceClone.innerHTML;
         }
         if (replay) state.bilingualReplay = {
@@ -974,8 +977,8 @@ function bilingualContentMatchesWithHostTabOrder(
     if (artifact.innerHTML === state.bilingualHTML) return true;
     const template = state.bilingualContentTemplate;
     if (!template || template.innerHTML !== state.bilingualHTML) return false;
-    const current = artifact.cloneNode(true) as HTMLElement;
-    const expected = template.cloneNode(true) as HTMLElement;
+    const current = cloneTranslationElementInert(artifact);
+    const expected = cloneTranslationElementInert(template);
     for (const clone of [current, expected]) {
         for (const element of Array.from(clone.querySelectorAll('[data-spai-bg-prepared="1"]'))) {
             element.removeAttribute('data-spai-bg-prepared');
