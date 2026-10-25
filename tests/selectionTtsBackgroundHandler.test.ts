@@ -674,6 +674,28 @@ describe('selection TTS background handlers', () => {
         });
     });
 
+    it('Google TTS 扩展页面缺少音频获取端口时明确拒绝且没有播放副作用', async () => {
+        const {router, dependencies} = createSubject();
+
+        await expect(router.dispatch({
+            type: SELECTION_TTS_GOOGLE_MESSAGE_TYPE,
+            text: 'hello',
+            language: 'en-US',
+            clientRequestId: 'google-page-unavailable',
+        }, {sender: {url: 'chrome-extension://controlled-extension/options.html#settings-vocabulary'}})).resolves.toEqual({
+            handled: true,
+            response: {success: false, error: '扩展页面 Google TTS 不可用'},
+        });
+
+        expect(dependencies.fetchPageAudio).toBeUndefined();
+        expect(dependencies.synthesize).not.toHaveBeenCalled();
+        expect(dependencies.playWithOffscreen).not.toHaveBeenCalled();
+        expect(dependencies.stopWithOffscreen).not.toHaveBeenCalled();
+        expect(dependencies.seekWithOffscreen).not.toHaveBeenCalled();
+        expect(dependencies.sendTabMessage).not.toHaveBeenCalled();
+        expect(dependencies.warn).not.toHaveBeenCalled();
+    });
+
     it('Google TTS 在扩展页面返回音频数据供页面播放', async () => {
         const fetchPageAudio = vi.fn(async (url: string, signal: AbortSignal) => {
             expect(url).toBe(googleSelectionTtsUrl('hello', 'en-US'));
