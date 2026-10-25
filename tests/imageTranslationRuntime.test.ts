@@ -104,7 +104,7 @@ function setup(bitmapSize = {width:400,height:200}) {
         if (tag === 'img') decorateStyle(element as HTMLElement);
         if (tag === 'canvas') {
             const canvas = element as HTMLCanvasElement;
-            canvas.getContext = vi.fn(() => ({drawImage: draw, getImageData: vi.fn(() => ({data: new Uint8ClampedArray(8 * 8 * 4).fill(255)}))})) as never;
+            canvas.getContext = vi.fn(() => ({drawImage: draw, clearRect: vi.fn(), getImageData: vi.fn(() => ({data: new Uint8ClampedArray(8 * 8 * 4).fill(255)}))})) as never;
             canvas.toDataURL = () => 'data:image/png;base64,source';
             canvas.toBlob = vi.fn((callback: BlobCallback) => {
                 if (autoEncode) callback(new Blob(['source'])); else pendingPng.push(callback);
