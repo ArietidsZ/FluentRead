@@ -750,6 +750,44 @@ describe('translation truncation layout', () => {
         });
     });
 
+    it('renders raw snapshot links and relative formula images against the current live page base', async () => {
+        const {document} = parseHTML('<html><head><base href="https://host.example/articles/"></head><body><p id="owner">Read <a href="../reference?q=1#part">the reference</a> and <span class="mwe-math-element"><img src="equation.svg" alt="x"></span>.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const original = owner.outerHTML;
+        const link = owner.querySelector('a')!;
+        const formulaImage = owner.querySelector('img')!;
+        const previousConfig = {...config};
+
+        await withDocumentRealm(document, async () => {
+            try {
+                Object.assign(config, {to: 'zh'});
+                for (const base of ['https://host.example/articles/', 'https://host.example/updates/']) {
+                    document.querySelector('base')!.setAttribute('href', base);
+                    const snapshot = createTranslationSourceSnapshot(owner);
+                    // A read-only snapshot need not resolve addresses like the live document.
+                    Object.defineProperty(snapshot.clone.ownerDocument, 'baseURI', {
+                        configurable: true, value: 'https://snapshot.invalid/stale/',
+                    });
+                    const html = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '译文'));
+                    const attempt = beginTranslation(owner, 'bilingual')!;
+                    attempt.state.phase = 'translated';
+                    const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
+
+                    expect(wrapper.querySelector('a')!.getAttribute('href')).toBe('../reference?q=1#part');
+                    expect(wrapper.querySelector('.mwe-math-element img')!.getAttribute('src'))
+                        .toBe(new URL('equation.svg', base).href);
+                    expect(snapshot.clone.ownerDocument.childNodes).toHaveLength(0);
+                    expect(restoreTranslation(owner)).toBe(true);
+                    expect(owner.outerHTML).toBe(original);
+                    expect(owner.querySelector('a')).toBe(link);
+                    expect(owner.querySelector('img')).toBe(formulaImage);
+                }
+            } finally {
+                Object.assign(config, previousConfig);
+            }
+        });
+    });
+
     it('preserves source MathML, KaTeX, MathJax SVG and image formulas through the actual renderer', async () => {
         const {document} = parseHTML(`<html><body><p id="owner">The velocity
             <math xmlns="http://www.w3.org/1998/Math/MathML"><msub><mi>v</mi><mi>t</mi></msub></math>
