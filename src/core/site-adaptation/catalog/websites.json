@@ -6185,5 +6185,26 @@
       "div:has(> a[data-testid=\"profileHeaderFollowersButton\"]):has(> a[data-testid=\"profileHeaderFollowsButton\"])",
       "[data-testid^=\"feedItem-by-\"] div[role=\"link\"][aria-label] > div:nth-child(1):has([data-testid=\"userAvatarImage\"]):has([data-tooltip])"
     ]
+  },
+  {
+    "id": "facebook-public-post",
+    "name": "Facebook 公开帖子作者",
+    "match": {
+      "hosts": [
+        "www.facebook.com"
+      ],
+      "paths": [
+        "/*/posts/*"
+      ]
+    },
+    "mode": "augment",
+    "protect": [
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"]:not([data-ad-preview=\"message\"] *)",
+      "[role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *):not([data-ad-preview=\"message\"] *)"
+    ],
+    "watchIgnore": [
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"]:not([data-ad-preview=\"message\"] *)",
+      "[role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *):not([data-ad-preview=\"message\"] *)"
+    ]
   }
 ]

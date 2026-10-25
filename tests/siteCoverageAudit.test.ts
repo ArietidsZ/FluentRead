@@ -11,7 +11,10 @@ describe('website coverage maintenance report', () => {
         expect(report.catalog.totalRules).toBe(report.catalog.establishedRules + report.catalog.websiteRules);
         expect(Object.values(report.catalog.verification).reduce<number>((sum, count) => sum + Number(count), 0)).toBe(report.catalog.totalRules);
         expect(report.prioritySites.find((site: {id: string}) => site.id === 'youtube').declarations.some((rule: {id: string}) => rule.id === 'youtube')).toBe(true);
-        expect(report.prioritySites.find((site: {id: string}) => site.id === 'facebook').status).toBe('no-dedicated-rule');
+        const facebook = report.prioritySites.find((site: {id: string}) => site.id === 'facebook');
+        expect(facebook.status).toBe('declared-host-needs-page-verification');
+        expect(facebook.declarations.some((rule: {id: string}) => rule.id === 'facebook-public-post')).toBe(true);
+        expect(facebook.browserContracts.some((contract: {id: string}) => contract.id === 'facebook-nasa-public-post')).toBe(true);
         expect(report.prioritySites.find((site: {id: string}) => site.id === 'github').browserContracts.some((contract: {id: string}) => contract.id === 'github-fluentread-pr')).toBe(true);
         expect(report.boundary).toContain('not successful current live-site translations');
     });
