@@ -389,7 +389,7 @@ describe('native video background ownership', () => {
         expect(f.nativeTranscribe).toHaveBeenCalledOnce();
         await expect(f.transcribe()).rejects.toThrow('仍在进行');
         let settled = false;
-        const cancel = f.cancel(reason).then(value => {settled = true; return value;});
+        const cancel = f.cancel(reason).then((value: unknown) => {settled = true; return value;});
         const signal = (f.nativeTranscribe.mock.calls[0] as unknown as [string, {signal: AbortSignal}])[1].signal;
         expect(signal.aborted).toBe(reason !== 'complete');
         await Promise.resolve();
