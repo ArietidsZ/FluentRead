@@ -117,7 +117,7 @@ describe('ONNX static Emscripten invoker', () => {
     };
 
     it('普通函数保留参数偏移、原 JIT 的 this 和返回转换', () => {
-        const target = vi.fn(function (this: unknown, first, second) {expect(this).toBeUndefined(); return first + second;});
+        const target = vi.fn(function (this: unknown, first: number, second: number) {expect(this).toBeUndefined(); return first + second;});
         const {invoke, reads, Kg} = setup(0, target);
         expect(invoke(1, 0, 88, 100)).toEqual({value: 16, destructors: 88});
         expect(reads).toEqual([100, 108]);
@@ -125,7 +125,7 @@ describe('ONNX static Emscripten invoker', () => {
     });
 
     it('方法保留接收对象，构造器和 cast 保留原语义', () => {
-        const receiver = {offset: 2, method(first, second) {return this.offset + first + second;}};
+        const receiver = {offset: 2, method(first: number, second: number) {return this.offset + first + second;}};
         expect(setup(1, receiver).invoke(1, 0, 4, 100).value).toBe(18);
         class Pair {sum: number; constructor(first: number, second: number) {this.sum = first + second;}}
         expect(setup(2, Pair).invoke(1, 0, 4, 100).value).toBeInstanceOf(Pair);
