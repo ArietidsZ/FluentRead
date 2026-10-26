@@ -92,7 +92,7 @@ export function buildVideoAiSubtitleCacheIdentity(request: VideoAiSubtitleCacheR
   if (!videoKey) return null;
   if (request.provider === 'native-qwen') {
     const nativeBaseUrl = normalizeNativeAsrBaseUrl(request.nativeBaseUrl);
-    if (request.model !== NATIVE_QWEN_ASR_MODEL || !nativeBaseUrl || nativeBaseUrl.length > 512) return null;
+    if (request.model !== NATIVE_QWEN_ASR_MODEL || !nativeBaseUrl) return null;
     return {videoKey, model: NATIVE_QWEN_ASR_MODEL, provider: 'native-qwen', nativeBaseUrl,
       sourceLanguage: sourceLanguage(request.videoSourceLanguage ?? request.sourceLanguage), schemaFingerprint: 'video-native-qwen-text-v1'};
   }
