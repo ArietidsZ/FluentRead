@@ -68,6 +68,11 @@ describe('video subtitle background ownership', () => {
                 : {success: true, model: 'tiny', backend: 'wasm'}
         ) as T);
         vi.doMock('@/src/platform/offscreen/extensionClient', () => ({extensionDomClient: fixture.offscreen}));
+        vi.doMock('@/src/services/config/store', () => ({
+            config: {on: true, videoTranslationEnabled: true, videoTranscriptionProvider: 'browser'},
+            configReady: Promise.resolve(),
+            getConfigHydrationStatus: () => 'ready',
+        }));
         try {
             const {createVideoSubtitleBackgroundRuntime} = await import('@/src/features/video-subtitle/background/runtime');
             const handlers = createVideoSubtitleBackgroundRuntime();
@@ -83,7 +88,10 @@ describe('video subtitle background ownership', () => {
             const cache = handlers.find(handler => handler.type === 'fluentReadGetVideoAiSubtitleCache')!;
             const cacheRequest = {type: cache.type, source: {}, model: 'tiny'};
             await expect(cache.handle(cacheRequest, {})).resolves.toMatchObject({success: true, hit: false, cues: []});
-        } finally {vi.doUnmock('@/src/platform/offscreen/extensionClient');}
+        } finally {
+            vi.doUnmock('@/src/platform/offscreen/extensionClient');
+            vi.doUnmock('@/src/services/config/store');
+        }
     });
     it.each(ownedEntryTypes)('%s does not dispatch after its cancellation was acknowledged while the previous cancellation is pending', async type => {
         const f = waitingForPreviousCancellation(type);
