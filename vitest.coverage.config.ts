@@ -19,6 +19,8 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'json', 'html'],
             include: [
+                'src/core/config/nativeAsr.ts',
+                'src/features/video-subtitle/background/nativeTranscription.ts',
                 'src/core/config/aiMultiSegment.ts',
                 'src/features/settings/ui/AiMultiSegmentSettings.vue',
                 'src/core/config/clickSelection.ts',
