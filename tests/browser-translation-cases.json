@@ -1,4 +1,48 @@
 {
+  "microsoft-learn-translator-v3": {
+    "url": "https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate",
+    "hoverSelector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+    "requiredSelectors": [
+      "main#main h1#azure-translator-in-foundry-tools-30-translate",
+      "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p"
+    ],
+    "coverageRules": [
+      {
+        "name": "translator-title",
+        "selector": "main#main h1#azure-translator-in-foundry-tools-30-translate",
+        "kind": "heading",
+        "minInitial": 1
+      },
+      {
+        "name": "translator-prose",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "kind": "content",
+        "minInitial": 3
+      }
+    ],
+    "forbiddenSelectors": [
+      "main#main pre",
+      "main#main code",
+      "nav#affixed-left-container",
+      "nav#side-doc-outline"
+    ],
+    "interactionSelectors": [
+      "#article-header-breadcrumbs nav a[href]",
+      "nav#affixed-left-container a[href]",
+      "nav#side-doc-outline a[href]"
+    ],
+    "modes": [
+      "hover",
+      "full"
+    ],
+    "tier": "required",
+    "fullPageScope": "finite-page",
+    "skipUnscopedH1Coverage": true,
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation",
+    "notes": "Microsoft Learn Translator v3 reference: cover the separate document title and prose container while protecting code and navigation. Controlled-provider runs verify DOM compatibility, not translation quality."
+  },
   "bambu-dual-nozzles": {
     "url": "https://wiki.bambulab.com/en/software/bambu-studio/manual/dual-nozzles-slicing-filament-grouping",
     "hoverSelector": ".contents p",

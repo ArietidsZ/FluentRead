@@ -9,13 +9,17 @@ function controlledProviderRuntime(installTransport = false) {
   const prefix = '测试译文：';
   const protocol = 'utf8-han-v1';
   const protectedToken = /__FRTERM_[a-z0-9_]+?__|___FLUENTREAD_(?:(?!___)[a-z0-9_-])+?_(?:0|[1-9]\d*)_(?:BEGIN|END)___|&lt;\/?[a-z][\s\S]*?&gt;|<\/?[a-z][^>]*>|&amp;(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|\s+/giu;
-  function encode(text) {
+  // Microsoft escapes every text slot before fetch. An escaped angle-bracket
+  // sequence there is literal source text, not structural HTML: retain the
+  // entities themselves but encode the letters between them.
+  const microsoftEscapedTextToken = /__FRTERM_[a-z0-9_]+?__|___FLUENTREAD_(?:(?!___)[a-z0-9_-])+?_(?:0|[1-9]\d*)_(?:BEGIN|END)___|<\/?[a-z][^>]*>|&amp;(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|\s+/giu;
+  function encode(text, mode) {
     if (typeof text !== 'string') throw new TypeError('Controlled translation requires a string');
     if (!text.trim()) return text;
     const encoder = new TextEncoder();
     const encodeText = value => Array.from(encoder.encode(value), byte => String.fromCharCode(0x4e00 + byte)).join('');
     let translated = '', cursor = 0;
-    for (const match of text.matchAll(protectedToken)) {
+    for (const match of text.matchAll(mode === 'microsoft-escaped-text' ? microsoftEscapedTextToken : protectedToken)) {
       translated += encodeText(text.slice(cursor, match.index)) + match[0];
       cursor = match.index + match[0].length;
     }
@@ -57,7 +61,7 @@ function controlledProviderRuntime(installTransport = false) {
     try {
       const texts = JSON.parse(init?.body ?? await input.text());
       if (!Array.isArray(texts) || texts.some(text => typeof text !== 'string')) throw new TypeError('Controlled translation requires a text array');
-      const response = new Response(JSON.stringify(texts.map(text => ({translations: [{text: encode(text)}]}))),
+      const response = new Response(JSON.stringify(texts.map(text => ({translations: [{text: encode(text, 'microsoft-escaped-text')}]}))),
         {status: 200, headers: {'content-type': 'application/json'}});
       state.texts += texts.length;
       return response;
