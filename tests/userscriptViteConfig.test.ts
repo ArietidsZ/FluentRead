@@ -644,7 +644,11 @@ describe('userscript browser shim injection', () => {
             expect(extension[key]).toBeTruthy();
             expect(Object.hasOwn(projected, key)).toBe(false);
         }
+        const readingAppearanceKeys = Object.keys(extension).filter(key => key.startsWith('popup.readingAppearance.'));
+        expect(readingAppearanceKeys).toHaveLength(20);
+        for (const key of readingAppearanceKeys) expect(projected).not.toHaveProperty(key);
         const retainedKeys = Object.keys(extension).filter(key => !key.startsWith('informationHighlight.')
+            && !readingAppearanceKeys.includes(key)
             && (!key.startsWith('learning.collection.speech') || key === 'learning.collection.speechFailed')
             && !noticeKeys.includes(key) && !learningKeys.includes(key) && !readingAnnotationKeys.includes(key) && !readerRecoveryKeys.includes(key)
             && !diagnosticKeys.includes(key) && !readerDialogKeys.includes(key)
