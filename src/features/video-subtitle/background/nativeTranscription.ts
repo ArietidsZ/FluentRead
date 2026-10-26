@@ -33,7 +33,8 @@ function pcmWav(encoded: string): {blob: Blob; durationMs: number} {
         throw new Error('原生转写需要不超过30秒的16kHz单声道PCM16数据');
     }
     const pcm = atob(encoded);
-    if (!pcm.length || pcm.length % 2 || pcm.length > MAX_PCM_BYTES || btoa(pcm) !== encoded) {
+    // The encoded-length bound above already implies 0 < pcm.length <= MAX_PCM_BYTES.
+    if (pcm.length % 2 || btoa(pcm) !== encoded) {
         throw new Error('原生转写PCM16数据无效');
     }
     const bytes = new Uint8Array(44 + pcm.length);
