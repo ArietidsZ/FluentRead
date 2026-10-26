@@ -1,6 +1,6 @@
 import {createInputBoxTranslationHandler} from '@/src/features/input-translation/background/handler';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {serializeTranslationError, TRANSLATION_ERROR_MARKER} from '@/src/services/translation/errors';
+import {serializeTranslationError, TRANSLATION_ERROR_MARKER, unwrapTranslationResponse} from '@/src/services/translation/errors';
 import {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
@@ -13,7 +13,28 @@ import {createTranslationBroker} from '@/src/services/translation/broker';
 import {createTranslationRequestFallback, type TranslationRequestContext} from '@/src/app/background/handlers/translation';
 import {attachTranslationGlossaryContext, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 
+import {serializeTranslationSlots, rebuildTranslationSlots} from '@/src/core/translation/slotProtocol';
+import {createDocumentSegmentTranslator, type DocumentTranslationRequestOptions} from '@/src/features/document-translation/services/translation';
+
 const customId = 'custom:private';
+function sdkResponse(model: string, content: string): Response {
+    return new Response(JSON.stringify({id: 'test', object: 'chat.completion', created: 1, model,
+        choices: [{index: 0, message: {role: 'assistant', content}, finish_reason: 'stop'}],
+        usage: {prompt_tokens: 1, completion_tokens: 1, total_tokens: 2}}), {headers: {'content-type': 'application/json'}});
+}
+const privateDocumentSender = {sender: {url: 'chrome-extension://fluentread/document.html', tab: {incognito: true}}};
+function expectPrivateOutbound(h: ReturnType<typeof harness>, count: number): void {
+    expect(h.fetch).toHaveBeenCalledTimes(count);
+    for (const [url, init] of h.fetch.mock.calls) {
+        expect(String(url)).toBe('https://private.invalid/v1/chat/completions');
+        expect(JSON.parse(String(init?.body)).model).toBe('private-model');
+        expect(new Headers(init?.headers).get('authorization')).toBe('Bearer test-private');
+    }
+    expect(h.cacheGet).not.toHaveBeenCalled();
+    expect(h.cacheSet).not.toHaveBeenCalled();
+    expect(h.cache.size).toBe(0);
+}
+
 afterEach(() => {setRuntimeFetch();vi.restoreAllMocks();});
 function harness() {
     const current = new Config();
@@ -25,18 +46,18 @@ function harness() {
     current.customOpenAIProviders = [{id: customId, name: 'Private', endpoint: 'https://private.invalid/v1/chat/completions', models: ['private-model']}];
     current.token[customId] = 'test-private';current.apiKeys[customId] = ['test-private'];
     const cache = new Map<string, string>();
+    const cacheGet = vi.fn(async (key: string) => cache.get(key) ?? null);
+    const cacheSet = vi.fn(async (key: string, value: string) => {cache.set(key, value);return true;});
     const keys = vi.fn((identity: unknown) => JSON.stringify(identity));
     const stats = vi.fn();const usage = vi.fn(async () => undefined);
     const fetch = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body));
-        return new Response(JSON.stringify({id: 'test', object: 'chat.completion', created: 1, model: body.model,
-            choices: [{index: 0, message: {role: 'assistant', content: '译文'}, finish_reason: 'stop'}],
-            usage: {prompt_tokens: 1, completion_tokens: 1, total_tokens: 2}}), {headers: {'content-type': 'application/json'}});
+        return sdkResponse(body.model, '译文');
     });
     setRuntimeFetch(fetch);
     const broker = createTranslationBroker({ready: Promise.resolve(), getConfig: () => current,
         providers: {openai: translateWithOpenAICompatibleAiSdk, custom: translateWithOpenAICompatibleAiSdk},
-        cache: {get: async key => cache.get(key) ?? null, set: async (key, value) => {cache.set(key, value);return true;},
+        cache: {get: cacheGet, set: cacheSet,
             clear: async () => {cache.clear();}, cleanup: async () => undefined},
         serviceTypes: servicesType, endpointResolver: {resolveOpenAICompatibleEndpoint, aiSdkTransportProfile: 'ai-sdk'},
         promptBuilder: {buildPageSummaryPrompt, buildPageSummarySystemPrompt}, getMissingCredentialMessage,
@@ -44,7 +65,7 @@ function harness() {
         resolveConfiguredModel, buildTranslationCacheKey: keys, recordTranslationRequest: stats, recordModelUsage: usage,
     });
     const fallback = createTranslationRequestFallback<TranslationRequestContext>({translate: broker.translateWithCache, serializeError: serializeTranslationError});
-    return {current, fetch, cache, keys, stats, usage, broker, fallback};
+    return {current, fetch, cache, cacheGet, cacheSet, keys, stats, usage, broker, fallback};
 }
 describe('trusted sender to real OpenAI SDK request body private model integration', () => {
     it.each(['openai', 'google'])('binds input prompts to the private route from %s and freezes in-flight settings', async (normalService) => {
@@ -183,6 +204,71 @@ describe('trusted sender to real OpenAI SDK request body private model integrati
         expect(h.fetch.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).model)).toEqual(['private-model', 'private-model']);
         expect(h.stats).toHaveBeenLastCalledWith(expect.objectContaining({serviceId: customId, model: 'private-model', mode: 'batch', segmentCount: 2}), expect.anything());
     });
+    it.each(['page', 'document'] as const)('routes %s AI multi-segment batches through the private SDK without shared cache', async glossaryContext => {
+        const h = harness();
+        const origin = ['First paragraph', 'Second paragraph'];
+        const translated = ['第一段', '第二段'];
+        const content = rebuildTranslationSlots(serializeTranslationSlots(origin), translated)!;
+        h.fetch.mockImplementation(async (_url, init) => sdkResponse(JSON.parse(String(init?.body)).model, content));
+        const payload = {origin, aiMultiSegment: true, documentBatch: true, glossaryContext,
+            serviceOverride: 'openai', modelOverride: 'normal-model', useCache: true, sourceLanguage: 'en', targetLanguage: 'zh-CN'};
+        const sender = glossaryContext === 'document' ? privateDocumentSender
+            : {sender: {url: 'https://example.test', tab: {incognito: true}}};
+        await expect(h.fallback.handle(payload, sender)).resolves.toEqual(translated);
+        await expect(h.fallback.handle(payload, sender)).resolves.toEqual(translated);
+        expectPrivateOutbound(h, 2);
+        for (const [, init] of h.fetch.mock.calls) {
+            expect(JSON.stringify(JSON.parse(String(init?.body)).messages)).toContain(serializeTranslationSlots(origin).starts[0]);
+        }
+        expect(h.stats).toHaveBeenLastCalledWith(expect.objectContaining({serviceId: customId, model: 'private-model',
+            mode: 'batch', segmentCount: 2, source: 'network', cachedSegments: 0}), expect.anything());
+    });
+
+    it('retains the private SDK identity while recovering only the wrong-language document slot', async () => {
+        const h = harness();
+        const origin = ['There are also restrictions on the first character of this file.', 'The next paragraph explains another point.'];
+        const translated = ['这个文件的首字母也有限制。', '下一段说明另一点。'];
+        const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
+        h.fetch.mockImplementationOnce(async (_url, init) => sdkResponse(JSON.parse(String(init?.body)).model,
+            rebuildTranslationSlots(serializeTranslationSlots(origin), [japanese, translated[1]])!));
+        h.fetch.mockImplementationOnce(async (_url, init) => sdkResponse(JSON.parse(String(init?.body)).model, translated[0]));
+        await expect(h.fallback.handle({origin, aiMultiSegment: true, documentBatch: true, glossaryContext: 'document',
+            serviceOverride: 'openai', modelOverride: 'normal-model', useCache: true, sourceLanguage: 'en', targetLanguage: 'zh-CN'},
+        privateDocumentSender)).resolves.toEqual(translated);
+        expectPrivateOutbound(h, 2);
+        const recoveryMessages = JSON.stringify(JSON.parse(String(h.fetch.mock.calls[1][1]?.body)).messages);
+        expect(recoveryMessages).toContain(origin[0]);
+        expect(recoveryMessages).not.toContain(origin[1]);
+        expect(recoveryMessages).not.toContain(serializeTranslationSlots(origin).starts[0]);
+    });
+
+    it('keeps document malformed-batch fallback on the private SDK for every recovered segment', async () => {
+        const h = harness();
+        h.fetch.mockImplementationOnce(async (_url, init) => sdkResponse(JSON.parse(String(init?.body)).model, '缺少槽标记的响应'));
+        const dispatch = async <T extends string | string[]>(origin: T, context: string, options: DocumentTranslationRequestOptions): Promise<T> =>
+            unwrapTranslationResponse<T>(await h.fallback.handle({...options, origin, context}, privateDocumentSender));
+        const translateText = vi.fn((origin: string, context: string, options: DocumentTranslationRequestOptions) => dispatch(origin, context, options));
+        const translateTextBatch = vi.fn((origin: string[], context: string, options: DocumentTranslationRequestOptions) => dispatch(origin, context, options));
+        const translate = createDocumentSegmentTranslator({waitUntilReady: () => Promise.resolve(),
+            getDefaultService: () => 'openai', getDefaultModel: () => 'normal-model',
+            supportsBatch: () => false, supportsAIMultiSegment: () => true, translateText, translateTextBatch});
+        const origin = ['First paragraph', 'Second paragraph'];
+        await expect(translate(origin.map((source, id) => ({id, source})), {fileName: 'paper.pdf', batchTranslation: true,
+            batchConcurrency: 1, maxRetries: 0, useCache: true, sourceLanguage: 'en', targetLanguage: 'zh-CN'})).resolves.toEqual(['译文', '译文']);
+        expect(translateTextBatch).toHaveBeenCalledTimes(1);
+        expect(translateTextBatch.mock.calls[0][2]).toMatchObject({documentBatch: true, aiMultiSegment: true, useCache: true});
+        expect(translateText).toHaveBeenCalledTimes(2);
+        expect(translateText.mock.calls.map(([source]) => source)).toEqual(origin);
+        for (const [, , options] of translateText.mock.calls) {
+            expect(options).toMatchObject({enableNativeBatch: false, serviceOverride: 'openai', modelOverride: 'normal-model', useCache: true});
+            expect(options.documentBatch).toBeUndefined();
+        }
+        expectPrivateOutbound(h, 3);
+        expect(h.stats.mock.calls.map(([event]) => [event.mode, event.outcome])).toEqual([
+            ['batch', 'error'], ['single', 'success'], ['single', 'success'],
+        ]);
+    });
+
     it('records rejected private configuration against its attempted identity, not the normal model', async () => {
         const h = harness();h.current.privateTranslation.service = '';
         await expect(h.broker.translateWithCache(attachTranslationGlossaryContext({origin: 'Source'}, {privateContext: true}))).rejects.toThrow();
