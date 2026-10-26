@@ -1767,11 +1767,47 @@ describe('public mounted YouTube direct-audio path (offline browser ports, not l
   it('shows the entry only for eligible current audio and never uses a stale SPA script', async () => {
     const f = directFixture();f.script.remove();f.start();await settle();
     const button = f.document.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!;expect(button.hidden).toBe(true);expect(f.document.querySelector<HTMLElement>('[data-youtube-audio-notice]')!.hidden).toBe(true);
-    f.document.head.append(f.script);await vi.advanceTimersByTimeAsync(1000);expect(button.hidden).toBe(false);
+    f.document.head.append(f.script);await vi.advanceTimersByTimeAsync(1000);expect(button.hidden).toBe(true);
+    f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.hidden = true;
+    const open = new f.window.Event('click', {bubbles: true});Object.defineProperty(open, 'isTrusted', {value: true});
+    f.document.getElementById(VIDEO_TRANSLATION_BUTTON_ID)!.dispatchEvent(open);await settle();expect(button.hidden).toBe(false);
     const notice = f.document.querySelector<HTMLElement>('[data-youtube-audio-notice]')!;expect(notice.hidden).toBe(false);
     expect(notice.textContent).toContain('默认或唯一音轨');expect(button.getAttribute('aria-describedby')).toBe(notice.id);
     f.window.location.href = 'https://www.youtube.com/watch?v=XXXXXXXXXXX';await vi.advanceTimersByTimeAsync(1000);expect(button.hidden).toBe(true);
     expect(ports.fetch).not.toHaveBeenCalled();f.unchanged();
+  });
+  it('caches positive and negative UI qualification without repeated initialization JSON parsing', async () => {
+    const f = directFixture();
+    const parse = vi.spyOn(JSON, 'parse');
+    const count = () => parse.mock.calls.filter(([value]) => typeof value === 'string' && value.includes('"streamingData"')).length;
+    try {
+      f.start();await settle();const initial = count();expect(initial).toBeGreaterThan(0);
+      for (let index = 0; index < 5; index += 1) {f.emitVideo('timeupdate');await settle();}
+      await vi.advanceTimersByTimeAsync(5000);expect(count()).toBe(initial);
+      f.script.remove();
+      f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.hidden = true;
+      const open = new f.window.Event('click', {bubbles: true});Object.defineProperty(open, 'isTrusted', {value: true});
+      f.document.getElementById(VIDEO_TRANSLATION_BUTTON_ID)!.dispatchEvent(open);await settle();
+      expect(f.document.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!.hidden).toBe(true);
+      f.document.head.append(f.script);const negative = count();
+      await vi.advanceTimersByTimeAsync(5000);expect(count()).toBe(negative);
+      expect(f.document.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!.hidden).toBe(true);
+      f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.hidden = true;
+      const reopen = new f.window.Event('click', {bubbles: true});Object.defineProperty(reopen, 'isTrusted', {value: true});
+      f.document.getElementById(VIDEO_TRANSLATION_BUTTON_ID)!.dispatchEvent(reopen);await settle();
+      expect(count()).toBeGreaterThan(negative);
+      expect(f.document.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!.hidden).toBe(false);
+    } finally {parse.mockRestore();}
+  });
+  it.each(['stale-script', 'ad', 'navigation'])('revalidates generation despite cached eligibility: %s', async reason => {
+    const f = directFixture();f.start();await settle();
+    expect(f.document.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!.hidden).toBe(false);
+    if (reason === 'stale-script') f.script.remove();
+    else if (reason === 'ad') f.player.classList.add('ad-showing');
+    else f.window.location.href = 'https://www.youtube.com/watch?v=XXXXXXXXXXX';
+    clickMenu(f, '[data-action="toggle-ai-subtitle"]');await settle();
+    expect(ports.fetch).not.toHaveBeenCalled();
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadTranscribeLocalVideoAudio')).toBe(false);f.unchanged();
   });
   it('feeds real fullCapture with isolated decoded PCM, arbitrates native captions, and restores them when stopped', async () => {
     const f = directFixture();f.setCaption('Native caption.');f.start();await settle();
