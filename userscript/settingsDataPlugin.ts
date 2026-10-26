@@ -66,7 +66,7 @@ export function createUserscriptSettingsDataPlugin(root: string, enabled: boolea
         targets.set(normalizePath(resolve(root, 'src/core/language/partOfSpeech.ts')), {names: ['PARTS']});
         targets.set(normalizePath(resolve(root, 'src/core/config/sentenceHighlight.ts')), {names: ['SENTENCE_HIGHLIGHT_STYLES']});
         targets.set(normalizePath(resolve(root, 'src/core/config/selectionTts.ts')), {names: ['SELECTION_TTS_VOICE_OPTIONS']});
-        targets.set(normalizePath(resolve(root, 'src/features/full-page-translation/ui/translationIndicators.ts')), {names: ['icon']});
+        targets.set(normalizePath(resolve(root, 'src/features/full-page-translation/ui/translationIndicators.ts')), {names: ['iconPaths']});
         targets.set(normalizePath(resolve(root, 'src/providers/translation/aliyun-translation.ts')), {names: ['aliyunErrorHints']});
         targets.set(normalizePath(resolve(root, 'src/core/i18n/language.ts')), {names: ['localizedUiLanguageLabels']});
         targets.set(normalizePath(resolve(root, 'src/features/reading-assistant/sentenceAnalysis.ts')), {names: ['ROLES']});
