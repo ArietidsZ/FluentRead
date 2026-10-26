@@ -19,6 +19,9 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'json', 'html'],
             include: [
+                'src/core/config/privateTranslation.ts',
+                'src/services/translation/privateRouting.ts',
+                'src/features/settings/ui/PrivateTranslationSettings.vue',
                 'src/core/config/aiMultiSegment.ts',
                 'src/features/settings/ui/AiMultiSegmentSettings.vue',
                 'src/core/config/clickSelection.ts',
