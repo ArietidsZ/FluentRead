@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaTypography.ts
  * 文件职责：在漫画原有区域内排版完整译文，区分对白与大标题并保持东亚标点的阅读习惯。
- * 主要内容：保留词、字素与显式换行，闭标点跟随前字、开标点跟随后字；按真实 Canvas 字宽和可用字形上下界二分适配字号，单行不重复扣除行距，多行仍保留基线间距，缺少完整字形指标时沿用行框；合并字形有效性与最大行距遍历，基线数组就地归一化，减少临时数组而不改变浮点运算顺序；仅在本次排版内复用长词分段，逐项求最大宽高以兼容大量段落与行；末行过短时平衡行宽而不增加行数或越过字形预算，不截字、不横向压缩。
+ * 主要内容：保留词、字素与显式换行，闭标点跟随前字、开标点跟随后字；按真实 Canvas 字宽和可用字形上下界二分适配字号，单行不重复扣除行距，多行仍保留基线间距，缺少完整字形指标时沿用行框；合并字形有效性与最大行距遍历，基线数组就地归一化，减少临时数组而不改变浮点运算顺序；同一区域共享分词与长词字素，候选仅保留数字状态，最大字号预检后按二分上界跳过不可能胜出的搜索；普通单框仍保留原度量顺序；逐项求最大宽高以兼容大量段落与行；末行过短时平衡行宽而不增加行数或越过字形预算，不截字、不横向压缩。
  * 模块边界：纯文字和度量算法，不读取页面、配置或字体资源，不识别、翻译或修补图片；普通图片继续使用独立的通用排版。
  */
 import type {ImageTranslationTextLayout} from './rendering';
@@ -27,16 +27,19 @@ function bindPunctuation(tokens: string[]): string[] {
     return result;
 }
 
-/** 准确测量候选整行；长单词仅在必须时拆字素，带组合音标和 emoji 的字素保持完整。 */
-export function layoutMangaTranslationText(text: string, width: number, height: number,
-    measure: (text: string, size: number) => number, maxSize: number,
-    measureInk?: (text: string, size: number) => MangaGlyphMetrics | undefined): MangaTextLayout {
-    const normalized = text.replace(/\r\n?/gu, '\n').trim();
-    if (!normalized || ![width,height,maxSize].every(value => Number.isFinite(value) && value > 0)) return {lines:[],fontSize:0,lineHeight:0};
+interface MangaTextSource {paragraphs:string[];tokens:string[][];splitTokens:Map<string,string[]>}
+/** 失败的最大字号布局不进入候选状态，避免同时保留多份整段行数组和闭包。 */
+export interface MangaTextSearchCandidate {readonly width:number;readonly height:number;readonly maximum?:MangaTextLayout}
+
+function parseMangaText(normalized:string):MangaTextSource {
     const paragraphs = normalized.split('\n').map(paragraph => paragraph.trim());
     const tokens = paragraphs.map(paragraph => bindPunctuation(paragraph.match(CJK) || []));
-    // 字素边界与字号无关；仅缓存真正超宽的词，随本次排版结束释放。
-    const splitTokens = new Map<string, string[]>();
+    return {paragraphs,tokens,splitTokens:new Map<string,string[]>()};
+}
+
+function mangaLayoutFunctions(source:MangaTextSource,width:number,height:number,
+    measure:(text:string,size:number)=>number,measureInk?: (text:string,size:number)=>MangaGlyphMetrics|undefined) {
+    const {paragraphs,tokens,splitTokens} = source;
     const wrap = (size: number, limit = width) => {
         const lines: string[] = [];
         for (const paragraph of tokens) {
@@ -94,6 +97,18 @@ export function layoutMangaTranslationText(text: string, width: number, height: 
         }
         return best;
     };
+    return {wrap,fits,balance};
+}
+
+/** 准确测量候选整行；普通单框保留先校验、再分词及全部度量调用的原顺序。 */
+export function layoutMangaTranslationText(text: string, width: number, height: number,
+    measure: (text: string, size: number) => number, maxSize: number,
+    measureInk?: (text: string, size: number) => MangaGlyphMetrics | undefined): MangaTextLayout {
+    const normalized = text.replace(/\r\n?/gu, '\n').trim();
+    if (!normalized || ![width,height,maxSize].every(value => Number.isFinite(value) && value > 0)) return {lines:[],fontSize:0,lineHeight:0};
+    const source=parseMangaText(normalized);
+    const {wrap,fits,balance}=mangaLayoutFunctions(source,width,height,measure,measureInk);
+    const {paragraphs}=source;
     let high = measureInk ? maxSize : Math.min(maxSize,height / 1.2);
     const largest = wrap(high);
     if (fits(largest)) return balance(largest);
@@ -104,4 +119,46 @@ export function layoutMangaTranslationText(text: string, width: number, height: 
         if (fits(candidate)) {best = candidate; low = candidate.fontSize;} else high = candidate.fontSize;
     }
     return balance(best);
+}
+
+/**
+ * 仅用于离屏原生 Canvas 一次同步绘制：同字体/全文的数值度量必须稳定；不承诺任意有状态回调的执行次序。
+ * prepare 原序预检最大字号，失败时只返回尺寸；finish 的高低界每次局部新建，不留下失败布局的间接引用。
+ * 所有候选共享不可变分词及按原词缓存的字素；没有额外全文或度量缓存，原生异常不捕获、不转换。
+ */
+export function createMangaTranslationSearch(text:string,measure:(text:string,size:number)=>number,maxSize:number,
+    measureInk?:(text:string,size:number)=>MangaGlyphMetrics|undefined) {
+    const normalized=text.replace(/\r\n?/gu,'\n').trim();
+    const source=normalized&&Number.isFinite(maxSize)&&maxSize>0?parseMangaText(normalized):undefined;
+    const empty=():MangaTextLayout=>({lines:[],fontSize:0,lineHeight:0});
+    const valid=(candidate:MangaTextSearchCandidate)=>!!source&&[candidate.width,candidate.height].every(value=>Number.isFinite(value)&&value>0);
+    return {
+        prepare(width:number,height:number):MangaTextSearchCandidate {
+            const candidate={width,height};
+            if(!valid(candidate))return {...candidate,maximum:empty()};
+            const {wrap,fits,balance}=mangaLayoutFunctions(source!,width,height,measure,measureInk);
+            const largest=wrap(measureInk?maxSize:Math.min(maxSize,height/1.2));
+            return fits(largest)?{...candidate,maximum:balance(largest)}:candidate;
+        },
+        finish(candidate:MangaTextSearchCandidate,winningSize=-Infinity,allowEqual=true):MangaTextLayout|undefined {
+            if(candidate.maximum)return candidate.maximum;
+            if(!valid(candidate))return empty();
+            const {width,height}=candidate,{paragraphs}=source!;
+            const {wrap,fits,balance}=mangaLayoutFunctions(source!,width,height,measure,measureInk);
+            let high=measureInk?maxSize:Math.min(maxSize,height/1.2);
+            let low=Math.min(1,width/paragraphs.reduce((largest,paragraph)=>Math.max(largest,measure(paragraph,1)),1),height/(paragraphs.length*1.2))*.99;
+            // 只有 high 是后续采样与 best 的上界时才能剪枝；极小字号仍完整沿用旧搜索。
+            const bounded=low<=high;
+            const mayWin=()=>!bounded||(allowEqual?high>=winningSize:high>winningSize);
+            if(!mayWin())return undefined;
+            let best=wrap(low);
+            for(let iteration=0;iteration<12;iteration++){
+                if(!mayWin())return undefined;
+                const next=wrap((low+high)/2);
+                if(fits(next)){best=next;low=next.fontSize;}else high=next.fontSize;
+            }
+            if(best.fontSize<winningSize||(!allowEqual&&best.fontSize===winningSize))return undefined;
+            return balance(best);
+        },
+    };
 }

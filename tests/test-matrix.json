@@ -637,6 +637,7 @@
       "tests/mangaSessionFallback.test.ts",
       "tests/mangaSites.test.ts",
       "tests/mangaTypography.test.ts",
+      "tests/mangaTypographySearch.test.ts",
       "tests/manpagePreparation.test.ts",
       "tests/manpageLayout.test.ts",
       "tests/manpageIndicatorLayout.test.ts",
