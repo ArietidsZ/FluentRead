@@ -2025,6 +2025,136 @@ describe('site translation coverage contract', () => {
     } finally {vi.unstubAllGlobals();}
   });
 
+  function steamTopicHoverFixture(mode = 'transparent') {
+    const {document} = parseHTML('<html><body><div id="AppHubContent"><div class="forum_topics">' +
+      '<div id="topic" class="forum_topic" role="button" data-gidforumtopic="123456">' +
+      '<a id="steam-overlay" class="forum_topic_overlay" href="https://steamcommunity.com/app/570/discussions/0/123456/">\n\t</a>' +
+      '<div id="steam-title" class="forum_topic_name"><span class="forum_topic_label">Pinned:</span> A readable discussion title</div></div>' +
+      '<div id="other-topic" class="forum_topic" role="button" data-gidforumtopic="654321">' +
+      '<a id="other-overlay" class="forum_topic_overlay" href="https://steamcommunity.com/app/570/discussions/0/654321/"> </a>' +
+      '<div class="forum_topic_name">Another discussion title</div></div></div></div>' +
+      '<div id="steam-dialog" role="dialog">Sign in</div><div id="steam-mask"></div></body></html>');
+    const row = document.querySelector('#topic')!;
+    const title = document.querySelector('#steam-title')!;
+    const overlay = document.querySelector('#steam-overlay')!;
+    const dialog = document.querySelector('#steam-dialog')!;
+    const mask = document.querySelector('#steam-mask')!;
+    if (mode === 'overlay-text') overlay.textContent = 'Click here';
+    if (mode === 'overlay-child') overlay.innerHTML = '<span></span>';
+    if (mode === 'overlay-comment') overlay.append(document.createComment('not text'));
+    if (mode === 'wrong-topic') overlay.setAttribute('href', 'https://steamcommunity.com/app/570/discussions/0/654321/');
+    if (mode === 'wrong-app') overlay.setAttribute('href', 'https://steamcommunity.com/app/571/discussions/0/123456/');
+    if (mode === 'external-href') overlay.setAttribute('href', 'https://example.com/app/570/discussions/0/123456/');
+    if (mode === 'query-href') overlay.setAttribute('href', '/app/570/discussions/0/123456/?foo=bar');
+    if (mode === 'hash-href') overlay.setAttribute('href', '/app/570/discussions/0/123456/#comment');
+    if (mode === 'javascript-href') overlay.setAttribute('href', 'javascript:alert(1)');
+    if (mode === 'missing-id') row.removeAttribute('data-gidforumtopic');
+    if (mode === 'invalid-id') row.setAttribute('data-gidforumtopic', 'not-a-number');
+    if (mode === 'duplicate-overlay') row.prepend(overlay.cloneNode(true));
+    if (mode === 'nested-title') title.innerHTML = '<span>A readable discussion title</span>';
+    if (mode === 'dialog-ancestor') document.querySelector('#AppHubContent')!.setAttribute('role', 'dialog');
+    if (mode === 'editor-row') row.setAttribute('contenteditable', 'true');
+    if (mode === 'modal-row') row.setAttribute('aria-modal', 'true');
+    if (mode === 'wrong-row-role') row.setAttribute('role', 'dialog');
+    if (mode === 'hidden-row') row.setAttribute('hidden', '');
+    if (mode === 'hidden-overlay') overlay.setAttribute('aria-hidden', 'true');
+    if (mode === 'inert-overlay') overlay.setAttribute('inert', '');
+    if (mode === 'owned-overlay') overlay.setAttribute('data-fr-translation-owned', 'true');
+    const candidate = mode === 'cross-row' ? document.querySelector('#other-overlay')! : overlay;
+    let covered = mode === 'dialog';
+    const stack = () => covered ? [dialog, candidate, title, row] : mode === 'intervening-mask' ? [candidate, mask, title, row] :
+      mode === 'missing-title' ? [candidate, row] : [candidate, title, row];
+    Object.defineProperty(document, 'createRange', {value: () => ({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => [{left: 20, right: 220, top: 140, bottom: 160, width: 200, height: 20}],
+    })});
+    Object.defineProperty(document, 'elementFromPoint', {value: () => stack()[0]});
+    Object.defineProperty(document, 'elementsFromPoint', {value: stack});
+    vi.stubGlobal('document', document);
+    vi.stubGlobal('window', {innerWidth: 1280, innerHeight: 900});
+    vi.stubGlobal('innerWidth', 1280);
+    vi.stubGlobal('innerHeight', 900);
+    vi.stubGlobal('location', new URL(mode === 'other-host' ? 'https://example.com/app/570/discussions/' :
+      mode === 'other-app' ? 'https://steamcommunity.com/app/571/discussions/' :
+        mode === 'thread-path' ? 'https://steamcommunity.com/app/570/discussions/0/123456/' :
+          mode === 'page-query' ? 'https://steamcommunity.com/app/570/discussions/?p=2' :
+            'https://steamcommunity.com/app/570/discussions/'));
+    vi.stubGlobal('getComputedStyle', (element: Element, pseudo?: string) => pseudo ? {
+      content: (mode === 'overlay-pseudo' && element === overlay || mode === 'title-pseudo' && element === title ||
+        mode === 'row-pseudo' && element === row) ? '"x"' : 'none',
+    } : {
+      display: mode === 'display-none' && element === overlay ? 'none' : 'block',
+      visibility: mode === 'invisible' && element === overlay ? 'hidden' : 'visible',
+      opacity: mode === 'opacity' && element === overlay ? '0.5' : '1',
+      pointerEvents: mode === 'pointer-events-none' && element === overlay ? 'none' : 'auto',
+      position: mode === 'non-absolute' && element === overlay ? 'relative' : 'absolute',
+      backgroundColor: mode === 'opaque' && element === overlay ? 'rgb(255, 255, 255)' : 'rgba(0, 0, 0, 0)',
+      backgroundImage: mode === 'background-image' && element === overlay ? 'url("cover.png")' : 'none',
+      boxShadow: mode === 'shadow' && element === overlay ? '0 0 4px black' : 'none',
+      filter: mode === 'filter' && element === overlay ? 'blur(1px)' : 'none',
+      backdropFilter: mode === 'backdrop' && element === overlay ? 'blur(1px)' : 'none',
+      borderTopWidth: mode === 'border' && element === overlay ? '1px' : '0px',
+      borderRightWidth: '0px', borderBottomWidth: '0px', borderLeftWidth: '0px',
+      outlineWidth: mode === 'outline' && element === overlay ? '1px' : '0px',
+    });
+    return {document, cover: () => {covered = true;}, changeDestination: () => {overlay.setAttribute('href', '/app/570/discussions/0/654321/');}};
+  }
+
+  it('accepts the observed Steam discussion title through its own empty overlay and waits for stability', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const {document} = steamTopicHoverFixture();
+    const html = document.body.innerHTML;
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn()}, keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);}, waitForFunction: vi.fn(),
+    };
+    try {
+      expect(findHoverTextPointInPage({selector: '#steam-title', index: 0})).toMatchObject({
+        x: 90, y: 150, text: ' A readable discussion title',
+        hitPolicy: 'steam-community-topic-overlay:["https://steamcommunity.com/app/570/discussions/0/123456/","123456"]',
+      });
+      await toggleHover(page, hoverScrollTarget(), {selector: '#steam-title', index: 0}, 1, 500);
+      expect(Date.now()).toBeGreaterThanOrEqual(200);
+      expect(page.keyboard.down.mock.calls).toEqual([['Control']]);
+      expect(page.keyboard.up.mock.calls).toEqual([['Control']]);
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
+  it.each(['overlay-text', 'overlay-child', 'overlay-comment', 'wrong-topic', 'wrong-app', 'external-href', 'query-href',
+    'hash-href', 'javascript-href', 'missing-id', 'invalid-id', 'duplicate-overlay', 'nested-title', 'dialog-ancestor',
+    'editor-row', 'modal-row', 'wrong-row-role', 'hidden-row', 'hidden-overlay', 'inert-overlay', 'owned-overlay',
+    'cross-row', 'dialog', 'intervening-mask', 'missing-title', 'other-host', 'other-app', 'thread-path', 'page-query',
+    'display-none', 'invisible', 'opacity', 'pointer-events-none', 'non-absolute', 'opaque', 'background-image',
+    'shadow', 'filter', 'backdrop', 'border', 'outline', 'overlay-pseudo', 'title-pseudo', 'row-pseudo'])
+  ('rejects the Steam topic overlay exception for %s', mode => {
+    const {document} = steamTopicHoverFixture(mode);
+    const html = document.body.innerHTML;
+    try {
+      expect(findHoverTextPointInPage({selector: '#steam-title', index: 0})).toBeNull();
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals();}
+  });
+
+  it.each(['cover', 'changeDestination'] as const)
+  ('rechecks Steam topic overlay after pointer movement and sends no hotkey for %s', async action => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const fixture = steamTopicHoverFixture();
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn(async () => {fixture[action]();})}, keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);},
+    };
+    try {
+      await expect(toggleHover(page, hoverScrollTarget(),
+        {selector: '#steam-title', index: 0}, 1, 300)).rejects.toThrow('悬浮原文没有稳定且可命中的位置');
+      expect(page.mouse.move).toHaveBeenCalledOnce();
+      expect(page.keyboard.down).not.toHaveBeenCalled();
+      expect(page.keyboard.up).not.toHaveBeenCalled();
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
   function googleNewsHoverFixture(mode = 'transparent') {
     const {document} = parseHTML('<html><body><main><section>' +
       '<div id="card"><div id="stretch"><a id="news-overlay" href="./read/fixture-story?hl=en-US" target="_blank" aria-hidden="true" tabindex="-1"></a></div>' +
