@@ -19,7 +19,7 @@ const tables = [
     ['src/core/config/interfaceAppearance.ts', 'interfaceFontOptions'],
     ['src/core/config/interfaceAppearance.ts', 'popupModuleOptions'],
     ['src/core/config/interfaceAppearance.ts', 'popupQuickFeatureOptions'],
-    ['src/features/full-page-translation/ui/translationIndicators.ts', 'icon'],
+    ['src/features/full-page-translation/ui/translationIndicators.ts', 'iconPaths'],
     ['src/providers/translation/aliyun-translation.ts', 'aliyunErrorHints'],
     ['src/core/i18n/language.ts', 'localizedUiLanguageLabels'],
     ['src/features/reading-assistant/sentenceAnalysis.ts', 'ROLES'],
