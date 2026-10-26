@@ -375,33 +375,40 @@
       {
         "css": [
           "shreddit-comment [slot=\"comment\"] p",
-          "shreddit-comment [slot=\"comment\"] li",
-          "shreddit-comment [slot=\"comment\"] blockquote",
           "shreddit-comment [slot=\"comment\"] h1",
           "shreddit-comment [slot=\"comment\"] h2",
           "shreddit-comment [slot=\"comment\"] h3",
           "shreddit-comment [slot=\"comment\"] h4",
           "shreddit-comment [slot=\"comment\"] h5",
           "shreddit-comment [slot=\"comment\"] h6",
-          "shreddit-comment [slot=\"comment\"] th",
-          "shreddit-comment [slot=\"comment\"] td",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] p",
-          "shreddit-comment [id$=\"-comment-rtjson-content\"] li",
-          "shreddit-comment [id$=\"-comment-rtjson-content\"] blockquote",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h1",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h2",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h3",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h4",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h5",
           "shreddit-comment [id$=\"-comment-rtjson-content\"] h6",
-          "shreddit-comment [id$=\"-comment-rtjson-content\"] th",
-          "shreddit-comment [id$=\"-comment-rtjson-content\"] td",
           "[data-testid=\"comment\"] p",
           "[data-testid=\"comment\"] li",
           "[data-click-id=\"comment\"] p"
         ],
         "key": "reddit-comment-prose",
         "resolve": "closest"
+      },
+      {
+        "css": [
+          "shreddit-comment [slot=\"comment\"] li",
+          "shreddit-comment [slot=\"comment\"] blockquote",
+          "shreddit-comment [slot=\"comment\"] th",
+          "shreddit-comment [slot=\"comment\"] td",
+          "shreddit-comment [id$=\"-comment-rtjson-content\"] li",
+          "shreddit-comment [id$=\"-comment-rtjson-content\"] blockquote",
+          "shreddit-comment [id$=\"-comment-rtjson-content\"] th",
+          "shreddit-comment [id$=\"-comment-rtjson-content\"] td"
+        ],
+        "key": "reddit-comment-prose",
+        "resolve": "self",
+        "atomic": false
       },
       {
         "css": [

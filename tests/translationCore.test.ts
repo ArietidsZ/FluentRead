@@ -2733,22 +2733,19 @@ describe('translation candidate core', () => {
         const protectedCodeText = protectedCode.firstChild;
         const originalCodeHTML = protectedCode.outerHTML;
         const required = ['rich-paragraph', ...Array.from({length: 6}, (_, index) => `rich-heading-${index + 1}`),
-            'rich-list', 'rich-quote', 'rich-table-heading', 'rich-table-cell', 'rich-table-paragraph-cell'];
+            'rich-list', 'rich-quote', 'rich-table-heading', 'rich-table-cell', 'rich-table-paragraph'];
         const candidates = core.discover(document);
         expect(candidates.map(candidate => candidate.element.id).sort()).toEqual([...required].sort());
         const sourceText = candidates.map(candidate => extractTranslationTextFromNodes(
             candidate.nodes ?? [candidate.element], core.shouldStayOriginal)).join('\n');
         for (const id of required) {
             const owner = document.getElementById(id)!;
-            const text = id === 'rich-table-cell' ? owner.querySelector('a')!.firstChild
-                : id === 'rich-table-paragraph-cell' ? owner.querySelector('p')!.firstChild : owner.firstChild;
+            const text = id === 'rich-table-cell' ? owner.querySelector('a')!.firstChild : owner.firstChild;
             const resolved = core.resolve(text);
-            // 仅含一个 P 的单元格，全文由原子 TD 持有；悬浮使用更细的 P，完整来源必须相同。
-            const hoverOwner = id === 'rich-table-paragraph-cell' ? owner.querySelector('p')! : owner;
             expect({id: resolved?.element.id, adapterId: resolved?.adapterId, reason: resolved?.reason}, id)
-                .toEqual({id: hoverOwner.id, adapterId: 'reddit', reason: 'reddit-comment-prose'});
-            expect(resolved?.element, id).toBe(hoverOwner);
-            if (id === 'rich-table-paragraph-cell') {
+                .toEqual({id: owner.id, adapterId: 'reddit', reason: 'reddit-comment-prose'});
+            expect(resolved?.element, id).toBe(owner);
+            if (id === 'rich-table-paragraph') {
                 const fullOwner = candidates.filter(candidate => candidate.element === owner);
                 expect(fullOwner).toHaveLength(1);
                 const fullSource = extractTranslationTextFromNodes(
@@ -2760,8 +2757,8 @@ describe('translation candidate core', () => {
                 expect(resolved!.nodes).toBeUndefined();
             }
         }
-        // 显式表格单元格是原子 owner；其内部 P 不应再成为第二个翻译目标。
-        expect(candidates.some(candidate => candidate.element.id === 'rich-table-paragraph')).toBe(false);
+        // 含独立段落的单元格由段落持有；外层 TD 不能再生成重复译文。
+        expect(candidates.some(candidate => candidate.element.id === 'rich-table-paragraph-cell')).toBe(false);
         expect(sourceText).toContain('this practical guide');
         expect(sourceText.match(/A paragraph inside a cell must be translated only once\./g)).toHaveLength(1);
         expect(sourceText).not.toMatch(/KEEP_SOURCE_CODE|KEEP_BLOCK_CODE|Reply to|private reply|protected heading|display name|navigation|matching slot|near-miss/);
@@ -2785,6 +2782,71 @@ describe('translation candidate core', () => {
         expect(document.getElementById('rich-link')).toBe(link);
         expect(document.body.innerHTML).toBe(before);
     });
+
+    it.each([
+        ['slot', 'slot="comment"'],
+        ['rtjson', 'id="t1_nested-comment-rtjson-content"'],
+    ])('Reddit %s 评论表格、列表和引用中的独立段落保留全文与悬浮边界', (_name, marker) => {
+        const {document, core} = page(`<main><shreddit-comment><div ${marker}>
+            <table><thead><tr><th id="nested-th"><p id="head-one">A first descriptive table heading.</p><p id="head-two">A second descriptive table heading.</p></th></tr></thead>
+            <tbody><tr><td id="nested-td"><p id="body-one">The first paragraph has <a id="nested-link" href="/guide">a useful link</a>.</p>
+                <p id="body-two">The second paragraph keeps <code id="nested-code">PROTECTED_CODE</code> separately.</p>
+                <ul><li id="nested-li"><p id="list-one">The first list paragraph is independently readable.</p><p id="list-two">The second list paragraph is independently readable.</p></li></ul>
+                <blockquote id="nested-quote"><p id="quote-one">The first quoted paragraph remains readable.</p><p id="quote-two">The second quoted paragraph remains readable.</p></blockquote>
+                <div contenteditable="true"><p id="nested-editor">A private draft should remain protected.</p></div>
+            </td></tr><tr><td id="plain-cell">A plain cell remains an independent readable candidate.</td></tr>
+            <tr><td id="single-cell"><p id="single-paragraph">A single paragraph remains an independent readable candidate.</p></td></tr></tbody></table>
+        </div></shreddit-comment></main>`, 'https://www.reddit.com/r/example/comments/123/topic/');
+        const original = document.body.innerHTML;
+        const expected = ['head-one', 'head-two', 'body-one', 'body-two', 'list-one', 'list-two',
+            'quote-one', 'quote-two', 'plain-cell', 'single-paragraph'];
+        const candidates = core.discover(document);
+        expect(candidates.map(candidate => candidate.element.id).sort()).toEqual([...expected].sort());
+        for (const id of expected) {
+            const element = document.getElementById(id)!;
+            const resolved = core.resolve(element.firstChild);
+            expect(resolved?.element, id).toBe(element);
+            expect(candidates.filter(candidate => candidate.element === element), id).toHaveLength(1);
+        }
+        expect(core.resolve(document.getElementById('nested-editor')!.firstChild)).toBeNull();
+        expect(extractTranslationTextFromNodes(candidates.flatMap(candidate => candidate.nodes ?? [candidate.element]),
+            core.shouldStayOriginal)).not.toContain('PROTECTED_CODE');
+        expect(document.getElementById('nested-link')!.getAttribute('href')).toBe('/guide');
+        expect(document.body.innerHTML).toBe(original);
+    });
+
+    it.each(['slot="comment"', 'id="t1_mixed-comment-rtjson-content"'])(
+        'Reddit %s 表格单元格在子块前后的正文均可被全文和悬浮独立翻译', (marker) => {
+            const {document, core} = page(`<main><shreddit-comment><div ${marker}><table><tr><td id="mixed-cell">A readable introduction with <a id="mixed-link" href="/guide">an original link</a> and <code id="mixed-code">DO_NOT_SEND</code>.
+                <p id="mixed-child">The first independently readable paragraph.</p>
+                <p id="mixed-child-two">The second independently readable paragraph.</p>
+                A readable closing explanation with <strong>important details</strong>.</td></tr></table></div></shreddit-comment></main>`,
+            'https://www.reddit.com/r/example/comments/123/topic/');
+            const before = document.body.innerHTML;
+            const cell = document.getElementById('mixed-cell')!;
+            const intro = cell.firstChild!;
+            const tail = [...cell.childNodes].find(node => node.textContent?.includes('A readable closing explanation'))!;
+            const candidates = core.discover(document);
+            const runs = candidates.filter(candidate => candidate.element === cell && candidate.nodes);
+            expect(runs).toHaveLength(2);
+            const runSources = runs.map(candidate => extractTranslationTextFromNodes(candidate.nodes!, core.shouldStayOriginal));
+            expect(runSources[0]).toContain('A readable introduction with');
+            expect(runSources[0]).toContain('an original link');
+            expect(runSources[0]).not.toContain('DO_NOT_SEND');
+            expect(runSources[1]).toContain('A readable closing explanation');
+            expect(runSources[1]).toContain('important details');
+            expect(core.resolve(intro)?.nodes).toEqual(runs[0]!.nodes);
+            expect(core.resolve(tail)?.nodes).toEqual(runs[1]!.nodes);
+            for (const id of ['mixed-child', 'mixed-child-two']) {
+                const child = document.getElementById(id)!;
+                expect(candidates.filter(candidate => candidate.element === child)).toHaveLength(1);
+                expect(core.resolve(child.firstChild)?.element).toBe(child);
+            }
+            expect(document.getElementById('mixed-link')!.getAttribute('href')).toBe('/guide');
+            expect(document.getElementById('mixed-code')!.textContent).toBe('DO_NOT_SEND');
+            expect(document.body.innerHTML).toBe(before);
+        },
+    );
 
     it('Reddit 普通评论富文本在正文标记变化和动态新增后重新验证候选', () => {
         const {document, core} = page('<main><shreddit-comment><div id="t1_dynamic-comment-rtjson-content">'

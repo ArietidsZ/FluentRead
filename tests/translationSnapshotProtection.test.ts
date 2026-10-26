@@ -14,7 +14,7 @@ import {
     type TranslationCandidateCore,
 } from '@/src/core/translation/public';
 import {createTranslationCore} from './helpers/translationCore';
-import {appendBilingualTranslation} from '@/src/features/full-page-translation/content/renderer';
+import {appendBilingualTranslation, materializeCandidate} from '@/src/features/full-page-translation/content/renderer';
 import {
     beginTranslation,
     getTranslationState,
@@ -49,9 +49,9 @@ afterEach(() => {
 });
 
 /** 功能层使用真实快照、renderer 与状态恢复；仅译文供应结果采用确定性文本。 */
-function commitBilingual(owner: HTMLElement, core = createTranslationCore()) {
+function commitBilingual(owner: HTMLElement, core = createTranslationCore(), synthetic = false) {
     const sourceSlots = collectLiveTranslationTextSlots(owner, core.shouldStayOriginal);
-    const attempt = beginTranslation(owner, 'bilingual', 'content', false,
+    const attempt = beginTranslation(owner, 'bilingual', 'content', synthetic,
         extractTranslationText(owner, core.shouldStayOriginal), sourceSlots.map(slot => slot.node))!;
     expect(attempt).not.toBeNull();
     const snapshot = createTranslationSourceSnapshot(owner, core.shouldStayOriginal,
@@ -66,6 +66,53 @@ function commitBilingual(owner: HTMLElement, core = createTranslationCore()) {
 }
 
 describe('双语快照展示保护', () => {
+    it.each(['slot="comment"', 'id="t1_nested-comment-rtjson-content"'])(
+        'Reddit %s 表格内分段翻译和恢复保持原始结构、链接及代码', (marker) => {
+            const {document} = page('');
+            document.body.innerHTML = `<main><shreddit-comment><div ${marker}><table><thead><tr>
+                <th><p id="heading-one">The first readable heading.</p><p id="heading-two">The second readable heading.</p></th></tr></thead>
+                <tbody><tr><td id="mixed">A readable introduction with <a id="link" href="/guide">the original guide</a> and <code id="code">KEEP_CODE</code>.
+                <p id="first">The first paragraph has its own context.</p><p id="second">The second paragraph has its own context.</p>
+                A closing sentence with <strong>important details</strong>.</td></tr>
+                <tr><td><ul><li><p id="list-one">The first list paragraph remains readable.</p><p id="list-two">The second list paragraph remains readable.</p></li></ul>
+                <blockquote><p id="quote-one">The first quoted paragraph remains readable.</p><p id="quote-two">The second quoted paragraph remains readable.</p></blockquote></td></tr>
+                <tr><td id="plain">A plain cell with an independent explanation.</td></tr><tr><td><p id="single">A single paragraph keeps its complete source.</p></td></tr></tbody></table>
+                <div contenteditable="true" id="editor"><p>A private draft stays original.</p></div></div></shreddit-comment></main>`;
+            const core = createTranslationCore({url: new URL('https://www.reddit.com/r/example/comments/123/topic/')});
+            const original = document.body.innerHTML;
+            const originals: Array<{node: ChildNode; value: string | null}> = [];
+            const walker = document.createTreeWalker(document.body, 4 /* NodeFilter.SHOW_TEXT */);
+            while (walker.nextNode()) originals.push({node: walker.currentNode as ChildNode, value: walker.currentNode.nodeValue});
+            const link = document.getElementById('link')!, code = document.getElementById('code')!;
+            const expected = ['heading-one', 'heading-two', 'first', 'second', 'list-one', 'list-two',
+                'quote-one', 'quote-two', 'plain', 'single'];
+            for (let cycle = 0; cycle < 2; cycle += 1) {
+                const candidates = core.discover(document);
+                expect(candidates.filter(candidate => candidate.element.id === 'mixed' && candidate.nodes)).toHaveLength(2);
+                for (const id of expected) expect(candidates.filter(candidate => candidate.element.id === id), id).toHaveLength(1);
+                const active: HTMLElement[] = [];
+                for (const candidate of candidates) {
+                    const materialized = materializeCandidate(candidate, false)!;
+                    expect(materialized).not.toBeNull();
+                    const {wrapper, sources} = commitBilingual(materialized.node, core, materialized.synthetic);
+                    active.push(materialized.node);
+                    expect(sources.join(' ')).not.toContain('KEEP_CODE');
+                    expect(wrapper.querySelector('[contenteditable]')).toBeNull();
+                }
+                expect(document.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(12);
+                expect(document.getElementById('link')).toBe(link);
+                expect(document.getElementById('code')).toBe(code);
+                expect(link.getAttribute('href')).toBe('/guide');
+                expect(code.textContent).toBe('KEEP_CODE');
+                expect(document.querySelector('#editor .fluent-read-bilingual-content')).toBeNull();
+                for (const id of expected) expect(document.querySelectorAll(`#${id} .fluent-read-bilingual-content`), id).toHaveLength(1);
+                for (const owner of active.reverse()) expect(restoreTranslation(owner)).toBe(true);
+                expect(document.body.innerHTML).toBe(original);
+                expect(originals.every(entry => entry.node.isConnected && entry.node.nodeValue === entry.value)).toBe(true);
+            }
+        },
+    );
+
     it.each(['del', 's'])('%s 删除语义保留在最终译文中，两轮翻译恢复不改宿主节点或安全边界', (tag) => {
         const {owner} = page(`Was <${tag} id="deleted" class="host-deletion" onclick="unsafe()">ten</${tag}> ` +
             'now <strong id="replacement">eight</strong>. <code id="source-code">const value = 10;</code> ' +
