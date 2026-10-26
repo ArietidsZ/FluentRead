@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, dots/mainline-integration-check-20261026]
   workflow_dispatch:
     inputs:
       base:
@@ -30,7 +30,7 @@ jobs:
       FLUENTREAD_DISABLE_BROWSER_RUNNER: 1
       NODE_OPTIONS: --max-old-space-size=4096
       # Event values are data, never interpolated into shell source.
-      FLUENTREAD_CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base || 'HEAD^' }}
+      FLUENTREAD_CI_BASE: ${{ github.ref == 'refs/heads/dots/mainline-integration-check-20261026' && '759608d6fd6e74c7e84f75cb1c52d750fe2835e4' || github.event.pull_request.base.sha || github.event.before || inputs.base || 'HEAD^' }}
     steps:
       - name: Checkout tested commit and diff history
         uses: actions/checkout@v6
