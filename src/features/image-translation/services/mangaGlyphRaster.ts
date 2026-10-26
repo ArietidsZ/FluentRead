@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaGlyphRaster.ts
  * 文件职责：把单个完整漫画排版计划栅格化并审计，只有实际字形像素安全时才交付同一张画布。
- * 主要内容：保留分数坐标相位，在原框外加整数保护边；严格检查非零 alpha 像素单元、保护矩形及裁切前后四通道，页内共享累计与活动资源预算，失败释放画布和显式读回。
+ * 主要内容：保留分数坐标相位，在原框外加整数保护边；严格检查非零 alpha 像素单元、保护矩形及裁切前后四通道；首次墨迹前以完整读回域有界筛去无关的稳定数值孔，未知坐标仍走原像素谓词，页内共享累计与活动资源预算，失败释放画布和显式读回。
  * 模块边界：不运行 OCR、翻译、字体搜索或重排，不编码 PNG；调用方负责 h0/h1 策略和成功画布的最终释放，真实 Canvas 异常原样传播。
  */
 
@@ -42,13 +42,24 @@ function validBox(box:MangaGlyphRasterBox):boolean {
     return [box.x0,box.y0,box.x1,box.y1].every(Number.isFinite)&&box.x1>box.x0&&box.y1>box.y0;
 }
 
+/** 可选预筛不调用未知坐标 getter；反射不支持或非稳定数值时仍交原审计谓词决定。 */
+function mayIntersectReadback(hole:MangaGlyphRasterBox,x0:number,y0:number,x1:number,y1:number):boolean {
+    if(typeof hole!=='object'||hole===null)return true;
+    try {
+        const coordinates=['x0','y0','x1','y1'].map(key=>Object.getOwnPropertyDescriptor(hole,key));
+        if(coordinates.some(value=>!value||!('value' in value)||!Number.isFinite(value.value)))return true;
+        const [left,top,right,bottom]=coordinates.map(value=>value!.value as number);
+        return right>x0&&left<x1&&bottom>y0&&top<y1;
+    } catch {return true;}
+}
+
 /** 纯像素规则；完整读回已在分配前计费，交孔比较另外共享页内硬上限。 */
 export function auditMangaGlyphRaster(raster:{pixels:Uint8ClampedArray;clipped:Uint8ClampedArray;width:number;height:number;x:number;y:number},
     box:MangaGlyphRasterBox,holes:ReadonlyArray<MangaGlyphRasterBox>,ledger:MangaGlyphRasterLedger):'safe'|'unsafe'|'budget' {
     const {pixels,clipped,width,height,x:originX,y:originY}=raster;
     if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<=0||height<=0
         ||pixels.length!==width*height*4||clipped.length!==pixels.length)throw new Error('漫画字形像素尺寸无效，已保留原图');
-    let ink=false;
+    let ink=false,relevant:ReadonlyArray<MangaGlyphRasterBox>|undefined;
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){
         const offset=(y*width+x)*4;
         for(let channel=0;channel<4;channel++)if(pixels[offset+channel]!==clipped[offset+channel])return 'unsafe';
@@ -56,7 +67,20 @@ export function auditMangaGlyphRaster(raster:{pixels:Uint8ClampedArray;clipped:U
         ink=true;
         const px=x+originX,py=y+originY;
         if(px<box.x0||px+1>box.x1||py<box.y0||py+1>box.y1)return 'unsafe';
-        for(const hole of holes){
+        if(relevant===undefined){
+            // 包含 floor/ceil 与保护边的完整像素域；不能按名义框过滤而漏掉边缘字形。
+            // 无墨迹、首个 RGBA/bbox 失败和未知原点仍保留原审计顺序。
+            if([originX,originY,originX+width,originY+height].every(Number.isFinite)){
+                const local:MangaGlyphRasterBox[]=[];
+                for(const hole of holes){
+                    if(ledger.holeChecks>=MANGA_GLYPH_RASTER_LIMITS.holeChecks)return 'budget';
+                    ledger.holeChecks++;
+                    if(mayIntersectReadback(hole,originX,originY,originX+width,originY+height))local.push(hole);
+                }
+                relevant=local;
+            }else relevant=holes;
+        }
+        for(const hole of relevant){
             if(ledger.holeChecks>=MANGA_GLYPH_RASTER_LIMITS.holeChecks)return 'budget';
             ledger.holeChecks++;
             if(px+1>hole.x0&&px<hole.x1&&py+1>hole.y0&&py<hole.y1)return 'unsafe';

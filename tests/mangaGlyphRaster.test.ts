@@ -1,5 +1,8 @@
 /** @file tests/mangaGlyphRaster.test.ts 验证单计划字形的严格像素支持、局部相位、页预算与异常释放；假画布端口不代表原生字体或OCR通过。 */
 import {afterEach,describe,expect,it,vi} from 'vitest';
+import {readFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
+import {createHash} from 'node:crypto';
 import {
     auditMangaGlyphRaster,createMangaGlyphRasterLedger,MANGA_GLYPH_RASTER_LIMITS as LIMITS,rasterizeMangaGlyphs,
     type MangaGlyphRasterBox,type MangaGlyphRasterPlan,
@@ -80,8 +83,8 @@ describe('实际非零alpha的严格像素支持规则',()=>{
             expect(audit([[4,4,1,2,3,1]],[],bounds)).toBe('unsafe');
         }
     });
-    it('交孔比较共享预算，恰好8M允许，下一比较明确回退',()=>{
-        const ledger=createMangaGlyphRasterLedger(),outside={x0:0,y0:0,x1:1,y1:1};ledger.holeChecks=LIMITS.holeChecks-1;
+    it('预筛和交孔比较共用预算，恰好8M允许，下一工作明确回退',()=>{
+        const ledger=createMangaGlyphRasterLedger(),outside={x0:0,y0:0,x1:1,y1:1};ledger.holeChecks=LIMITS.holeChecks-2;
         expect(audit([[4,4,1,2,3,1]],[outside],undefined,ledger)).toBe('safe');expect(ledger.holeChecks).toBe(LIMITS.holeChecks);
         expect(audit([[4,4,1,2,3,1]],[outside],undefined,ledger)).toBe('budget');
     });
@@ -94,6 +97,73 @@ describe('实际非零alpha的严格像素支持规则',()=>{
         {width:1,height:1,pixels:new Uint8ClampedArray(4),clipped:new Uint8ClampedArray()},
     ])('不完整读回或非法尺寸不能宣称安全 %#',(raster)=>{
         expect(()=>auditMangaGlyphRaster({...raster,x:0,y:0},box,[],createMangaGlyphRasterLedger())).toThrow('像素尺寸无效');
+    });
+});
+
+describe('完整读回域预筛不改变绘制或未知输入语义',()=>{
+    it.each([
+        {x0:0,y0:20,x1:10,y1:30},{x0:20,y0:20,x1:21,y1:30},
+        {x0:10,y0:10,x1:20,y1:20},{x0:10,y0:30,x1:20,y1:31},
+    ])('孔只与读回域边界相接时只计一次预筛：%j',hole=>{
+        const data=pixels(10,10,[[4,4,1,2,3,2],[5,4,1,2,3,1]]),ledger=createMangaGlyphRasterLedger();
+        expect(auditMangaGlyphRaster({pixels:data,clipped:data,width:10,height:10,x:10,y:20},{x0:0,y0:0,x1:100,y1:100},[hole],ledger)).toBe('safe');
+        expect(ledger.holeChecks).toBe(1);
+    });
+    it('部分进入实际读回域的孔继续逐像素检查，分数低alpha相交仍拒绝',()=>{
+        const data=pixels(10,10,[[4,4,1,2,3,2]]),raster={pixels:data,clipped:data,width:10,height:10,x:10,y:20},bounds={x0:0,y0:0,x1:100,y1:100};
+        const ledger=createMangaGlyphRasterLedger();expect(auditMangaGlyphRaster(raster,bounds,[{x0:9.75,y0:20,x1:10.25,y1:30}],ledger)).toBe('safe');expect(ledger.holeChecks).toBe(2);
+        expect(auditMangaGlyphRaster(raster,bounds,[{x0:14.25,y0:24.25,x1:14.5,y1:24.5}],createMangaGlyphRasterLedger())).toBe('unsafe');
+    });
+    it('原RGBA/bbox和空墨迹的结果优先，不提前访问孔getter或消耗预筛',()=>{
+        const hole={get x0():number{throw new Error('must not read');},y0:0,x1:10,y1:10},data=pixels(10,10,[[4,4,1,2,3,2]]),clipped=data.slice();clipped[(4*10+4)*4]++;
+        for(const [raster,bounds] of [
+            [{pixels:data,clipped,width:10,height:10,x:0,y:0},{x0:0,y0:0,x1:10,y1:10}],
+            [{pixels:data,clipped:data,width:10,height:10,x:0,y:0},{x0:5,y0:0,x1:10,y1:10}],
+            [{pixels:new Uint8ClampedArray(400),clipped:new Uint8ClampedArray(400),width:10,height:10,x:0,y:0},{x0:0,y0:0,x1:10,y1:10}],
+        ] as const){const ledger=createMangaGlyphRasterLedger();expect(auditMangaGlyphRaster(raster,bounds,[hole],ledger)).toBe('unsafe');expect(ledger.holeChecks).toBe(0);}
+    });
+    it('原预算先于未知getter；预筛也计费，恰好耗尽后不额外比较',()=>{
+        const hole={get x0():number{throw new Error('must not read');},y0:0,x1:10,y1:10},full=createMangaGlyphRasterLedger();full.holeChecks=LIMITS.holeChecks;
+        expect(audit([[4,4,1,2,3,2]],[hole],undefined,full)).toBe('budget');
+        const tight=createMangaGlyphRasterLedger();tight.holeChecks=LIMITS.holeChecks-1;
+        expect(audit([[4,4,1,2,3,2]],[{x0:0,y0:0,x1:1,y1:1}],undefined,tight)).toBe('budget');expect(tight.holeChecks).toBe(LIMITS.holeChecks);
+    });
+    it('访问器/继承/反射未知的孔保留原对象与谓词短路，不吞原getter异常',()=>{
+        const error=new Error('original coordinate getter'),getter={get x0():number{throw error;},y0:0,x1:10,y1:10};
+        expect(capture(()=>audit([[4,4,1,2,3,2]],[getter]))).toBe(error);
+        const far={x0:100,y0:0,get x1():number{throw error;},y1:10};expect(audit([[4,4,1,2,3,2]],[far])).toBe('safe');
+        expect(audit([[4,4,1,2,3,2]],[Object.create({x0:4,y0:4,x1:5,y1:5})])).toBe('unsafe');
+        const proxy=new Proxy(getter,{getOwnPropertyDescriptor(){throw new Error('optional metadata unavailable');}});
+        expect(capture(()=>audit([[4,4,1,2,3,2]],[proxy]))).toBe(error);
+        expect(()=>audit([[4,4,1,2,3,2]],[null as unknown as MangaGlyphRasterBox])).toThrow(TypeError);
+    });
+    it('非有限域不筛孔，非有限/缺失孔坐标继续原谓词而非被当成无交集',()=>{
+        const data=pixels(10,10,[[4,4,1,2,3,2]]);
+        for(const origin of [{x:NaN,y:0},{x:0,y:NaN}]){
+            const ledger=createMangaGlyphRasterLedger();expect(auditMangaGlyphRaster({pixels:data,clipped:data,width:10,height:10,...origin},{x0:0,y0:0,x1:10,y1:10},[{x0:0,y0:0,x1:1,y1:1}],ledger)).toBe('safe');expect(ledger.holeChecks).toBe(1);
+        }
+        for(const x0 of [NaN,Infinity,undefined]){const ledger=createMangaGlyphRasterLedger();expect(audit([[4,4,1,2,3,2]],[{x0,y0:0,x1:1,y1:1} as MangaGlyphRasterBox],undefined,ledger)).toBe('safe');expect(ledger.holeChecks).toBe(2);}
+    });
+    it('真实入口完整校验远孔坏值，falsey0是合法坐标且全部原clip参数不变',()=>{
+        for(const hole of [null,false,0,undefined,{x0:NaN,y0:100,x1:200,y1:200}]){
+            const ports=canvasPorts();expect(()=>rasterizeMangaGlyphs(plan,box,[hole] as MangaGlyphRasterBox[],styles,createMangaGlyphRasterLedger())).toThrow();expect(ports.createElement).not.toHaveBeenCalled();
+        }
+        const far={x0:0,y0:0,x1:1,y1:1},near={x0:24,y0:25,x1:26,y1:30},holes=[far,near,far],ports=canvasPorts(),before=structuredClone(holes),ledger=createMangaGlyphRasterLedger();
+        const result=rasterizeMangaGlyphs(plan,box,holes,styles,ledger);expect(result.kind).toBe('accepted');if(result.kind!=='accepted')throw new Error('Expected accepted');
+        expect(holes).toEqual(before);expect(holes[0]).toBe(far);expect(holes[1]).toBe(near);
+        expect(ports.layers[1].calls.filter(c=>c[0]==='rect')).toEqual([
+            ['rect',10.25,20.5,20,20],['rect',2,12,37,37],['rect',0,0,1,1],
+            ['rect',2,12,37,37],['rect',24,25,2,5],['rect',2,12,37,37],['rect',0,0,1,1],
+        ]);expect(ledger.holeChecks).toBe(4);result.dispose();expect(ledger.liveCanvasPixels+ledger.liveReadbackPixels).toBe(0);
+    });
+    it('64段冻结原生字形与64个分离孔保持全部安全，预筛及比较共享页账本',()=>{
+        const info=JSON.parse(readFileSync(new URL('./fixtures/manga-glyph-flow/native-dock-glyph.json',import.meta.url),'utf8'));
+        const packed=readFileSync(new URL('./fixtures/manga-glyph-flow/native-dock-glyph.rgba.gz',import.meta.url)),raw=gunzipSync(packed),data=new Uint8ClampedArray(raw);
+        expect(createHash('sha256').update(packed).digest('hex')).toBe(info.gzipSha256);expect(createHash('sha256').update(data).digest('hex')).toBe(info.rgbaSha256);
+        expect(data.filter((_value,index)=>index%4===3&&data[index]!==0)).toHaveLength(6776);
+        const shift=(b:MangaGlyphRasterBox,dy:number)=>({...b,y0:b.y0+dy,y1:b.y1+dy}),holes=Array.from({length:64},(_,i)=>shift(info.hole,i*50)),ledger=createMangaGlyphRasterLedger();
+        for(let i=0;i<64;i++)expect(auditMangaGlyphRaster({pixels:data,clipped:data,width:info.width,height:info.height,x:info.x,y:info.y+i*50},shift(info.box,i*50),holes,ledger)).toBe('safe');
+        expect(ledger.holeChecks).toBe(437760);expect(holes).toHaveLength(64);expect(ledger.holeChecks).toBeLessThan(LIMITS.holeChecks);
     });
 });
 
@@ -112,7 +182,7 @@ describe('局部裁图保留原坐标相位并复用同一bitmap',()=>{
         expect(verify.calls.filter(c=>c[0]==='clip')).toEqual([['clip'],['clip','evenodd'],['clip','evenodd']]);
         expect(verify.calls).toContainEqual(['drawImage',glyph.canvas,2,12]);
         for(const layer of ports.layers){expect(layer.calls).toContainEqual(['getContext','2d',{willReadFrequently:true}]);expect(layer.calls).toContainEqual(['getImageData',0,0,37,37]);}
-        expect(ledger).toEqual({canvasPixels:2738,readbackPixels:2738,auditPixels:1369,holeChecks:2,liveCanvasPixels:1369,liveReadbackPixels:0});
+        expect(ledger).toEqual({canvasPixels:2738,readbackPixels:2738,auditPixels:1369,holeChecks:4,liveCanvasPixels:1369,liveReadbackPixels:0});
         result.dispose();result.dispose();expect(glyph.size()).toEqual([0,0]);expect(ledger.liveCanvasPixels).toBe(0);expect(ledger.canvasPixels).toBe(2738);
     });
     it.each([{empty:true},{differentChannel:0},{ink:{x:0,y:0,alpha:2}}])('不安全实际读回仅返回unsafe并释放两层 %#',(options)=>{
