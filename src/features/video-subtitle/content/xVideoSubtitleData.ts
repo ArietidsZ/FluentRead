@@ -5,6 +5,7 @@
  * 模块边界：仅转换传入的文本和 URL，不发起网络请求、不选择播放器、不改变字幕显示时间。
  */
 import type { VideoSubtitleCue } from './youtubeSubtitleData';
+import {decodeTextareaHtml} from '@/src/shared/text/htmlEntities';
 
 export interface XSubtitleResource {
   url: string;
@@ -130,9 +131,7 @@ export function createXVideoBridgeResourcePayload(url: string, responseText: unk
 
 export function decodeHtmlEntities(value: string, useDom = true): string {
   if (useDom && typeof document !== 'undefined') {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = value;
-    return textarea.value;
+    return decodeTextareaHtml(value);
   }
 
   return value
