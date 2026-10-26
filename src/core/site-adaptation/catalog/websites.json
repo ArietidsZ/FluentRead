@@ -4847,6 +4847,7 @@
       ],
       "paths": [
         "/*/-/issues/*",
+        "/*/-/work_items/*",
         "/*/-/merge_requests/*",
         "/*/-/blob/*",
         "/*/-/wikis/*",
