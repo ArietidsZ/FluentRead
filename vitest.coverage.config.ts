@@ -27,6 +27,12 @@ export default defineConfig({
                 'src/features/reading-appearance/content.ts',
                 'src/app/popup/readingAppearanceActions.ts',
 
+                'src/core/config/privateTranslation.ts',
+                'src/services/translation/privateRouting.ts',
+                'src/features/settings/ui/PrivateTranslationSettings.vue',
+                'src/features/video-subtitle/content/youtubeAudio.ts',
+                'src/features/video-subtitle/content/youtubeAudioReader.ts',
+                'src/features/video-subtitle/content/youtubeAiCaptionSource.ts',
                 'src/core/config/aiMultiSegment.ts',
                 'src/features/settings/ui/AiMultiSegmentSettings.vue',
                 'src/core/config/clickSelection.ts',

@@ -499,7 +499,9 @@
       "tests/pointerSelectionSession.test.ts",
       "tests/aiMultiSegmentConfig.test.ts",
       "tests/providerResponseIntegrity.test.ts",
-      "tests/userscriptBuildGzip.test.ts"
+      "tests/userscriptBuildGzip.test.ts",
+      "tests/privateTranslation.test.ts",
+      "tests/youtubeDirectAudio.test.ts"
     ],
     "functional": [
       "tests/affectedTests.test.ts",
@@ -794,7 +796,9 @@
       "tests/readingAppearanceRuntime.test.ts",
       "tests/readingAppearanceContent.test.ts",
       "tests/popupReadingAppearance.test.ts",
-      "tests/readingAppearanceComposition.test.ts"
+      "tests/readingAppearanceComposition.test.ts",
+      "tests/privateTranslationIntegration.test.ts",
+      "tests/privateTranslationSettingsLifecycle.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

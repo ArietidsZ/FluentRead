@@ -33,6 +33,14 @@ import {personalCorrectionMessages} from './personalCorrections';
 import countForms from './count-forms.json';
 
 export const frFRMessages = {
+    "privateTranslation.title": "Modèle de traduction privée",
+    "privateTranslation.scope": "Uniquement les requêtes privées confirmées par le navigateur via la traduction partagée. Hors lecture, rédaction, dictionnaire, voix et OCR séparés. Les scripts utilisateur ne détectent pas le mode privé. Si activé, toute identité privée inconnue est refusée, sans appel au modèle normal.",
+    "privateTranslation.service": "Service de traduction privée",
+    "privateTranslation.credentials": "Utilise la connexion et les identifiants du service choisi. Créez un service IA personnalisé pour des identifiants séparés.",
+    "privateTranslation.model": "Identifiant du modèle privé",
+    "privateTranslation.policy": "Uniquement OpenAI et les connexions compatibles personnalisées avec corps standard. Un corps personnalisé entraîne une erreur, sans suppression silencieuse. ID obligatoire, aucun repli. Le fournisseur peut conserver les données. La traduction privée ne lit ni ne stocke les caches partagés de traduction ou de résumé ; une répétition peut rappeler le modèle.",
+    "privateTranslation.required": "Choisissez un service disponible et un identifiant de modèle, sinon la traduction privée échouera.",
+
     ...countForms['fr-FR'],
     ...personalCorrectionMessages['fr-FR'],
     "document.config.loadFailed": "Impossible de charger les paramètres. Rechargez la page et réessayez.",
@@ -962,6 +970,7 @@ export const frFRMessages = {
     'video.downloadBilingual': 'Télécharger les sous-titres bilingues',
     'video.openSettings': 'Ouvrir les réglages de traduction vidéo',
     'video.aiGenerate': 'Générer des sous-titres avec l’IA',
+    'video.youtubeDefaultAudioHint': 'La transcription locale utilise la piste audio par défaut ou unique, pas le doublage sélectionné dans le lecteur.',
     'video.aiStop': 'Arrêter la génération',
     'video.aiDisable': 'Désactiver les sous-titres IA',
     'video.aiReadingAudio': 'Lecture de l’audio…',
