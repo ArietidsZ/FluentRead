@@ -43,8 +43,7 @@ describe('inert translation element snapshots', () => {
         expect(copy.ownerDocument).toBe(shallowDocument);
         expect(copy.parentNode).toBeNull();
         expect(copy.isConnected).toBe(false);
-        expect(shallowDocument.documentElement.outerHTML)
-            .toBe('<html><head><base href="https://example.org/article/"></head></html>');
+        expect(shallowDocument.childNodes).toHaveLength(0);
         expect(shallowDocument.querySelector('img')).toBeNull();
         expect(copy.querySelector('base')).toBeNull();
     });
@@ -112,13 +111,11 @@ describe('inert translation element snapshots', () => {
         const first = cloneTranslationElementInert(firstDocument.querySelector('p')!);
 
         expect(first.ownerDocument).not.toBe(second.ownerDocument);
-        expect(first.baseURI).toBe('https://first.example/');
-        expect(second.baseURI).toBe('https://second.example/');
         expect(first.ownerDocument).not.toBe(firstDocument);
         expect(second.ownerDocument).not.toBe(secondDocument);
     });
 
-    it('refreshes the shared HTML base while retaining raw relative resource and link attributes', () => {
+    it('retains raw relative resource and link attributes across changes to the live page base', () => {
         const document = page('<p><a href="../reference?q=1#part">Read</a><img src="icons/icon.png" srcset="small.png 1x, large.png 2x"></p>');
         const source = document.querySelector('p')!;
         const before = source.outerHTML;
@@ -126,16 +123,13 @@ describe('inert translation element snapshots', () => {
         document.querySelector('base')!.setAttribute('href', 'https://example.org/changed/');
         const second = cloneTranslationElementInert(source);
 
-        expect(second.baseURI).toBe('https://example.org/changed/');
-        // The cached document has a current base, not one frozen for each old copy.
-        expect(first.baseURI).toBe(second.baseURI);
+        expect(second.ownerDocument).toBe(first.ownerDocument);
+        expect(first.outerHTML).toBe(before);
         expect(second.querySelector('a')!.getAttribute('href')).toBe('../reference?q=1#part');
         expect(second.querySelector('img')!.getAttribute('src')).toBe('icons/icon.png');
         expect(second.querySelector('img')!.getAttribute('srcset')).toBe('small.png 1x, large.png 2x');
-        expect(new URL(second.querySelector('a')!.getAttribute('href')!, second.baseURI).href)
-            .toBe('https://example.org/reference?q=1#part');
         expect(source.outerHTML).toBe(before);
-        expect(second.ownerDocument.querySelectorAll('base')).toHaveLength(1);
+        expect(second.ownerDocument.childNodes).toHaveLength(0);
         expect(second.querySelector('base')).toBeNull();
     });
 
@@ -154,25 +148,32 @@ describe('inert translation element snapshots', () => {
         expect(unavailableBase).not.toHaveBeenCalled();
         expect(first.ownerDocument).not.toBe(document);
         expect(first.ownerDocument).toBe(second.ownerDocument);
-        expect(second.ownerDocument.querySelector('base')!.getAttribute('href')).toBe('../changed-base/');
+        expect(second.ownerDocument.childNodes).toHaveLength(0);
         expect(second.outerHTML).toBe(original);
         expect(second.querySelector('a')!.getAttribute('href')).toBe('reference');
         expect(second.querySelector('img')!.getAttribute('src')).toBe('icon.png');
         expect(source.outerHTML).toBe(original); expect([...source.childNodes]).toEqual(children);
     });
 
-    it('clears a cached explicit base when a detached source has no current base element', () => {
+    it('does not inspect window or base information or create a base in a read-only snapshot document', () => {
         const document = page('<p><a href="reference">Read the reference.</a></p>');
         const source = document.querySelector('p')!;
+        const unavailableMetadata = vi.fn(() => {throw new Error('Window and address metadata are unavailable');});
+        Object.defineProperty(document, 'defaultView', {configurable: true, get: unavailableMetadata});
+        Object.defineProperty(document, 'baseURI', {configurable: true, get: unavailableMetadata});
+        Object.defineProperty(source, 'baseURI', {configurable: true, get: unavailableMetadata});
+        const inert = document.cloneNode(false) as Document;
+        vi.spyOn(document, 'cloneNode').mockReturnValue(inert);
+        const createElement = vi.spyOn(inert, 'createElement');
         const first = cloneTranslationElementInert(source);
-        expect(first.ownerDocument.querySelector('base')!.getAttribute('href')).toBe('https://example.org/article/');
         document.querySelector('base')!.remove();
-        Object.defineProperty(document, 'defaultView', {configurable: true, value: null});
 
         const second = cloneTranslationElementInert(source);
 
         expect(second.ownerDocument).toBe(first.ownerDocument);
-        expect(second.ownerDocument.querySelector('base')!.hasAttribute('href')).toBe(false);
+        expect(second.ownerDocument.childNodes).toHaveLength(0);
+        expect(unavailableMetadata).not.toHaveBeenCalled();
+        expect(createElement).not.toHaveBeenCalled();
         expect(second.outerHTML).toBe(source.outerHTML);
         expect(second.querySelector('a')!.getAttribute('href')).toBe('reference');
         expect(source.querySelector('a')!.getAttribute('href')).toBe('reference');
@@ -203,14 +204,7 @@ describe('inert translation element snapshots', () => {
         const source = document.documentElement as unknown as Element;
         const inert = document.cloneNode(false) as Document;
         const shallow = vi.spyOn(document, 'cloneNode').mockReturnValue(inert);
-        const createElement = inert.createElement.bind(inert);
-        // Linkedom reports an XHTML namespace for XML createElement; provide the
-        // native XML capability here without pretending to test xml:base resolution.
-        const created = vi.spyOn(inert, 'createElement').mockImplementation((tag: string) => {
-            const element = createElement(tag);
-            Object.defineProperty(element, 'namespaceURI', {value: null});
-            return element;
-        });
+        const created = vi.spyOn(inert, 'createElement');
         const original = source.outerHTML;
 
         const copy = cloneTranslationElementInert(source);
@@ -225,7 +219,7 @@ describe('inert translation element snapshots', () => {
         expect(copy.textContent).toBe('XML source');
         expect(inert.childNodes).toHaveLength(0);
         expect(shallow.mock.calls).toEqual([[false]]);
-        expect(created.mock.calls).toEqual([['html']]);
+        expect(created).not.toHaveBeenCalled();
         expect(source.outerHTML).toBe(original);
     });
 
