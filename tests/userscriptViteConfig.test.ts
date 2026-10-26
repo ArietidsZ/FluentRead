@@ -557,7 +557,8 @@ describe('userscript browser shim injection', () => {
         for (const [source, value] of Object.entries(current.legacyText)) expect(mergedLegacy[source]).toBe(value);
         const materialSources = new Set(Object.keys(learningMaterialLegacyText[language as keyof typeof learningMaterialLegacyText]));
         for (const source of materialSources) expect(current.legacyText).not.toHaveProperty(source);
-        const materialPatterns = learningMaterialPatterns.map(({pattern}) => pattern);
+        // Native ASR is extension-only, like learning-material operations; all other patterns retain exact order.
+        const materialPatterns = [...learningMaterialPatterns.map(({pattern}) => pattern), '^原生转写服务返回HTTP (\\d+)$'];
         for (const phase of ['early', 'late'] as const) {
             expect(current.legacyPatterns[phase]).toEqual(original.legacyPatterns[phase].filter(([source]) => !materialPatterns.includes(source)));
         }
@@ -644,7 +645,11 @@ describe('userscript browser shim injection', () => {
             expect(extension[key]).toBeTruthy();
             expect(Object.hasOwn(projected, key)).toBe(false);
         }
+        const readingAppearanceKeys = Object.keys(extension).filter(key => key.startsWith('popup.readingAppearance.'));
+        expect(readingAppearanceKeys).toHaveLength(20);
+        for (const key of readingAppearanceKeys) expect(projected).not.toHaveProperty(key);
         const retainedKeys = Object.keys(extension).filter(key => !key.startsWith('informationHighlight.')
+            && !readingAppearanceKeys.includes(key)
             && (!key.startsWith('learning.collection.speech') || key === 'learning.collection.speechFailed')
             && !noticeKeys.includes(key) && !learningKeys.includes(key) && !readingAnnotationKeys.includes(key) && !readerRecoveryKeys.includes(key)
             && !diagnosticKeys.includes(key) && !readerDialogKeys.includes(key)

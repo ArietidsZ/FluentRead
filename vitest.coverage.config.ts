@@ -19,6 +19,14 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'json', 'html'],
             include: [
+                'src/core/config/nativeAsr.ts',
+                'src/features/video-subtitle/background/nativeTranscription.ts',
+                'src/app/content/readingAppearance.ts',
+                'src/core/config/readingAppearance.ts',
+                'src/features/reading-appearance/runtime.ts',
+                'src/features/reading-appearance/content.ts',
+                'src/app/popup/readingAppearanceActions.ts',
+
                 'src/core/config/aiMultiSegment.ts',
                 'src/features/settings/ui/AiMultiSegmentSettings.vue',
                 'src/core/config/clickSelection.ts',
@@ -43,6 +51,7 @@ export default defineConfig({
                 'userscript/readingStorage.ts',
                 'userscript/dataEncoding.ts',
                 'userscript/buildDataEncoding.ts',
+                'userscript/buildGzip.ts',
                 'userscript/readingRuntime.ts',
                 'userscript/readingGeneration.ts',
                 'src/services/harness/modelConfig.ts',

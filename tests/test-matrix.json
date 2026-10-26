@@ -230,6 +230,7 @@
       "tests/translationCache.test.ts",
       "tests/translationBroker.test.ts",
       "tests/microsoftTransport.test.ts",
+      "tests/nativeAsrBoundary.test.ts",
       "tests/nativeBatch.test.ts",
       "tests/nativeBatchConfig.test.ts",
       "tests/translationConfigCheck.test.ts",
@@ -496,7 +497,9 @@
       "tests/pdfResources.test.ts",
       "tests/clickSelectionConfig.test.ts",
       "tests/pointerSelectionSession.test.ts",
-      "tests/aiMultiSegmentConfig.test.ts"
+      "tests/aiMultiSegmentConfig.test.ts",
+      "tests/providerResponseIntegrity.test.ts",
+      "tests/userscriptBuildGzip.test.ts"
     ],
     "functional": [
       "tests/affectedTests.test.ts",
@@ -787,7 +790,11 @@
       "tests/zoteroFontCache.test.ts",
       "tests/clickSelection.test.ts",
       "tests/clickSelectionSettingsLifecycle.test.ts",
-      "tests/aiMultiSegmentSettingsLifecycle.test.ts"
+      "tests/aiMultiSegmentSettingsLifecycle.test.ts",
+      "tests/readingAppearanceRuntime.test.ts",
+      "tests/readingAppearanceContent.test.ts",
+      "tests/popupReadingAppearance.test.ts",
+      "tests/readingAppearanceComposition.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",
