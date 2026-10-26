@@ -2848,6 +2848,89 @@ describe('translation candidate core', () => {
         },
     );
 
+    it.each([
+        ['slot="comment"', 'td'], ['slot="comment"', 'th'],
+        ['slot="comment"', 'li'], ['slot="comment"', 'blockquote'],
+        ['id="t1_nested-comment-rtjson-content"', 'td'], ['id="t1_nested-comment-rtjson-content"', 'th'],
+        ['id="t1_nested-comment-rtjson-content"', 'li'], ['id="t1_nested-comment-rtjson-content"', 'blockquote'],
+    ])('Reddit %s 的 %s 内容同时含 DIV、段落与行内文字时不遗漏正文', (marker, tag) => {
+        const opening = tag === 'td' || tag === 'th' ? '<table><tbody><tr>' : tag === 'li' ? '<ul>' : '';
+        const closing = tag === 'td' || tag === 'th' ? '</tr></tbody></table>' : tag === 'li' ? '</ul>' : '';
+        const {document, core} = page(`<main><shreddit-comment><div ${marker}>
+            ${opening}<${tag} id="container">An opening explanation with <a id="source-link" href="/guide">a practical guide</a>.
+                <div id="outer">The outer introduction provides useful background.
+                    <div id="inner">The nested explanation keeps <code id="protected-code">DO_NOT_TRANSLATE</code> safe.</div>
+                    <p id="inner-paragraph">A paragraph inside the outer block remains separate.</p>
+                    The outer conclusion remains readable.
+                    <button id="protected-button"><div>Do not translate this action.</div></button>
+                    <div contenteditable="true" id="protected-editor"><p>Do not translate this draft.</p></div>
+                </div>
+                <p id="peer">The peer paragraph remains independently readable.</p>
+                A final explanation follows the paragraph.</${tag}>${closing}
+        </div><div id="outside-container"><div id="outside-body">Comment metadata should remain unchanged.</div></div></shreddit-comment>
+        <div slot="comment"><div id="unscoped-body">An unrelated page section remains unchanged.</div></div></main>`,
+        'https://www.reddit.com/r/example/comments/123/topic/');
+        const before = document.body.innerHTML;
+        const candidates = core.discover(document);
+        const sources = candidates.map(candidate => extractTranslationTextFromNodes(candidate.nodes ?? [candidate.element], core.shouldStayOriginal));
+        const required = [
+            'An opening explanation with a practical guide .',
+            'The outer introduction provides useful background.',
+            'The nested explanation keeps  safe.',
+            'A paragraph inside the outer block remains separate.',
+            'The outer conclusion remains readable.',
+            'The peer paragraph remains independently readable.',
+            'A final explanation follows the paragraph.',
+        ];
+        expect(candidates).toHaveLength(required.length);
+        for (const text of required) expect(sources.filter(source => source.replace(/\s+/gu, ' ').trim() === text.replace(/\s+/gu, ' ').trim()), text).toHaveLength(1);
+        expect(sources.join(' ')).not.toMatch(/DO_NOT_TRANSLATE|Do not translate this action|Do not translate this draft/);
+        for (const id of ['outer', 'inner', 'inner-paragraph', 'peer']) {
+            const element = document.getElementById(id)!;
+            const node = [...element.childNodes].find(child => child.nodeType === 3 && child.textContent?.trim())!;
+            const hover = core.resolve(node);
+            expect(hover, id).not.toBeNull();
+            const hoverSource = extractTranslationTextFromNodes(hover!.nodes ?? [hover!.element], core.shouldStayOriginal).replace(/\s+/gu, ' ').trim();
+            expect(required.map(text => text.replace(/\s+/gu, ' ').trim()), id).toContain(hoverSource);
+            expect(sources.filter(source => source.replace(/\s+/gu, ' ').trim() === hoverSource), id).toHaveLength(1);
+        }
+        expect(core.resolve(document.querySelector('#protected-button div')!.firstChild)).toBeNull();
+        expect(core.resolve(document.querySelector('#protected-editor p')!.firstChild)).toBeNull();
+        expect(core.resolve(document.getElementById('outside-body')!.firstChild)).toBeNull();
+        expect(core.resolve(document.getElementById('unscoped-body')!.firstChild)).toBeNull();
+        expect(document.querySelector('#source-link')!.getAttribute('href')).toBe('/guide');
+        expect(document.body.innerHTML).toBe(before);
+    });
+
+    it.each(['slot="comment"', 'id="t1_dynamic-comment-rtjson-content"'])(
+        'Reddit %s 的单个 DIV 及动态替换 DIV 重新发现与悬浮一致', (marker) => {
+            const {document, core} = page(`<main><shreddit-comment><div ${marker}><table><tbody><tr><td id="dynamic-container">
+                <div id="initial-div">The initial independent explanation remains complete.</div>
+            </td></tr></tbody></table></div></shreddit-comment></main>`, 'https://www.reddit.com/r/example/comments/123/topic/');
+            const container = document.getElementById('dynamic-container')!;
+            const initial = document.getElementById('initial-div')!;
+            let candidates = core.discover(document);
+            expect(candidates).toHaveLength(1);
+            expect(candidates[0]!.element).toBe(initial);
+            expect(extractTranslationTextFromNodes(candidates[0]!.nodes ?? [initial], core.shouldStayOriginal))
+                .toBe('The initial independent explanation remains complete.');
+            expect(core.resolve(initial.firstChild)?.element).toBe(initial);
+            initial.remove();
+            container.insertAdjacentHTML('beforeend', '<div id="replacement-div">The replacement independent explanation remains complete.</div>'
+                + '<p id="replacement-paragraph">The additional paragraph remains separate.</p>');
+            const replacement = document.getElementById('replacement-div')!;
+            const paragraph = document.getElementById('replacement-paragraph')!;
+            candidates = core.discover(document);
+            expect(candidates.map(candidate => candidate.element.id).sort()).toEqual(['replacement-div', 'replacement-paragraph']);
+            expect(core.resolve(initial.firstChild)).toBeNull();
+            expect(core.resolve(replacement.firstChild)?.element).toBe(replacement);
+            expect(core.resolve(paragraph.firstChild)?.element).toBe(paragraph);
+            replacement.remove();
+            expect(core.discover(document).map(candidate => candidate.element.id)).toEqual(['replacement-paragraph']);
+            expect(core.resolve(replacement.firstChild)).toBeNull();
+        },
+    );
+
     it('Reddit 普通评论富文本在正文标记变化和动态新增后重新验证候选', () => {
         const {document, core} = page('<main><shreddit-comment><div id="t1_dynamic-comment-rtjson-content">'
             + '<h3 id="dynamic-heading">A dynamically loaded section remains readable.</h3></div></shreddit-comment></main>',

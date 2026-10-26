@@ -954,7 +954,7 @@ node scripts/testing/run-translation-mutation-test.cjs \
 
 ### Reddit 多翻译器共存与搜索结果
 
-普通 `shreddit-comment` 的 `slot="comment"` 和 `*-comment-rtjson-content` 正文同时发现段落、列表、引用、六级标题和表格单元格；全文与悬浮共享这些明确的正文边界。列表、引用和单元格允许内部独立正文拥有各自的译文，子块前后的直接文字也分别保留，避免多个段落被拼接或重复翻译。评论作者、正文外的近似标记、代码、编辑器和操作按钮继续保留原文。`translationCore.test.ts` 与 `translationSnapshotProtection.test.ts` 核对完整候选、混合文本、段落边界、链接和源节点身份、重复翻译恢复，以及正文标记失效和动态新增。标题与表格是 [Reddit 官方格式指南](https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide) 支持的正文格式；原创结构夹具不等同于当前实站验收。
+普通 `shreddit-comment` 的 `slot="comment"` 和 `*-comment-rtjson-content` 正文同时发现段落、列表、引用、六级标题和表格单元格；全文与悬浮共享这些明确的正文边界。列表、引用和单元格及其内嵌的普通 `div` 允许内部独立正文拥有各自的译文，子块前后的直接文字也分别保留，避免多个段落被拼接、遗漏或重复翻译。评论作者、正文外的近似标记、代码、编辑器和操作按钮继续保留原文。`translationCore.test.ts` 与 `translationSnapshotProtection.test.ts` 核对完整候选、混合文本、段落边界、链接和源节点身份、重复翻译恢复，以及正文标记失效和动态新增。标题与表格是 [Reddit 官方格式指南](https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide) 支持的正文格式；原创结构夹具不等同于当前实站验收。
 
 页面 HTML 曾同时包含外部译文的 font 容器与 FluentRead 双语 wrapper。旧快照把前者作为受保护原文复制，净化后丢失其标记，形成第三份译文。`translationCore.test.ts` 覆盖该结构的候选边界、快照省略与普通术语/代码保留。
 

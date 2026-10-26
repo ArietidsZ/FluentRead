@@ -113,6 +113,55 @@ describe('双语快照展示保护', () => {
         },
     );
 
+    it.each(['slot="comment"', 'id="t1_wrapped-comment-rtjson-content"'])(
+        'Reddit %s 的嵌套 DIV 正文两次翻译恢复保留所有文字与控件', (marker) => {
+            const {document} = page('');
+            document.body.innerHTML = `<main><shreddit-comment><div ${marker}><table><tbody><tr><td id="mixed">An opening explanation with <a id="wrapped-link" href="/guide">the original guide</a>.
+                <div id="outer">The outer introduction provides useful background.
+                    <div id="inner">The nested explanation keeps <code id="wrapped-code">DO_NOT_TRANSLATE</code> safe.</div>
+                    <p id="inside">An inner paragraph remains independently readable.</p>
+                    The outer conclusion remains readable.
+                    <button id="wrapped-button"><div>A protected action remains unchanged.</div></button>
+                    <div contenteditable="true" id="wrapped-editor"><p>A protected draft remains unchanged.</p></div>
+                </div>
+                <p id="peer">A peer paragraph remains independently readable.</p>
+                A final explanation follows the paragraph.</td></tr></tbody></table></div></shreddit-comment></main>`;
+            const core = createTranslationCore({url: new URL('https://www.reddit.com/r/example/comments/123/topic/')});
+            const before = document.body.innerHTML;
+            const ids = ['mixed', 'outer', 'inner', 'inside', 'peer', 'wrapped-link', 'wrapped-code', 'wrapped-button', 'wrapped-editor'];
+            const nodes = ids.map(id => ({id, node: document.getElementById(id)!}));
+            const protectedNodes = ['wrapped-code', 'wrapped-button', 'wrapped-editor'].map(id => ({node: document.getElementById(id)!, html: document.getElementById(id)!.outerHTML}));
+            const originals: Array<{node: ChildNode; value: string | null}> = [];
+            const walker = document.createTreeWalker(document.body, 4 /* NodeFilter.SHOW_TEXT */);
+            while (walker.nextNode()) originals.push({node: walker.currentNode as ChildNode, value: walker.currentNode.nodeValue});
+            for (let cycle = 0; cycle < 2; cycle += 1) {
+                const candidates = core.discover(document);
+                expect(candidates).toHaveLength(7);
+                const owners: HTMLElement[] = [], sources: string[] = [];
+                for (const candidate of candidates) {
+                    const materialized = materializeCandidate(candidate, false)!;
+                    expect(materialized).not.toBeNull();
+                    const result = commitBilingual(materialized.node, core, materialized.synthetic);
+                    owners.push(materialized.node);
+                    sources.push(result.sources.join(' '));
+                }
+                for (const expected of ['An opening explanation', 'the original guide', 'The outer introduction', 'The nested explanation',
+                    'An inner paragraph', 'The outer conclusion', 'A peer paragraph', 'A final explanation']) {
+                    expect(sources.filter(source => source.includes(expected)), expected).toHaveLength(1);
+                }
+                expect(sources.join(' ')).not.toMatch(/DO_NOT_TRANSLATE|A protected action|A protected draft/);
+                expect(document.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(7);
+                expect(nodes.every(({id, node}) => document.getElementById(id) === node)).toBe(true);
+                expect(protectedNodes.every(({node, html}) => node.outerHTML === html)).toBe(true);
+                expect(document.querySelector('#wrapped-editor .fluent-read-bilingual-content')).toBeNull();
+                expect(document.querySelector('#wrapped-button .fluent-read-bilingual-content')).toBeNull();
+                for (const owner of owners.reverse()) expect(restoreTranslation(owner)).toBe(true);
+                expect(document.body.innerHTML).toBe(before);
+                expect(originals.every(entry => entry.node.isConnected && entry.node.nodeValue === entry.value)).toBe(true);
+            }
+        },
+    );
+
     it.each(['del', 's'])('%s 删除语义保留在最终译文中，两轮翻译恢复不改宿主节点或安全边界', (tag) => {
         const {owner} = page(`Was <${tag} id="deleted" class="host-deletion" onclick="unsafe()">ten</${tag}> ` +
             'now <strong id="replacement">eight</strong>. <code id="source-code">const value = 10;</code> ' +
