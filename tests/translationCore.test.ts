@@ -3284,6 +3284,7 @@ describe('translation candidate core', () => {
         expect(core.shouldStayOriginal(association)).toBe(false);
         for (const element of [metadata, ...metadata.querySelectorAll('*')]) {
             expect(core.shouldStayOriginal(element)).toBe(true);
+            expect(core.shouldOmitFromTranslation(element)).toBe(true);
             expect(core.shouldIgnoreMutation(element)).toBe(true);
             expect(core.resolve(element.firstChild)).toBeNull();
         }
@@ -3292,6 +3293,7 @@ describe('translation candidate core', () => {
         for (const id of ['near-no-title', 'ordinary', 'markdown-near', 'inside-title', 'timestamp-includes-title']) {
             const near = document.getElementById(id)!;
             expect(core.shouldStayOriginal(near), id).toBe(false);
+            expect(core.shouldOmitFromTranslation(near), id).toBe(false);
         }
         const temporarilyNoAuthor = document.getElementById('near-no-author')!;
         expect(core.shouldStayOriginal(temporarilyNoAuthor)).toBe(true);

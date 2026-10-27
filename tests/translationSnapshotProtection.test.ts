@@ -66,6 +66,50 @@ function commitBilingual(owner: HTMLElement, core = createTranslationCore(), syn
 }
 
 describe('双语快照展示保护', () => {
+    it('omits GitHub pull-list author metadata from an ancestor translation without changing the original', () => {
+        const {document} = page('');
+        document.body.innerHTML = `<main><ul data-listview-component="items-list"><li>
+            <h3><a id="title" data-testid="listitem-title-link" href="/owner/repo/pull/100">A readable pull request title</a></h3>
+            <div id="description" class="container__W45oI6 description__mZjLFE"><span><span>#100</span></span>
+                <span id="metadata" data-testid="timestamp-container"><span aria-hidden="true">·</span>
+                    <a id="author" data-testid="author-filter-link" href="/owner/repo/pulls?author=ExampleUser">ExampleUser</a>
+                    <span> opened </span><relative-time id="time">Oct 27, 2026</relative-time>
+                </span><span id="association" data-testid="comment-author-association">Member</span>
+                <span><button data-testid="checks-status-badge-button">1/1</button></span>
+            </div>
+        </li></ul></main>`;
+        const core = createTranslationCore({url: new URL('https://github.com/owner/repo/pulls')});
+        const title = document.querySelector<HTMLElement>('#title')!;
+        const owner = document.querySelector<HTMLElement>('#description')!;
+        const metadata = document.querySelector<HTMLElement>('#metadata')!;
+        const author = document.querySelector<HTMLElement>('#author')!;
+        const time = document.querySelector<HTMLElement>('#time')!;
+        const authorText = author.firstChild!, timeText = time.firstChild!;
+        const original = owner.innerHTML, originalMetadata = metadata.outerHTML;
+        expect(core.shouldOmitFromTranslation(metadata)).toBe(true);
+        expect(core.shouldStayOriginal(metadata)).toBe(true);
+        expect(core.shouldOmitFromTranslation(title)).toBe(false);
+        expect(core.resolve(title.firstChild)).toMatchObject({element: title, adapterId: 'github'});
+
+        for (let cycle = 0; cycle < 2; cycle += 1) {
+            const {wrapper, sources} = commitBilingual(owner, core);
+            expect(sources.join(' ')).not.toContain('ExampleUser');
+            expect(sources.join(' ')).not.toContain('Oct 27, 2026');
+            expect(sources.join(' ')).toContain('Member');
+            expect(wrapper.textContent).toContain('译:Member');
+            expect(wrapper.querySelector('[data-testid="timestamp-container"]')).toBeNull();
+            expect(wrapper.textContent).not.toContain('ExampleUser');
+            expect(metadata.outerHTML).toBe(originalMetadata);
+            expect(author.firstChild).toBe(authorText);
+            expect(time.firstChild).toBe(timeText);
+            expect(author.getAttribute('href')).toBe('/owner/repo/pulls?author=ExampleUser');
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(owner.innerHTML).toBe(original);
+            expect(author.firstChild).toBe(authorText);
+            expect(time.firstChild).toBe(timeText);
+        }
+    });
+
     it.each(['slot="comment"', 'id="t1_nested-comment-rtjson-content"'])(
         'Reddit %s 表格内分段翻译和恢复保持原始结构、链接及代码', (marker) => {
             const {document} = page('');

@@ -269,6 +269,7 @@
       "[data-listview-item-visibility-label=\"true\"]"
     ],
     "omit": [
+      "main [data-listview-component=\"items-list\"] > li:has([data-testid=\"listitem-title-link\"]) [data-testid=\"timestamp-container\"]:not(.markdown-body):not(.markdown-body *):not([data-testid=\"listitem-title-link\"] *):not(:has([data-testid=\"listitem-title-link\"]))",
       "[class*=\"ReposListItem-module__TopicsList\"]",
       "[data-listview-component=\"items-list\"] [class*=\"TopicsList__\"]",
       "[class*=\"ReposListItem-module__LabelsContainer\"]",
