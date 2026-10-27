@@ -1,8 +1,31 @@
-/** Static resource byte encoding preserves existing gzip payloads and rejects ambiguous new encodings. */
+/** Static resource encoding preserves gzip payloads and checks invalid characters and padding. */
 import {expect, it} from 'vitest';
 import {gzipSync, gunzipSync} from 'node:zlib';
-import {encodeUserscriptData} from '@/userscript/buildDataEncoding';
-import {decodeUserscriptData, USERSCRIPT_DATA_ALPHABET} from '@/userscript/dataEncoding';
+import {encodeUserscriptData, encodeUserscriptDataCompact} from '@/userscript/buildDataEncoding';
+import {decodeUserscriptData, USERSCRIPT_DATA_ALPHABET, USERSCRIPT_COMPACT_DATA_ALPHABET} from '@/userscript/dataEncoding';
+
+it('round-trips compact standalone data for every byte, offset and tail length', () => {
+    const input = Uint8Array.from({length: 2051}, (_, index) => (index * 73 + (index >>> 3)) & 255);
+    expect(new Set(USERSCRIPT_COMPACT_DATA_ALPHABET).size).toBe(91);
+    for (let length = 0; length <= 2048; length += 1) {
+        const bytes = input.subarray(3, 3 + length);
+        const encoded = encodeUserscriptDataCompact(bytes);
+        expect(encoded.startsWith('~91:')).toBe(true);
+        expect(encoded).not.toMatch(/["/\\\s\u0080-\uffff]/u);
+        expect(decodeUserscriptData(encoded)).toEqual(bytes);
+    }
+    for (const text of ['中文 日本語 한국어', 'français español русский 😀', '\\0 &lt; \ud800']) {
+        const original = Buffer.from(text);
+        expect(gunzipSync(decodeUserscriptData(encodeUserscriptDataCompact(gzipSync(original))))).toEqual(original);
+    }
+    expect(() => decodeUserscriptData('~91:中')).toThrow(/Invalid userscript resource/u);
+    expect(() => decodeUserscriptData('~91:"')).toThrow(/Invalid userscript resource/u);
+    expect(() => decodeUserscriptData('~91:!')).toThrow(/Invalid userscript resource padding/u);
+    expect(decodeUserscriptData('~91:!!')).toEqual(Uint8Array.of(0));
+    // 两字符和三字符分别覆盖非零尾部位与超出字节范围的尾部符号。
+    expect(() => decodeUserscriptData('~91:!%')).toThrow(/Invalid userscript resource padding/u);
+    expect(() => decodeUserscriptData('~91:!!&')).toThrow(/Invalid userscript resource padding/u);
+});
 
 it('keeps every byte value and every padding width, including offset Uint8Array views', () => {
     const bytes = Uint8Array.from({length: 1028}, (_, index) => index & 0xff);

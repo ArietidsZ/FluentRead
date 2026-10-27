@@ -14,6 +14,7 @@ import {
 import {refreshBilingualTranslation} from './renderer';
 import {
     isOwnedBilingualArtifactAttached,
+    inlineCodeReplaySourceIsCurrent,
     isTranslationApplicationShellPolicyCurrent,
     setBilingualContent,
     setRenderedStyleAttribute,
@@ -39,7 +40,8 @@ export function refreshBilingualTranslationSkeleton(
     // 但可译文本未变，按当前 DOM 重建骨架并复用已提交译文才是正确的恢复路径；
     // 要求精确工件相等会把它误判成“需要重新请求”。
     if (state.phase !== 'translated' || state.mode !== 'bilingual' || state.kind !== 'content' ||
-        !replay || !content || !isTranslationApplicationShellPolicyCurrent(node, state) || !isOwnedBilingualArtifactAttached(node, state)) return false;
+        !replay || !content || !isTranslationApplicationShellPolicyCurrent(node, state) ||
+        !inlineCodeReplaySourceIsCurrent(node, state) || !isOwnedBilingualArtifactAttached(node, state)) return false;
 
     const core = getCurrentTranslationCore(state.scope);
     const boundary = state.syntheticSegment ? node : undefined;

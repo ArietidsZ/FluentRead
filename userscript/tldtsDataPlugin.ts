@@ -1,7 +1,7 @@
 /**
  * @file userscript/tldtsDataPlugin.ts
  * 文件职责：仅为独立完整 userscript 无损压缩锁定 tldts 的生成式后缀规则表。
- * 主要内容：核对版本、精确模块路径与静态导出，以 gzip 编码完整规则并同步恢复原 typed arrays；完整独立脚本可选择既有 Base85 表示，原调用默认保留 Base64。
+ * 主要内容：核对版本、精确模块路径与静态导出，以 gzip 编码完整规则并同步恢复原 typed arrays；完整独立脚本可选择 Base91 表示，原调用默认保留 Base64。
  * 模块边界：不改变后缀匹配算法、规则、许可或 API；普通脚本、Greasy Fork 与扩展目标不启用。
  */
 import {createHash} from 'node:crypto';
@@ -9,7 +9,7 @@ import {readFileSync, realpathSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname, resolve} from 'node:path';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeUserscriptData} from './buildDataEncoding';
+import {encodeUserscriptDataCompact} from './buildDataEncoding';
 import ts from 'typescript';
 import {normalizePath, type Plugin} from 'vite';
 
@@ -94,7 +94,7 @@ export function createUserscriptTldtsDataCompressionPlugin(root: string, enabled
             }
             payload.set(labels, tableByteLength);
             const bytes = gzipUserscriptBuildData(payload);
-            const compressed = compact ? encodeUserscriptData(bytes) : bytes.toString('base64');
+            const compressed = compact ? encodeUserscriptDataCompact(bytes) : bytes.toString('base64');
             const digest = createHash('sha256').update(code).digest('hex');
             return {
                 code: [

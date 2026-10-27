@@ -7,6 +7,7 @@
  */
 
 export {hasDistinctTranslation} from './result';
+export {createInlineCodePacket, type InlineCodePacket} from './inlineCodeProtocol';
 
 
 export {

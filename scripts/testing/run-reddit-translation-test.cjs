@@ -374,7 +374,7 @@ async function main() {
         await page.locator(`#existing ${foreign}`).evaluate(node => node.remove());
         await waitCount(page, `#existing ${owned}`, 1);
         result.foreignRemovalRetranslates = true;
-        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-translated.png`)});
+        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-translated.png`), caret: 'initial'});
         const sourceWithForeign = await page.locator('main').evaluate((main, {owned, originalReply}) => {
           const clone = main.cloneNode(true);
           clone.querySelectorAll(owned).forEach(node => node.remove());
@@ -390,12 +390,12 @@ async function main() {
         assert.equal(page.url(), url);
         result.passed = true;
         result.requests = await worker.evaluate(() => globalThis.redditRequests);
-        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-retranslated.png`)});
+        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-retranslated.png`), caret: 'initial'});
         console.log(`${scope}: hover 1/0/1, no overlap before/during/after requests, restore/retranslate passed`);
       } catch (error) {
         result.error = error.stack;
         result.dom = await page.locator('main').innerHTML().catch(() => '');
-        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-failure.png`)}).catch(() => {});
+        await page.screenshot({path: path.join(args.artifactsDir, `${scope}-failure.png`), caret: 'initial'}).catch(() => {});
         throw error;
       } finally { save(); await page.close(); }
     }
