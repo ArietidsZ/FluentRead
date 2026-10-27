@@ -117,7 +117,6 @@ function readControlledPageEvidenceInPage(options) {
   const gitlabMarkers = new WeakMap((gitlabLabelProtected
     ? [...document.querySelectorAll(gitlabLabelProtected)].filter(node => !node.closest(artifact)) : [])
     .map((node, index) => [node, `\uFFF2${index}\uFFF3`]));
-  const isGitlabMarker = value => /^\uFFF2\d+\uFFF3$/u.test(value);
   const ubuntuManpage = globalThis.location?.hostname === 'manpages.ubuntu.com' && /^\/manpages\/[^/]+\/man[0-9][^/]*\/[^/]+\.html$/u.test(globalThis.location?.pathname || '');
   // Match the SQLite documentation profile exactly; ordinary page buttons are not protected prose.
   const sqliteDocument = ['sqlite.org', 'www.sqlite.org'].includes(globalThis.location?.hostname) &&
@@ -294,8 +293,11 @@ function readControlledPageEvidenceInPage(options) {
     }
     const inheritedLink = owner.closest('a[href]')?.getAttribute('href') ?? null;
     const markedSourceNodes = textNodes(source, inheritedLink), markedOutputNodes = textNodes(translated, inheritedLink);
-    const sourceTextNodes = markedSourceNodes.filter(node => !isGitlabMarker(node.text));
-    const outputTextNodes = markedOutputNodes.filter(node => !isGitlabMarker(node.text));
+    // Only remove markers inserted for this owner; marker-shaped native text on
+    // other sites or owners must remain part of the complete source comparison.
+    const insertedMarkers = new Set(protections.filter(part => part.requireElement).map(part => part.marker));
+    const sourceTextNodes = markedSourceNodes.filter(node => !insertedMarkers.has(node.text));
+    const outputTextNodes = markedOutputNodes.filter(node => !insertedMarkers.has(node.text));
     const sourceParts = sourceTextNodes.map(node => node.text);
     const markedParts = markedSourceNodes.map(node => node.text);
     const gitlabOrderedProjection = hasGitlabLabels ? {source: markedParts.join(''), sourceParts: markedParts, output: markedOutputNodes.map(node => node.text).join(''), sourceTextNodes: markedSourceNodes, outputTextNodes: markedOutputNodes} : undefined;

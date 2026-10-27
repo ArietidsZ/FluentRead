@@ -30,6 +30,38 @@ function render(state: ReturnType<typeof setup>) {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('GitLab scoped label controlled evidence', () => {
+    it.each([
+        'https://example.com/article',
+        'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924',
+        'https://gitlab.com/gitlab-org/gitlab/-/snippets/1',
+    ])('keeps marker-shaped native text in the evidence when no label marker was inserted: %s', pageUrl => {
+        const {document, window} = parseHTML('<html><body><main><p id="body">Leading words <span id="literal"></span> final words.<span class="fluent-read-bilingual-content" data-fr-translation-owned="true"></span></p></main></body></html>');
+        vi.stubGlobal('document', document);vi.stubGlobal('Node', window.Node);vi.stubGlobal('location', new URL(pageUrl));
+        const literal = '\uFFF2123\uFFF3', source = `Leading words ${literal} final words.`;
+        document.querySelector('#literal')!.textContent = literal;
+        const output = document.querySelector('.fluent-read-bilingual-content')!;
+        output.textContent = encodeControlledTranslation(source);
+        const valid = readControlledPageEvidenceInPage();
+        expect(valid[0].source).toContain(literal);
+        expect(assertControlledPageEvidence(valid, 'literal-marker')).toMatchObject({owners: 1});
+
+        output.textContent = encodeControlledTranslation('Leading words  final words.');
+        expect(() => assertControlledPageEvidence(readControlledPageEvidenceInPage(), 'missing-literal')).toThrow('complete source');
+        output.textContent = encodeControlledTranslation(source);
+        output.append(document.createTextNode(literal));
+        expect(() => assertControlledPageEvidence(readControlledPageEvidenceInPage(), 'extra-literal')).toThrow('complete source');
+    });
+    it('does not filter a marker generated for another GitLab owner', () => {
+        const {document, window} = parseHTML('<html><body><main><span class="gl-label-text">other label</span><p id="body">Leading words <span id="literal"></span> final words.<span class="fluent-read-bilingual-content" data-fr-translation-owned="true"></span></p></main></body></html>');
+        vi.stubGlobal('document', document);vi.stubGlobal('Node', window.Node);vi.stubGlobal('location', new URL(url));
+        const literal = '\uFFF20\uFFF3';
+        document.querySelector('#literal')!.textContent = literal;
+        document.querySelector('.fluent-read-bilingual-content')!.textContent = encodeControlledTranslation('Leading words  final words.');
+        const rows = readControlledPageEvidenceInPage();
+        expect(rows[0].source).toContain(literal);
+        expect(() => assertControlledPageEvidence(rows, 'other-owner-marker')).toThrow('complete source');
+    });
+
     it('matches both label siblings and their exact href without dropping surrounding prose from a source partition', async () => {
         const state = setup();
         const page = {evaluate: async (fn: Function, input: unknown) => fn(input)};
