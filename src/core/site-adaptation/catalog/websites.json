@@ -4888,6 +4888,7 @@
     ],
     "protect": [
       ".gl-label-text",
+      ".gl-label-text-scoped",
       ".author-link"
     ],
     "exclude": [

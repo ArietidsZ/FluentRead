@@ -27,6 +27,62 @@ function documentFor(html: string): Document {
 }
 
 describe('网站正文规则目录', () => {
+    it('GitLab scoped 标签的键和值同时保持原文且不漏入正文翻译源', () => {
+        // 本地结构结合公开页面观察和 GitLab UI label.vue：两个文本 span 是同一链接下的兄弟节点。
+        const document = documentFor(`<main>
+            <section id="labels" data-testid="work-item-labels"><span class="gl-label gl-label-scoped" data-testid="devops::growth"><a id="scoped-link" href="/labels/devops"><span class="gl-label-text" id="key">devops</span><span class="gl-label-text-scoped" id="value">growth</span></a></span></section>
+            <div class="md"><p id="body">A readable explanation with <a id="inline-link" href="/labels/feature"><span class="gl-label-text">feature</span><span class="gl-label-text-scoped">enhancement</span></a> remains useful.</p></div>
+        </main>`);
+        const url = new URL('https://gitlab.com/gitlab-org/gitlab/-/work_items/18924');
+        const beforePack = structuredClone(pack);
+        const oldRule = beforePack.rules.find(rule => rule.id === 'gitlab')!;
+        oldRule.protect = oldRule.protect!.filter(selector => selector !== '.gl-label-text-scoped');
+        const before = new TranslationCandidateCore({url, adapters: compileSiteRulePack(beforePack)});
+        const core = new TranslationCandidateCore({url, adapters});
+        const sources = (engine: TranslationCandidateCore) => engine.discover(document).map(candidate =>
+            extractTranslationTextFromNodes(candidate.nodes ?? [candidate.element], engine.shouldStayOriginal)).join('\n');
+        expect(sources(before)).toContain('growth');
+        expect(sources(before)).toContain('enhancement');
+        expect(sources(core)).not.toContain('growth');
+        expect(sources(core)).not.toContain('enhancement');
+        expect(sources(core)).toContain('A readable explanation');
+        for (const selector of ['#key', '#value']) expect(core.shouldStayOriginal(document.querySelector(selector)!)).toBe(true);
+        expect(core.resolve(document.querySelector('#value')!.firstChild)).toBeNull();
+        const body = document.querySelector<HTMLElement>('#body')!;
+        const original = body.innerHTML;
+        const snapshot = createTranslationSourceSnapshot(body, core.shouldStayOriginal);
+        expect(snapshot.slots.map(slot => slot.source).join(' ')).not.toContain('enhancement');
+        const output = documentFor(applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '正文译文')));
+        expect(output.querySelector('#inline-link')?.getAttribute('href')).toBe('/labels/feature');
+        expect(output.querySelector('.gl-label-text')?.textContent).toBe('feature');
+        expect(output.querySelector('.gl-label-text-scoped')?.textContent).toBe('enhancement');
+        expect(body.innerHTML).toBe(original);
+        // 新增动态标签也必须受同一静态保护规则约束。
+        document.querySelector('#labels')!.insertAdjacentHTML('beforeend', '<span class="gl-label gl-label-scoped"><a href="/labels/new"><span class="gl-label-text">group</span><span class="gl-label-text-scoped" id="dynamic-value">engagement</span></a></span>');
+        expect(core.shouldStayOriginal(document.querySelector('#dynamic-value')!)).toBe(true);
+        expect(sources(core)).not.toContain('engagement');
+        expect(core.resolve(document.querySelector('#dynamic-value')!.firstChild)).toBeNull();
+    });
+
+    it('GitLab 旧议题也保护 scoped 标签，相似类名与其他站点正文不受影响', () => {
+        const document = documentFor(`<main>
+            <span class="gl-label gl-label-scoped"><a href="/labels/feature"><span class="gl-label-text">feature</span><span class="gl-label-text-scoped" id="scoped">scoped value</span></a></span>
+            <div class="md"><p id="prose"><span class="gl-label-text-scoped-example" id="similar">A readable explanation of a scoped label stays translatable.</span></p></div>
+        </main>`);
+        const sourceFor = (engine: TranslationCandidateCore) => engine.discover(document).map(candidate =>
+            extractTranslationTextFromNodes(candidate.nodes ?? [candidate.element], engine.shouldStayOriginal)).join('\n');
+        for (const path of ['/issues/18924', '/work_items/18924']) {
+            const core = new TranslationCandidateCore({url: new URL(`https://gitlab.com/group/project/-${path}`), adapters});
+            expect(core.shouldStayOriginal(document.querySelector('#scoped')!), path).toBe(true);
+            expect(sourceFor(core), path).not.toContain('scoped value');
+            expect(core.shouldStayOriginal(document.querySelector('#similar')!), path).toBe(false);
+            expect(sourceFor(core), path).toContain('A readable explanation of a scoped label stays translatable.');
+        }
+        const otherSite = new TranslationCandidateCore({url: new URL('https://example.com/article'), adapters});
+        expect(otherSite.shouldStayOriginal(document.querySelector('#scoped')!)).toBe(false);
+        expect(sourceFor(otherSite)).toContain('scoped value');
+    });
+
     it('GitLab 工作项复用议题正文与标签保护，明确通配路径边界', () => {
         const adapter = adapterById.get('gitlab')!;
         for (const raw of [
