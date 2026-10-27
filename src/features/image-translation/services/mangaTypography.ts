@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaTypography.ts
  * 文件职责：在漫画原有区域内排版完整译文，区分对白与大标题并保持东亚标点的阅读习惯。
- * 主要内容：保留词、字素与显式换行，闭标点跟随前字、开标点跟随后字；按真实 Canvas 字宽和可用字形上下界二分适配字号，单行不重复扣除行距，多行仍保留基线间距，缺少完整字形指标时沿用行框；合并字形有效性与最大行距遍历，基线数组就地归一化，减少临时数组而不改变浮点运算顺序；同一区域共享分词与长词字素，候选仅保留数字状态，最大字号预检后按二分上界跳过不可能胜出的搜索；普通单框仍保留原度量顺序；逐项求最大宽高以兼容大量段落与行；末行过短时平衡行宽而不增加行数或越过字形预算，不截字、不横向压缩。
+ * 主要内容：保留词、字素与显式换行，扩展东亚文字与英文分词，必要时按字素边界合并词；闭标点跟随前字、开标点跟随后字；按真实 Canvas 字宽和可用字形上下界二分适配字号，单行不重复扣除行距，多行仍保留基线间距，缺少完整字形指标时沿用行框；合并字形有效性与最大行距遍历，基线数组就地归一化，减少临时数组而不改变浮点运算顺序；同一区域共享分词与长词字素，候选仅保留数字状态，最大字号预检后按二分上界跳过不可能胜出的搜索；普通单框仍保留原度量顺序；逐项求最大宽高以兼容大量段落与行；末行过短时平衡行宽而不增加行数或越过字形预算，不截字、不横向压缩。
  * 模块边界：纯文字和度量算法，不读取页面、配置或字体资源，不识别、翻译或修补图片；普通图片继续使用独立的通用排版。
  */
 import type {ImageTranslationTextLayout} from './rendering';
@@ -9,11 +9,36 @@ import type {ImageTranslationTextLayout} from './rendering';
 export const MANGA_TEXT_FONT = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", sans-serif';
 const OPEN = /^[（【「『《〈“‘(\[]+$/u;
 const CLOSE = /^[，。！？、；：）】」』》〉”’….,!?;:)\]]+$/u;
-const CJK = /\s+|[\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]\p{Mark}*|[^\s\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]+/gu;
+const CJK = /\s+|[\uFF66-\uFF9D][\uFF9E\uFF9F](?:\p{Mark}|[\u200c\u200d])*|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af](?:\p{Mark}|[\u200c\u200d])*|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]+/gu;
+const SIMPLE_TEXT = /^[\x20-\x7e\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\uac00-\ud7a3\uff01-\uff65]*$/u;
+const TEXT_EXTEND = /[\p{Mark}\p{Grapheme_Extend}]/u;
 const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity:'grapheme'}) : undefined;
 
 export interface MangaGlyphMetrics {ascent: number; descent: number}
 export interface MangaTextLayout extends ImageTranslationTextLayout {ink?: {height: number; baselines: number[]}}
+
+/** 按实际字素边界合并相邻词，空白保留原有归一化规则；无分段器时沿用码点回退。 */
+function tokenizeMangaText(paragraph:string):string[] {
+    const tokens=paragraph.match(CJK)||[];
+    const mayCross=tokens.length>1&&segmenter
+        &&tokens.some((token,index)=>index>0&&!/^\s/u.test(token)&&!/^\s/u.test(tokens[index-1]))
+        &&!(SIMPLE_TEXT.test(paragraph)&&!TEXT_EXTEND.test(paragraph));
+    if(!mayCross||!segmenter)return tokens;
+    const iterator=segmenter.segment(paragraph)[Symbol.iterator](),merged:string[]=[];
+    let offset=0,end=0,pending='';
+    for(const token of tokens){
+        offset+=token.length;
+        while(end<offset)end+=iterator.next().value!.segment.length;
+        if(/^\s+$/u.test(token)){
+            if(pending)merged.push(pending);
+            merged.push(token);pending='';
+        }else{
+            pending+=token;
+            if(offset===end){merged.push(pending);pending='';}
+        }
+    }
+    return merged;
+}
 
 function bindPunctuation(tokens: string[]): string[] {
     const result: string[] = [];
@@ -33,7 +58,7 @@ export interface MangaTextSearchCandidate {readonly width:number;readonly height
 
 function parseMangaText(normalized:string):MangaTextSource {
     const paragraphs = normalized.split('\n').map(paragraph => paragraph.trim());
-    const tokens = paragraphs.map(paragraph => bindPunctuation(paragraph.match(CJK) || []));
+    const tokens = paragraphs.map(paragraph => bindPunctuation(tokenizeMangaText(paragraph)));
     return {paragraphs,tokens,splitTokens:new Map<string,string[]>()};
 }
 
