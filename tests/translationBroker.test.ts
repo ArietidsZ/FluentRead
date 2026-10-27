@@ -25,6 +25,7 @@ import {
 } from '@/src/services/translation/persistenceBarrier';
 import {
     attachTranslationRequestControl,
+    attachTranslationImageInput,
     attachTranslationGlossaryContext,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
@@ -243,6 +244,14 @@ function deferred<T>() {
         reject = rejectPromise;
     });
     return {promise, reject, resolve};
+}
+
+function inlineCodeFixture() {
+    const parts = ['The variable ', ' is not the same as ', ' because the language is case sensitive.'];
+    const nonce = sha256Hex(parts.join('\0')).slice(0, 16);
+    const a = `__FRCODE_${nonce}_0__`, b = `__FRCODE_${nonce}_1__`;
+    return {a, b, source: `${parts[0]}${a}${parts[1]}${b}${parts[2]}`,
+        translated: `变量 ${a} 与 ${b} 不同，因为语言区分大小写。`};
 }
 
 // 目标语言中的长段落与英文参考材料没有字面重合，复现短标题被扩写成页面内容的漏检。
@@ -627,6 +636,155 @@ describe('translation broker', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+    });
+
+    it('仅缓存完整有效的行内代码译文，独立于普通文本并支持清理', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true};
+        mocks.service.mockResolvedValue(translated);
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        expect(translationCacheIdentities().every(identity => identity.requestMode === 'inline-code-v1')).toBe(true);
+        await expect(translateWithCache({origin: source, enableAIContext: false})).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().some(identity => identity.requestMode === 'single')).toBe(true);
+        await clearTranslationCache();
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+    });
+
+    it.each(['missing', 'duplicate', 'reordered', 'unknown', 'normalized-marker', 'empty-slot', 'echo', 'punctuation'] as const)(
+        '行内代码协议不缓存 %s 损坏或未译响应', async kind => {
+            const {a, b, source, translated} = inlineCodeFixture();
+            const invalid = {
+                missing: translated.replace(b, ''), duplicate: translated + a,
+                reordered: translated.replace(a, '__TEMP__').replace(b, a).replace('__TEMP__', b),
+                unknown: translated + '__FRCODE_unknown__', 'empty-slot': `变量 ${a}  ${b} 不同。`,
+                'normalized-marker': translated + ` FRCODE ${a.slice('__FRCODE_'.length, '__FRCODE_'.length + 16)} 0`,
+                echo: source, punctuation: source.replace('sensitive.', 'sensitive。'),
+            }[kind];
+            mocks.service.mockResolvedValue(invalid);
+            await translateWithCache({origin: source, enableAIContext: false, validateInlineCodeTranslation: true}).catch(() => undefined);
+            expect(mocks.cacheSet).not.toHaveBeenCalled();
+        },
+    );
+
+    it('损坏的行内代码缓存必须作为未命中重取，关闭缓存不会读写', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true};
+        mocks.service.mockResolvedValue(translated);
+        mocks.cacheGet.mockResolvedValueOnce('污染的缓存');
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
+        mocks.service.mockClear(); mocks.cacheGet.mockClear(); mocks.cacheSet.mockClear();
+        await expect(translateWithCache({...request, useCache: false})).resolves.toBe(translated);
+        await expect(translateWithCache({...request, useCache: false})).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheGet).not.toHaveBeenCalled(); expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('直接 broker 调用也拒绝非法行内代码请求形态', async () => {
+        const {source} = inlineCodeFixture();
+        const invalid = [
+            {origin: [source], enableAIContext: false}, {origin: 'ordinary', enableAIContext: false},
+            {origin: source, enableAIContext: true}, {origin: source, enableAIContext: false, validateTranslationSlots: true},
+            {origin: source, enableAIContext: false, aiMultiSegment: true}, {origin: source, enableAIContext: false, documentBatch: true},
+            {origin: source, enableAIContext: false, pageContext: 'other page'},
+        ];
+        for (const message of invalid) await expect(translateWithCache({...message, validateInlineCodeTranslation: true})).rejects.toThrow('行内代码翻译请求格式无效');
+        await expect(translateWithCache(attachTranslationImageInput({origin: source, enableAIContext: false,
+            validateInlineCodeTranslation: true}, 'data:image/png;base64,AAAA'))).rejects.toThrow('行内代码翻译请求格式无效');
+        await expect(translateWithCache({origin: source, validateInlineCodeTranslation: 'true'} as unknown as TranslationRequestMessage))
+            .rejects.toThrow('validateInlineCodeTranslation 必须是布尔值');
+        expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('行内代码缓存清理使在途旧请求的迟到结果不可写回', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true};
+        const pending = deferred<string>();
+        mocks.service.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(translated);
+        const old = translateWithCache(request);
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+        await clearTranslationCache();
+        pending.resolve(translated);
+        await expect(old).resolves.toBe(translated);
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
+    });
+
+    it('行内代码相同在途请求由独立等待者共享，取消等待者不取消其他消费者', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true};
+        const pending = deferred<string>();
+        mocks.service.mockReturnValueOnce(pending.promise);
+        const ownerController = new AbortController();
+        const owner = translateWithCache(attachTranslationRequestControl({...request}, {
+            signal: ownerController.signal, ownershipKey: 'inline-cache-owner',
+        }));
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+        const controller = new AbortController();
+        const waiter = translateWithCache(attachTranslationRequestControl({...request}, {
+            signal: controller.signal, ownershipKey: 'inline-cache-owner',
+        }));
+        await flushMicrotasks();
+        controller.abort();
+        await expect(waiter).rejects.toMatchObject({name: 'AbortError'});
+        pending.resolve(translated);
+        await expect(owner).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledOnce();
+    });
+
+    it('行内代码首个独立请求取消时不终止后续不同所有者请求或缓存其迟到结果', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true};
+        const first = deferred<string>(), second = deferred<string>();
+        const signals: AbortSignal[] = [];
+        mocks.service.mockImplementation((message: {abortSignal: AbortSignal}) => {
+            signals.push(message.abortSignal);
+            return signals.length === 1 ? first.promise : second.promise;
+        });
+        const ownerController = new AbortController(), followerController = new AbortController();
+        const owner = translateWithCache(attachTranslationRequestControl({...request}, {
+            signal: ownerController.signal, ownershipKey: 'inline-cache-first',
+        }));
+        const ownerOutcome = owner.catch(error => error);
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(1));
+        const follower = translateWithCache(attachTranslationRequestControl({...request}, {
+            signal: followerController.signal, ownershipKey: 'inline-cache-second',
+        }));
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(2));
+        ownerController.abort();
+        expect(await ownerOutcome).toMatchObject({name: 'AbortError'});
+        expect(signals[0]!.aborted).toBe(true);
+        expect(signals[1]!.aborted).toBe(false);
+        first.resolve(translated);
+        await flushMicrotasks();
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+        second.resolve(translated);
+        await expect(follower).resolves.toBe(translated);
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
+        expect(followerController.signal.aborted).toBe(false);
+    });
+
+    it('行内代码缓存隔离服务、源语言与目标语言配置', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true,
+            serviceOverride: 'mock', sourceLanguage: 'en', targetLanguage: 'zh-Hans'};
+        mocks.service.mockResolvedValue(translated);
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        await expect(translateWithCache({...request, sourceLanguage: 'fr'})).resolves.toBe(translated);
+        await expect(translateWithCache({...request, targetLanguage: 'zh-Hant'})).resolves.toBe(translated);
+        await expect(translateWithCache({...request, serviceOverride: 'deeplx'})).resolves.toBe(translated);
+        await expect(translateWithCache(request)).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+        const identities = translationCacheIdentities();
+        expect(identities.every(identity => identity.requestMode === 'inline-code-v1')).toBe(true);
+        expect(new Set(identities.map(identity => JSON.stringify(identity))).size).toBe(4);
     });
 
     it('isolates ordered anonymous routes while ignoring credentials and private endpoints', async () => {

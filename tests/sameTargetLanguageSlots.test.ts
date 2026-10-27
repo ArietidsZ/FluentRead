@@ -140,7 +140,7 @@ describe('原始槽的补充证据与快照', () => {
         expect(runtime.requests[0]?.options.sourceLanguage).toBe('ja');
     });
 
-    it('行内代码试探只发送标记正文，以无标记文字检测语言且不使用任何结果缓存', async () => {
+    it('行内代码试探只发送标记正文，以无标记文字检测语言并冻结缓存设置', async () => {
         Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
         const snapshot = captureFullPageTranslationConfig();
         const source = 'The variable __FRCODE_0123456789abcdef_0__ is different from __FRCODE_0123456789abcdef_1__.';
@@ -151,10 +151,13 @@ describe('原始槽的补充证据与快照', () => {
         expect(runtime.requests).toHaveLength(1);
         expect(runtime.textContexts).toEqual(['']);
         expect(runtime.requests[0]).toMatchObject({kind: 'text', origins: [source], options: {
-            serviceOverride: 'freeTranslation', useCache: false, skipLanguageDetection: true,
+            serviceOverride: 'freeTranslation', useCache: true, validateInlineCodeTranslation: true, skipLanguageDetection: true,
             sourceLanguageDetectionText: 'The variable   is different from  .', enableAIContext: false,
         }});
         expect(decode).toHaveBeenCalledWith(`T:${source}`);
+        runtime.requests.length = 0;
+        await tryTranslateInlineCodeSentence(source, decode, {...snapshot, useCache: false});
+        expect(runtime.requests[0]?.options).toMatchObject({useCache: false, validateInlineCodeTranslation: true});
     });
 
     it('试探遵守目标与排除语言、上下文开关和无效响应回退', async () => {

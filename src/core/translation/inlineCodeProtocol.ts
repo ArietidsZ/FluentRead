@@ -10,10 +10,11 @@ import {createTranslationTextProtectionCache, isTranslationTextNodeProtected} fr
 import type {TranslationSourceSnapshot} from '@/src/core/translation/serialization';
 import type {TranslationTextProtectionOptions} from '@/src/core/translation/dom';
 import {sha256Hex} from '@/src/shared/function/sha256';
+import {decodeInlineCodeTranslation, inlineCodeNonSimpleWhitespace, parseInlineCodeSource} from './inlineCodeMarkers';
 
 const reservedMarker = /__FRCODE/iu;
 // 零宽和双向控制字符虽非标准空白，也不可在槽边界按普通空格处理。
-const nonSimpleWhitespace = /[^\S ]|[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+const nonSimpleWhitespace = inlineCodeNonSimpleWhitespace;
 const safeDocumentRoles = new Set(['main', 'article', 'document', 'region', 'presentation', 'none', 'generic', 'list', 'listitem']);
 const forbiddenAncestorTags = new Set(['a', 'button', 'input', 'select', 'textarea', 'option', 'pre', 'code', 'script', 'style']);
 const maximumChildren = 129;
@@ -153,6 +154,8 @@ export function createInlineCodePacket(
     const nonce = sha256Hex(sources.join('\0')).slice(0, 16);
     const markers = codes.map((_, index) => `__FRCODE_${nonce}_${index}__`);
     const source = sources.map((text, index) => text + (markers[index] ?? '')).join('');
+    const markerPlan = parseInlineCodeSource(source);
+    if (!markerPlan) return null;
     const frozenSlotParts = snapshot.slots.map(({prefix, source, suffix}) => ({prefix, source, suffix}));
     const detectionText = sources.join(' ');
     const protectedCodeTexts = Object.freeze(codes.map(code => code.textContent!));
@@ -183,40 +186,7 @@ export function createInlineCodePacket(
     };
     return Object.freeze({source, detectionText, sourceTexts: Object.freeze([...sources]), markers: Object.freeze(markers), codeTexts: protectedCodeTexts,
         codeClasses: Object.freeze([...codeClasses]), isCurrent, decode(result: unknown): string[] | null {
-        if (typeof result !== 'string' || result.length > maximumCharacters || nonSimpleWhitespace.test(result) || !isCurrent()) return null;
-        const parts: string[] = [];
-        let offset = 0;
-        for (const marker of markers) {
-            const index = result.indexOf(marker, offset);
-            if (index < 0) return null;
-            const part = result.slice(offset, index);
-            if (reservedMarker.test(part)) return null;
-            parts.push(part);
-            offset = index + marker.length;
-        }
-        const tail = result.slice(offset);
-        if (reservedMarker.test(tail)) return null;
-        parts.push(tail);
-        // 既有渲染器会补回每槽的原始边界；中文普通空格允许少量受限差异，
-        // 不同于逐字保留 provider 空白，其他情况均拒绝而由调用方回退。
-        const translations: string[] = [];
-        for (const [index, part] of parts.entries()) {
-            const {prefix, suffix} = snapshot.slots[index]!;
-            let translation: string;
-            if ((!prefix && part.startsWith(' ')) || (!suffix && part.endsWith(' '))) return null;
-            if (part.startsWith(prefix) && part.endsWith(suffix) && part.length >= prefix.length + suffix.length) {
-                translation = part.slice(prefix.length, part.length - suffix.length);
-            } else {
-                // 中文自然行内排版可补回原始 ASCII 空格；非中文、换行保留与复杂
-                // 空白一律回退。服务新增的边界空格也不可被静默删掉。
-                if (!['zh-Hans', 'zh-Hant'].includes(options.targetLanguage ?? '')) return null;
-                const match = /^( *)([\s\S]*?)( *)$/u.exec(part)!;
-                if (match[1]!.length > prefix.length || match[3]!.length > suffix.length) return null;
-                translation = match[2]!;
-            }
-            if (!translation.trim()) return null;
-            translations.push(translation);
-        }
-        return translations;
+        if (!isCurrent()) return null;
+        return decodeInlineCodeTranslation(markerPlan, result, options.targetLanguage);
     }});
 }

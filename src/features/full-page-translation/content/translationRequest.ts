@@ -102,7 +102,7 @@ export interface FullPageTranslationRequestCacheEntry {
 type SnapshotTranslateExecutionOptions = Pick<
     TranslateOptions,
     'aiMultiSegment' | 'queueSession' | 'signal' | 'skipLanguageDetection'
-    | 'sourceLanguageDetectionText' | 'useCache' | 'validateTranslationSlots' | 'discourseContext'
+    | 'sourceLanguageDetectionText' | 'useCache' | 'validateTranslationSlots' | 'validateInlineCodeTranslation' | 'discourseContext'
 >;
 
 export interface FullPageTranslationSessionCache {
@@ -259,7 +259,7 @@ function isAbortError(error: unknown): boolean {
 /**
  * 受保护行内代码的整句试探。只发送调用方提供的标记化正文，不读取 DOM、
  * 页面上下文或代码文字。结果必须经调用方的当前骨架与标记校验后才能使用。
- * 这条路径不参与会话缓存或 broker 结果缓存；不符合条件时由调用方沿用逐槽路径。
+ * 这条路径不参与会话槽缓存，后台只缓存经同一标记协议验证的结果；不符合条件时沿用逐槽路径。
  */
 export async function tryTranslateInlineCodeSentence(
     source: string,
@@ -312,11 +312,11 @@ export async function tryTranslateInlineCodeSentence(
     }
     throwIfAborted(signal);
     if ((isCurrent && !isCurrent()) || glossaryRequiresProtection()) return null;
-    // 不复用普通 session 缓存；未经标记校验的结果不能写入 broker 缓存。
+    // 不复用普通 session 缓存；后台使用独立协议键并在读取与写入时验证结果。
     let translated: string;
     try {
         translated = await translateText(source, '', createSnapshotTranslateOptions(snapshot, {
-            signal, queueSession, useCache: false, skipLanguageDetection: true,
+            signal, queueSession, validateInlineCodeTranslation: true, skipLanguageDetection: true,
             sourceLanguageDetectionText: detectionText,
         }));
     } catch (error) {

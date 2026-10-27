@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {createTranslationSourceSnapshot} from '@/src/core/translation/serialization';
 import {createInlineCodePacket, getInlineCodeClass, inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
@@ -233,6 +233,21 @@ describe('GitHub comments with protected inline code', () => {
 });
 
 describe('inline code packet defensive boundaries', () => {
+    it('共享解析器拒绝来源时不创建整句试探包', async () => {
+        const f = fixture();
+        vi.resetModules();
+        vi.doMock('@/src/core/translation/inlineCodeMarkers', async importOriginal => ({
+            ...await importOriginal<typeof import('@/src/core/translation/inlineCodeMarkers')>(),
+            parseInlineCodeSource: () => null,
+        }));
+        try {
+            const {createInlineCodePacket: create} = await import('@/src/core/translation/inlineCodeProtocol');
+            expect(create(f.owner, f.snapshot, () => false)).toBeNull();
+        } finally {
+            vi.doUnmock('@/src/core/translation/inlineCodeMarkers');
+            vi.resetModules();
+        }
+    });
     it('fails closed when the live view is absent, computed style is unavailable or throws', () => {
         const disconnected = fixture();
         disconnected.owner.remove();
