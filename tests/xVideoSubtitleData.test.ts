@@ -202,9 +202,10 @@ describe('X 视频字幕资源', () => {
     expect(cleanSubtitleText('  a   b<br> c ')).toBe('a b\nc');
     const originalDocument = (globalThis as {document?: unknown}).document;
     (globalThis as {document?: unknown}).document = {
-      createElement: () => ({innerHTML: '', value: '&decoded;'}),
+      createElement: () => {throw new Error('subtitle decoding must not create DOM');},
     };
-    expect(decodeHtmlEntities('&amp;')).toBe('&decoded;');
+    expect(decodeHtmlEntities('&amp;')).toBe('&');
+    expect(decodeHtmlEntities('&NotEqualTilde; &amp;lt;')).toBe('≂̸ &lt;');
     if (originalDocument === undefined) Reflect.deleteProperty(globalThis, 'document');
     else (globalThis as {document?: unknown}).document = originalDocument;
     expect(decodeHtmlEntities('&amp; &lt; &gt; &quot; &#39;', false)).toBe('& < > " \'');
