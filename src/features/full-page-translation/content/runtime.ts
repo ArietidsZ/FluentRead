@@ -131,7 +131,7 @@ import {
 } from '@/src/features/full-page-translation/content/liveTextTranslation';
 import {restorePageTranslationContent, consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, normalizeOrphanedSingleSlots, normalizeOrphanedTranslationArtifacts, normalizeOrphanedTranslationOwner}
     from '@/src/features/full-page-translation/content/orphanArtifacts';
-import {bindFullPageRequestSessionAttempt, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession} from '@/src/features/full-page-translation/content/requestSession';
+import {bindFullPageRequestSessionAttempt, createAbortError, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession} from '@/src/features/full-page-translation/content/requestSession';
 import {resetFullPageRouteSession} from './routeLifecycle';
 import {HoverTranslationScheduler, type HoverTranslationInvocation} from './hoverScheduler';
 import {personalCorrectionIsCurrent, registerPersonalCorrectionResult} from './personalCorrections';
@@ -324,16 +324,6 @@ function transferEquivalentBilingualOwners(session: FullPageSession | undefined,
     });
     return resolveRemovedOwners;
 }
-function createAbortError(): Error {
-    try {
-        return new DOMException('翻译已取消', 'AbortError');
-    } catch {
-        const error = new Error('翻译已取消');
-        error.name = 'AbortError';
-        return error;
-    }
-}
-
 function discardStaleAttempt(
     node: HTMLElement,
     state: TranslationState,
@@ -430,6 +420,9 @@ async function renderTranslation(
         if (!node.isConnected || !attemptSourceIsCurrent(node, state) ||
             (node === candidate.element && !candidate.nodes?.length && !candidateIsCurrent(candidate))) return staleOutcome();
 
+        if (result.kind === 'snapshot' && (result.staleInlineCode ||
+            (result.inlineCodePacket && !result.inlineCodePacket.isCurrent()))) return staleOutcome();
+
         // 交互控件、仅译文正文和按钮属性共用替换式渲染；提交细节由渲染模块负责。
         if (result.kind === "control-value" || result.kind === "live-text") {
             const commit = renderLiveTextResult(node, state, generation, result,
@@ -496,7 +489,9 @@ async function renderTranslation(
                 longParagraphLineBreak: snapshot.longParagraphLineBreak, translationBeforeOriginal: snapshot.translationBeforeOriginal,
             });
         }, [node]);
-        setBilingualContent(node, content, createBilingualTranslationReplay(result.sources, result.translations, snapshot));
+        setBilingualContent(node, content, createBilingualTranslationReplay(result.sources, result.translations,
+            {...snapshot, inlineCodeTexts: result.inlineCodePacket?.codeTexts,
+                inlineCodeSourceTexts: result.inlineCodePacket?.sourceTexts}));
         setRenderedStyleAttribute(node);
         if (import.meta.env.BROWSER !== 'userscript') registerPersonalCorrectionResult(node, state, result.personalCorrection);
         syncTranslationDisplayMode(node, state, config.display, false, config.translationBeforeOriginal);
@@ -938,6 +933,7 @@ export async function translateTarget(candidate: TranslationCandidate, displayMo
         requestProtectionOptions,
         forceFailedRequest,
         candidate.scope,
+        () => getTranslationState(node) === attempt.state ? attempt.state.spinner : undefined,
     )
         .finally(() => { signal.removeEventListener('abort', cancelQueuedRequest); releaseRequestSession(); });
     if (synthetic) node.setAttribute('data-fr-translation-segment', 'true');

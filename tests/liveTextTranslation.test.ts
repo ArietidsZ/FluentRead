@@ -4,6 +4,7 @@ const runtime = vi.hoisted(() => ({
     slots: [] as Array<{node: Text; prefix: string; source: string; suffix: string}>,
     translations: [] as string[],
     translateTextSlots: vi.fn(),
+    tryTranslateInlineCodeSentence: vi.fn(),
     getCurrentTranslationCore: vi.fn(() => ({shouldStayOriginal: () => false})),
 }));
 
@@ -18,11 +19,13 @@ vi.mock('@/src/core/translation/public', async (importOriginal) => {
         // 整块请求的骨架判定只由 core 定义，这里直接复用真实实现。
         createTranslationSourceSnapshot: actual.createTranslationSourceSnapshot,
         buildWholeBlockTranslationSource: actual.buildWholeBlockTranslationSource,
+        createInlineCodePacket: actual.createInlineCodePacket,
     };
 });
 
 vi.mock('@/src/features/full-page-translation/content/translationRequest', () => ({
     translateTextSlots: runtime.translateTextSlots,
+    tryTranslateInlineCodeSentence: runtime.tryTranslateInlineCodeSentence,
 }));
 
 import {parseHTML} from 'linkedom';
@@ -41,6 +44,7 @@ describe('实时文本翻译快照', () => {
         runtime.translations = [];
         runtime.translateTextSlots.mockReset();
         runtime.translateTextSlots.mockImplementation(async () => runtime.translations);
+        runtime.tryTranslateInlineCodeSentence.mockReset().mockResolvedValue(null);
     });
 
     it('正文双语请求只提交可译文本槽，空内容不调用服务', async () => {
@@ -144,6 +148,7 @@ describe('双语正文整块翻译', () => {
         runtime.translations = [];
         runtime.translateTextSlots.mockReset();
         runtime.translateTextSlots.mockImplementation(async () => runtime.translations);
+        runtime.tryTranslateInlineCodeSentence.mockReset().mockResolvedValue(null);
     });
     const owner = (html: string) => {
         const {document} = parseHTML(`<html><body>${html}</body></html>`);
@@ -260,6 +265,60 @@ describe('双语正文整块翻译', () => {
         expect(runtime.translateTextSlots).toHaveBeenCalledWith(
             ['Use', 'to', 'load', 'data'], bilingualRequestSnapshot, undefined, undefined, undefined, false);
         expect(result).toMatchObject({translations: ['译:Use', '译:to', '译:load', '译:data']});
+    });
+
+    it('简单行内代码可整句试探、原代码不发送，失败仍回退逐槽', async () => {
+        const target = owner('<p>But, the variable <code>früh</code> is not the same as <code>Früh</code> because JavaScript is case sensitive.</p>');
+        const style = {display: 'inline', visibility: 'visible', contentVisibility: 'visible', opacity: '1', whiteSpace: 'normal',
+            fontFamily: 'Arial', position: 'static', overflow: 'visible', width: '20px', height: '20px', clip: 'auto', clipPath: 'none'};
+        Object.defineProperty(target.ownerDocument.defaultView, 'getComputedStyle', {configurable: true, value: () => style});
+        const zh = {...bilingual, targetLanguage: 'zh-Hans'};
+        runtime.tryTranslateInlineCodeSentence.mockImplementationOnce(async (source, decode) => {
+            expect(source).not.toContain('früh');
+            expect(source).not.toContain('Früh');
+            const [a, b] = source.match(/__FRCODE_[a-f0-9]+_\d+__/gu);
+            return decode(`但是变量${a}与${b}不同，因为 JavaScript 区分大小写。`);
+        });
+        const result = await createTranslationRequest(target, 'content', 'bilingual', zh);
+        expect(result).toMatchObject({kind: 'snapshot', translations: ['但是变量', '与', '不同，因为 JavaScript 区分大小写。']});
+        expect(runtime.translateTextSlots).not.toHaveBeenCalled();
+        expect(target.querySelectorAll('code')).toHaveLength(2);
+
+        runtime.translations = ['逐槽一', '逐槽二', '逐槽三'];
+        const fallback = await createTranslationRequest(target, 'content', 'bilingual', zh);
+        expect(fallback).toMatchObject({kind: 'snapshot', translations: runtime.translations});
+        expect(runtime.translateTextSlots).toHaveBeenCalledOnce();
+    });
+
+    it('整句响应期间代码变化时不显示旧译文，也不发逐槽回退', async () => {
+        const target = owner('<p>Use <code>fetch</code> before <code>parse</code> now.</p>');
+        const style = {display: 'inline', visibility: 'visible', contentVisibility: 'visible', opacity: '1', whiteSpace: 'normal',
+            fontFamily: 'Arial', position: 'static', overflow: 'visible', width: '20px', height: '20px', clip: 'auto', clipPath: 'none'};
+        Object.defineProperty(target.ownerDocument.defaultView, 'getComputedStyle', {configurable: true, value: () => style});
+        runtime.tryTranslateInlineCodeSentence.mockImplementationOnce(async () => {
+            target.querySelector('code')!.textContent = 'changed';
+            return null;
+        });
+        expect(await createTranslationRequest(target, 'content', 'bilingual', {...bilingual, targetLanguage: 'zh-Hans'}))
+            .toMatchObject({kind: 'snapshot', staleInlineCode: true});
+        expect(runtime.translateTextSlots).not.toHaveBeenCalled();
+    });
+
+    it('整句原样回显时继续尝试原有逐槽翻译', async () => {
+        const target = owner('<p>Use <code>fetch</code> before <code>parse</code> now.</p>');
+        const style = {display: 'inline', visibility: 'visible', contentVisibility: 'visible', opacity: '1', whiteSpace: 'normal',
+            fontFamily: 'Arial', position: 'static', overflow: 'visible', width: '20px', height: '20px', clip: 'auto', clipPath: 'none'};
+        Object.defineProperty(target.ownerDocument.defaultView, 'getComputedStyle', {configurable: true, value: () => style});
+        runtime.tryTranslateInlineCodeSentence.mockImplementationOnce(async (source, decode) => decode(source));
+        runtime.translations = ['使用', '之前', '现在。'];
+        const result = await createTranslationRequest(target, 'content', 'bilingual', {...bilingual, targetLanguage: 'zh-Hans'});
+        expect(result).toMatchObject({kind: 'snapshot', translations: runtime.translations});
+        expect(runtime.translateTextSlots).toHaveBeenCalledOnce();
+        runtime.translateTextSlots.mockClear();
+        runtime.tryTranslateInlineCodeSentence.mockImplementationOnce(async (source, decode) => decode(source.replace('now.', 'now。')));
+        const punctuationOnly = await createTranslationRequest(target, 'content', 'bilingual', {...bilingual, targetLanguage: 'zh-Hans'});
+        expect(punctuationOnly).toMatchObject({kind: 'snapshot', translations: runtime.translations});
+        expect(runtime.translateTextSlots).toHaveBeenCalledOnce();
     });
 
     it('请求槽与渲染骨架不一致时放弃整块请求', async () => {

@@ -20,14 +20,17 @@ import {normalizeAiMultiSegmentMaxCharacters, normalizeAiMultiSegmentMaxSegments
 import {normalizeExcludedLanguages} from '@/src/core/config/pageTranslation';
 import {isNativeTranslationBatchEnabled} from '@/src/core/config/nativeBatch';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {identifyTextLanguage} from '@/src/core/language/identify';
 import {getSupplementalLanguageCandidate} from '@/src/core/language/supplement';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
-import {createGlossaryRevisionMemoizer} from '@/src/core/glossary';
+import {createGlossaryRevisionMemoizer, protectGlossaryText} from '@/src/core/glossary';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/services/translation/client';
+import {TranslationRequestError} from '@/src/services/translation/errors';
 import {shouldSkipTranslationWithEvidence} from '@/src/services/translation/languagePreflight';
 import {supportsNativeTranslationBatch, supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {validateNativeBatchResults} from '@/src/core/translation/nativeBatch';
 import {hasTranslationContent} from '@/src/core/translation/result';
+import {hasEmojiLiterals} from '@/src/core/translation/emojiLiterals';
 import {
     cancelTranslationQueueSession,
     createTranslationQueueSession,
@@ -251,6 +254,85 @@ function restoreSkippedSlots(
 
 function isAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError';
+}
+
+/**
+ * 受保护行内代码的整句试探。只发送调用方提供的标记化正文，不读取 DOM、
+ * 页面上下文或代码文字。结果必须经调用方的当前骨架与标记校验后才能使用。
+ * 这条路径不参与会话缓存或 broker 结果缓存；不符合条件时由调用方沿用逐槽路径。
+ */
+export async function tryTranslateInlineCodeSentence(
+    source: string,
+    decode: (result: string) => string[] | null,
+    snapshot: FullPageTranslationConfigSnapshot,
+    signal?: AbortSignal,
+    queueSession?: TranslationQueueSession,
+    isCurrent?: () => boolean,
+): Promise<string[] | null> {
+    throwIfAborted(signal);
+    snapshot = copyFullPageTranslationConfigSnapshot(snapshot);
+    // 隐式正文或篇章上下文可能包含受保护代码，不能用于这次试探。
+    // 部分免费线路按 UTF-8 字节限制请求；保留 50 字节余量，避免试探被拆开标记。
+    if (snapshot.enableAIContext || source.length > 450 || new TextEncoder().encode(source).length > 450 || hasEmojiLiterals(source) ||
+        (isCurrent && !isCurrent())) return null;
+    const markerPattern = /__FRCODE_([a-f0-9]{16})_(0|[1-9]\d*)__/gu;
+    const matches = [...source.matchAll(markerPattern)];
+    if (!matches.length || matches.some((match, index) =>
+        match[1] !== matches[0]![1] || Number(match[2]) !== index)) return null;
+    const detectionText = source.replace(markerPattern, ' ');
+    if (/__FRCODE/iu.test(detectionText) || !detectionText.trim()) return null;
+
+    // 部分 provider（如 MyMemory）会对标记化请求重新自动识别源语言。
+    // 只有标记前后都可靠且一致时才试探，不能更改用户的 auto 设置来掩盖差异。
+    if (snapshot.sourceLanguage.trim().toLowerCase() === 'auto') {
+        const plainLanguage = identifyTextLanguage(detectionText);
+        const taggedLanguage = identifyTextLanguage(source);
+        if (plainLanguage.status !== 'identified' || taggedLanguage.status !== 'identified' ||
+            plainLanguage.languages.length !== 1 || taggedLanguage.languages.length !== 1 ||
+            plainLanguage.languages[0] !== taggedLanguage.languages[0]) return null;
+    }
+
+    // 术语占位会扩张请求，可能使供应商拆开代码标记；若任一启用词条
+    // 可能命中，保守沿用现有逐槽请求。版本变化同样禁止试探。
+    const glossaryRequiresProtection = (): boolean => {
+        if (!snapshot.glossaryRevision || snapshot.glossaryRevision !==
+            readGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled)) return true;
+        if (!config.glossaryEnabled) return false;
+        const entries = config.glossaryLibraries.filter(library => library.enabled)
+            .flatMap(library => library.entries.map(entry => ({source: entry.source, target: entry.target,
+                caseSensitive: entry.caseSensitive})));
+        // 为避免长词遮蔽，逐条使用后台相同的保护算法；大词库直接回退。
+        if (entries.length > 64) return true;
+        return entries.some(entry => protectGlossaryText(source, [entry]).tokens.length > 0);
+    };
+    if (glossaryRequiresProtection() || shouldSkipTranslationForTarget(detectionText, snapshot.targetLanguage, snapshot.excludedLanguages)) return null;
+    if (await shouldSkipTranslationWithEvidence(detectionText, snapshot.targetLanguage, snapshot.excludedLanguages, signal)) {
+        throwIfAborted(signal);
+        return null;
+    }
+    throwIfAborted(signal);
+    if ((isCurrent && !isCurrent()) || glossaryRequiresProtection()) return null;
+    // 不复用普通 session 缓存；未经标记校验的结果不能写入 broker 缓存。
+    let translated: string;
+    try {
+        translated = await translateText(source, '', createSnapshotTranslateOptions(snapshot, {
+            signal, queueSession, useCache: false, skipLanguageDetection: true,
+            sourceLanguageDetectionText: detectionText,
+        }));
+    } catch (error) {
+        throwIfAborted(signal);
+        // 仅已跨后台协议确认的内容校验错误可退回逐槽；网络、鉴权、配额、
+        // 不明确的错误以及取消必须原样传播，不能伪装成结构不兼容。
+        if (error instanceof TranslationRequestError && (
+            (error.kind === 'response' && ['UNTRANSLATED_RESPONSE', 'WRONG_LANGUAGE_RESPONSE',
+                'TRANSLATION_SLOT_RESPONSE_INVALID'].includes(error.code ?? '')) ||
+            ((error.kind === 'unknown' || error.kind === 'response') && error.code === 'GLOSSARY_PLACEHOLDER_INVALID')
+        )) return null;
+        throw error;
+    }
+    throwIfAborted(signal);
+    if (isCurrent && !isCurrent()) return null;
+    return decode(translated);
 }
 
 async function translateSlotsIndividually(
