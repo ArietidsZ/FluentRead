@@ -237,6 +237,27 @@ describe('hover translation content feature', () => {
     });
 
     describe('可信坐标手势起点', () => {
+        it('mouseover只在纵向移动后回到起点仍保留连续手势', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 31, clientY: 57}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47, {delayMs: 120, continuous: true}]]);
+        });
+
+        it('起点的mouseover不将单次按键误判为连续移动', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 31, clientY: 47}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            expect(deps.handleTranslation).not.toHaveBeenCalled();
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47]]);
+        });
+
         it('mouseover先更新新坐标时仍识别真实移动', () => {
             const {deps, documentTarget, windowTarget} = mountHarness({}, false);
             documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));

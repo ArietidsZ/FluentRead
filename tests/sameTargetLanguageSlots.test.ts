@@ -174,6 +174,18 @@ describe('原始槽的补充证据与快照', () => {
         expect(runtime.requests).toHaveLength(1);
     });
 
+    it.each([
+        '__FRCODE_0123456789abcdef_0__   ',
+        'The variable __FRCODE_0123456789abcdef_0__ and __FRCODE_invalid__ are different.',
+    ])('标记之外没有正文或仍有不完整标记时不发送试探', async source => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const decode = vi.fn();
+        expect(await tryTranslateInlineCodeSentence(source, decode, captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.preflight).not.toHaveBeenCalled();
+        expect(runtime.requests).toEqual([]);
+        expect(decode).not.toHaveBeenCalled();
+    });
+
     it('实际术语可能覆盖标记或词库版本变化时不发送试探', async () => {
         const marker = '__FRCODE_0123456789abcdef_0__';
         Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: true, enableAIContext: false,
@@ -221,6 +233,18 @@ describe('原始槽的补充证据与快照', () => {
         expect(runtime.requests[0]?.options.glossaryIds).toEqual(snapshot.glossaryIds);
     });
 
+    it.each([[64, true], [65, false]])('启用 %i 个未命中术语时按词库上限决定是否试探', async (count, allowed) => {
+        const entries = Array.from({length: count}, (_, index) => ({
+            id: `term-${index}`, source: `keyboard-${index}`, target: `键盘-${index}`, caseSensitive: true,
+        }));
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans', glossaryEnabled: true,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [], entries}]});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const result = await tryTranslateInlineCodeSentence(source, () => ['变量', '不同'], captureFullPageTranslationConfig());
+        expect(result).toEqual(allowed ? ['变量', '不同'] : null);
+        expect(runtime.requests).toHaveLength(allowed ? 1 : 0);
+    });
+
     it.each(['🚀', '1️⃣', '🇨🇳', '👩🏽‍💻'])('包含受保护 emoji %s 时不试探', async emoji => {
         Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
         const source = `The variable __FRCODE_0123456789abcdef_0__ is different ${emoji}.`;
@@ -240,6 +264,21 @@ describe('原始槽的补充证据与快照', () => {
         evidence.resolve(false);
         expect(await pending).toBeNull();
         expect(runtime.requests).toEqual([]);
+    });
+
+    it('供应商返回前来源失效时丢弃响应，不解码旧结果', async () => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const decode = vi.fn(() => ['变量', '不同']);
+        let current = true;
+        runtime.pending = {resolve: () => {}};
+        const pending = tryTranslateInlineCodeSentence(source, decode, captureFullPageTranslationConfig(),
+            undefined, undefined, () => current);
+        await vi.waitFor(() => expect(runtime.requests).toHaveLength(1));
+        current = false;
+        runtime.pending!.resolve();
+        expect(await pending).toBeNull();
+        expect(decode).not.toHaveBeenCalled();
     });
 
     it('预检期间取消或 provider 出错时传播错误，不悄悄发回退请求', async () => {
@@ -289,6 +328,15 @@ describe('原始槽的补充证据与快照', () => {
         const abort = Object.assign(new Error('aborted'), {name: 'AbortError', code: 'GLOSSARY_PLACEHOLDER_INVALID'});
         runtime.nextError = abort;
         await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).rejects.toBe(abort);
+    });
+
+    it('没有错误代码的结构化响应异常原样传播', async () => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const error = new TranslationRequestError({marker: TRANSLATION_ERROR_MARKER, message: 'invalid response', kind: 'response', retryable: false});
+        runtime.nextError = error;
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], captureFullPageTranslationConfig())).rejects.toBe(error);
+        expect(runtime.requests).toHaveLength(1);
     });
 
     it.each([

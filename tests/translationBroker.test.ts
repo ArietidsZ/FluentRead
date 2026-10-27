@@ -692,13 +692,29 @@ describe('translation broker', () => {
             {origin: source, enableAIContext: true}, {origin: source, enableAIContext: false, validateTranslationSlots: true},
             {origin: source, enableAIContext: false, aiMultiSegment: true}, {origin: source, enableAIContext: false, documentBatch: true},
             {origin: source, enableAIContext: false, pageContext: 'other page'},
+            {origin: source, enableAIContext: false, discourseContext: 'private evidence'},
+            {origin: source, enableAIContext: false, glossaryContext: 'document' as const},
         ];
         for (const message of invalid) await expect(translateWithCache({...message, validateInlineCodeTranslation: true})).rejects.toThrow('行内代码翻译请求格式无效');
         await expect(translateWithCache(attachTranslationImageInput({origin: source, enableAIContext: false,
             validateInlineCodeTranslation: true}, 'data:image/png;base64,AAAA'))).rejects.toThrow('行内代码翻译请求格式无效');
+        await expect(translateWithCache(attachTranslationGlossaryContext({origin: source, enableAIContext: false,
+            validateInlineCodeTranslation: true}, {context: 'document'}))).rejects.toThrow('行内代码翻译请求格式无效');
         await expect(translateWithCache({origin: source, validateInlineCodeTranslation: 'true'} as unknown as TranslationRequestMessage))
             .rejects.toThrow('validateInlineCodeTranslation 必须是布尔值');
         expect(mocks.service).not.toHaveBeenCalled();
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('行内代码请求允许显式或内部默认的网页术语上下文', async () => {
+        const {source, translated} = inlineCodeFixture();
+        const request = {origin: source, enableAIContext: false, validateInlineCodeTranslation: true, useCache: false};
+        mocks.service.mockResolvedValue(translated);
+        await expect(translateWithCache({...request, glossaryContext: 'page'})).resolves.toBe(translated);
+        await expect(translateWithCache(attachTranslationGlossaryContext({...request}, {context: 'page'}))).resolves.toBe(translated);
+        await expect(translateWithCache(attachTranslationGlossaryContext({...request}, {}))).resolves.toBe(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(3);
     });
 
     it('行内代码缓存清理使在途旧请求的迟到结果不可写回', async () => {
