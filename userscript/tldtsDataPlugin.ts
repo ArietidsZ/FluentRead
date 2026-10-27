@@ -9,7 +9,7 @@ import {readFileSync, realpathSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname, resolve} from 'node:path';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeUserscriptData} from './buildDataEncoding';
+import {encodeCompactUserscriptData} from './buildDataEncoding';
 import ts from 'typescript';
 import {normalizePath, type Plugin} from 'vite';
 
@@ -94,7 +94,7 @@ export function createUserscriptTldtsDataCompressionPlugin(root: string, enabled
             }
             payload.set(labels, tableByteLength);
             const bytes = gzipUserscriptBuildData(payload);
-            const compressed = compact ? encodeUserscriptData(bytes) : bytes.toString('base64');
+            const compressed = compact ? encodeCompactUserscriptData(bytes) : bytes.toString('base64');
             const digest = createHash('sha256').update(code).digest('hex');
             return {
                 code: [

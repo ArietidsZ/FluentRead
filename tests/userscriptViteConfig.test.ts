@@ -57,7 +57,7 @@ function encodedDataBytes(source: string, decoder = 'decodeUserscriptData'): Uin
     const values = [...source.matchAll(pattern)].map(match => JSON.parse(match[1]) as string);
     expect(values.length).toBeGreaterThan(0);
     return values.map(value => {
-        expect(value).toMatch(/^~85:[0-3]/u);
+        expect(value).toMatch(/^~(?:85:[0-3]|91:)/u);
         return decodeUserscriptData(value);
     });
 }
@@ -240,6 +240,15 @@ describe('userscript build gzip portability', () => {
         expect(savedBytes).toBeGreaterThan(0);
         // Empty input offers no improvement; preserve the previous standard gzip bytes on ties.
         expect(gzipUserscriptBuildData(new Uint8Array())).toEqual(Buffer.from(pakoGzip(new Uint8Array(), {level: 9, memLevel: 8})));
+    });
+
+    it.each([8,9] as const)('keeps filtered strategy %s deterministic, bounded and byte-exact', level => {
+        const input=Buffer.from('有序静态目录 / offline image data'.repeat(500));
+        const encoded=gzipUserscriptBuildData(input,level);
+        expect(encoded.byteLength).toBeLessThanOrEqual(gzipUserscriptBuildData(input).byteLength);
+        expect(gzipUserscriptBuildData(new Uint8Array(input),level)).toEqual(encoded);
+        expect(gunzipSync(encoded)).toEqual(input);
+        expect(Buffer.from(ungzip(encoded))).toEqual(input);
     });
 
     it('restores complete real catalog plugin data when the host native gzip encoder is unavailable', async () => {
@@ -429,11 +438,55 @@ describe('userscript bundled library notices', () => {
     });
 });
 
+describe('standalone settings compression compatibility', () => {
+    it('keeps standard Base85 and standalone Base91 gzip data byte-identical', () => {
+        const root = process.cwd(), id = resolve(root, 'src/core/config/translationAppearance.ts');
+        const original = readFileSync(id, 'utf8');
+        const transform = (full: boolean) => Reflect.apply(createUserscriptSettingsDataPlugin(root, true, full).transform as Function, {}, [original, id]) as {code:string};
+        const standard = transform(false).code, standalone = transform(true).code;
+        expect(standard).toContain('~85:'); expect(standalone).toContain('~91:');
+        const before = encodedDataBytes(standard, '__fluentreadDecodeSettingsData');
+        const after = encodedDataBytes(standalone, '__fluentreadDecodeSettingsData');
+        expect(after.map(bytes=>Buffer.from(bytes))).toEqual(before.map(bytes=>Buffer.from(bytes)));
+    });
+});
+
 describe('userscript inline CSS compression', () => {
     const root = process.cwd();
     const id = `${resolve(root, 'src/app/content/page.css')}?inline`;
     const plugin = createUserscriptInlineCssCompressionPlugin(root);
     const transform = (code: string, moduleId = id) => Reflect.apply((plugin.transform as {handler: Function}).handler, {}, [code, moduleId]);
+
+    it('standalone uses the existing compact codec without changing any CSS gzip bytes', () => {
+        const css = '.sample::after{content:"中文 🦦";margin:1px}\n'.repeat(100);
+        const code = `export default ${JSON.stringify(css)};`;
+        const standard = transform(code);
+        const compactPlugin = createUserscriptInlineCssCompressionPlugin(root, true, true);
+        const compact = Reflect.apply((compactPlugin.transform as {handler: Function}).handler, {}, [code, id]) as {code:string};
+        expect(standard.code).toContain('~85:');
+        expect(compact.code).toContain('~91:');
+        const [before] = encodedDataBytes(standard.code), [after] = encodedDataBytes(compact.code);
+        expect(Buffer.from(after)).toEqual(Buffer.from(before));
+        expect(gunzipSync(after).toString('utf8')).toBe(css);
+    });
+
+    it('restores each inline CSS resource observed at userscript startup without changing gzip bytes', () => {
+        const files = [
+            'src/features/page-notice/content/notice.css', 'src/ui/styles/translation-loading-indicator.css',
+            'src/features/section-translation/content/reminder.css', 'src/features/section-translation/content/picker.css',
+            'src/ui/styles/translation-display.css', 'src/app/content/page.css', 'src/ui/styles/bilingual-sentence-highlight.css',
+        ];
+        const compact = createUserscriptInlineCssCompressionPlugin(root, true, true);
+        for (const file of files) {
+            const css = readFileSync(resolve(root, file), 'utf8'), source = `export default ${JSON.stringify(css)};`, cssId = `${resolve(root, file)}?inline`;
+            const standard = transform(source, cssId) as {code:string}|null;
+            const encoded = Reflect.apply((compact.transform as {handler: Function}).handler, {}, [source, cssId]) as {code:string}|null;
+            if (!standard || !encoded) {expect(encoded).toBe(standard); continue;}
+            const [before] = encodedDataBytes(standard.code), [after] = encodedDataBytes(encoded.code);
+            expect(Buffer.from(after), file).toEqual(Buffer.from(before));
+            expect(gunzipSync(after).toString('utf8'), file).toBe(css);
+        }
+    });
 
     it.each(['quoted', 'template'] as const)('restores exact Unicode, escaped content and CSS order from %s exports synchronously', kind => {
         const css = '.first::after{content:"中文 🦦 \\" \\\\ \\n"}\n@media(max-width:390px){.first{color:var(--theme)}}\n'.repeat(80);
@@ -579,7 +632,9 @@ describe('userscript browser shim injection', () => {
             const entry = {type: 'chunk', isEntry: true, code: 'var fixture = 1;', moduleIds: []};
             await Reflect.apply(plugin.generateBundle!.handler, {}, [{}, {'entry.js': entry}]);
             const iconBytes = readFileSync(resolve(process.cwd(), 'public/icon/64.png'));
-            const runtimeIcon = JSON.parse(entry.code.match(/globalThis\.__FLUENTREAD_ICON_DATA__=("[^"]+");/u)![1]) as string;
+            const encodedIcon = JSON.parse(entry.code.match(/globalThis\.__FLUENTREAD_ICON_DATA__=("[^"]+");/u)![1]) as string;
+            const {restoreUserscriptIcon} = await import('@/userscript/iconData');
+            const runtimeIcon = restoreUserscriptIcon(encodedIcon);
             expect(Buffer.from(runtimeIcon.split(',')[1], 'base64')).toEqual(iconBytes);
             const metadataIcon = entry.code.match(/^\/\/ @icon\s+(.+)$/mu)![1];
             if (mode === 'standalone') expect(metadataIcon).toBe(runtimeIcon);
@@ -644,7 +699,9 @@ describe('userscript browser shim injection', () => {
             expect(extension[key]).toBeTruthy();
             expect(Object.hasOwn(projected, key)).toBe(false);
         }
-        const retainedKeys = Object.keys(extension).filter(key => !key.startsWith('informationHighlight.')
+        const extensionOnlyUndoKeys = ['learning.collection.undoExtensionNotice'];
+        for (const key of extensionOnlyUndoKeys) expect(Object.hasOwn(projected,key)).toBe(false);
+        const retainedKeys = Object.keys(extension).filter(key => !extensionOnlyUndoKeys.includes(key) && !key.startsWith('informationHighlight.')
             && (!key.startsWith('learning.collection.speech') || key === 'learning.collection.speechFailed')
             && !noticeKeys.includes(key) && !learningKeys.includes(key) && !readingAnnotationKeys.includes(key) && !readerRecoveryKeys.includes(key)
             && !diagnosticKeys.includes(key) && !readerDialogKeys.includes(key)
@@ -896,6 +953,33 @@ describe('userscript browser shim injection', () => {
             expect(api.hasUiLanguageBundle('fr-FR')).toBe(false);
             expect(request).not.toHaveBeenCalled();
         } finally {rmSync(fixture, {recursive: true, force: true});vi.unstubAllEnvs();vi.resetModules();}
+    });
+
+    it('standard and standalone site catalogs preserve identical gzip bytes and rules', async () => {
+        const results: Array<Array<{encoded:string; bytes:Buffer}>> = [];
+        try {
+            for (const standalone of ['0', '1']) {
+                vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', standalone);
+                vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '0');
+                vi.resetModules();
+                const {createUserscriptCatalogCompressionPlugin} = await import('@/userscript/vite.config');
+                const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {resolveId:(source:string,importer:string)=>string|null;load:(id:string)=>string|null};
+                const importer = resolve(process.cwd(), 'src/core/site-adaptation/catalog.ts');
+                const sample=[];
+                for (const name of ['established', 'websites', 'profiles']) {
+                    const id = plugin.resolveId(`./catalog/${name}.json`, importer)!;
+                    const source = plugin.load(id)!;
+                    const encoded = JSON.parse(source.match(/decodeUserscriptData\(("[^"\n]+")\)/u)![1]) as string;
+                    const bytes = Buffer.from(decodeUserscriptData(encoded));
+                    expect(JSON.parse(gunzipSync(bytes).toString('utf8'))).toEqual(JSON.parse(readFileSync(resolve(process.cwd(), `src/core/site-adaptation/catalog/${name}.json`), 'utf8')));
+                    sample.push({encoded, bytes});
+                }
+                results.push(sample);
+            }
+            expect(results[0].every(item=>item.encoded.startsWith('~85:'))).toBe(true);
+            expect(results[1].every(item=>item.encoded.startsWith('~91:'))).toBe(true);
+            expect(results[1].map(item=>item.bytes)).toEqual(results[0].map(item=>item.bytes));
+        } finally {vi.unstubAllEnvs();vi.resetModules();}
     });
 
     it('keeps all site rule JSON data intact when embedding compressed offline catalogs', async () => {
@@ -1231,7 +1315,7 @@ describe('userscript locked franc pure-data encoding', () => {
         const compact = createPlugin(true, process.cwd(), true).transform(original, dataPath)!.code;
         const base64 = JSON.parse(legacy.match(/atob\(("[^"]+")\)/u)![1]);
         const encoded = JSON.parse(compact.match(/decodeUserscriptData\(("[^"]+")\)/u)![1]);
-        expect(encoded.startsWith('~85:')).toBe(true);expect(compact).not.toContain('atob(');
+        expect(encoded.startsWith('~91:')).toBe(true);expect(compact).not.toContain('atob(');
         expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(Buffer.from(base64, 'base64'));
         expect(restoreData(compact)).toEqual(restoreData(legacy));
         expect(Buffer.byteLength(compact)).toBeLessThan(Buffer.byteLength(legacy));
@@ -1467,7 +1551,7 @@ describe('standalone locked public and private suffix pure-data encoding', () =>
         const compact = createPlugin(true, process.cwd(), true).transform(original, dataPath)!.code;
         const base64 = JSON.parse(legacy.match(/atob\(("[^"]+")\)/u)![1]);
         const encoded = JSON.parse(compact.match(/decodeUserscriptData\(("[^"]+")\)/u)![1]);
-        expect(encoded.startsWith('~85:')).toBe(true);expect(compact).not.toContain('atob(');
+        expect(encoded.startsWith('~91:')).toBe(true);expect(compact).not.toContain('atob(');
         expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(Buffer.from(base64, 'base64'));
         const a = restoreData(legacy), b = restoreData(compact);
         for (const name of arrayNames) {expect(b[name].constructor).toBe(a[name].constructor);expect(Buffer.from(b[name].buffer)).toEqual(Buffer.from(a[name].buffer));}
@@ -1908,7 +1992,7 @@ describe('standalone service brand paths at actual icon use', () => {
     it.each(['deepL', 'openai'])('restores the entire ordered table only at the first existing %s brand and shares the successful cache', async first => {
         const source = positiveSource();
         const [bytes] = encodedDataBytes(source);
-        expect(Buffer.from(bytes)).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(expected))));
+        expect(Buffer.from(bytes)).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(expected)), 8));
         const h = await loadAccessors(undefined, source);
         for (const service of unknownServices) {expect(Object.hasOwn(expected, service)).toBe(false);expect(h.api.getServiceBrandIcon(service)).toBeUndefined();}
         expect(h.decoder).not.toHaveBeenCalled();expect(h.decode).not.toHaveBeenCalled();expect(h.parse).not.toHaveBeenCalled();
@@ -2390,5 +2474,28 @@ describe('standalone shared AI timeout locale data', () => {
         ['late-shared-data', 'export const aiRequestTimeoutMessages={"zh-CN":aiRequestTimeoutChineseMessages};export const aiRequestTimeoutChineseMessages={message:"中文"};'],
     ])('rejects %s without broadening the JSON literal parser', (_label, code) => {
         expect(() => transform(code)).toThrow();
+    });
+});
+
+describe('userscript bundled CSS encoding', () => {
+    it.each(['0', '1'])('preserves exact gzip bytes and CSS in standalone mode %s', async standalone => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', standalone);
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '0');
+        try {
+            vi.resetModules();
+            const {default: configuration} = await import('@/userscript/vite.config');
+            const {gzipUserscriptBuildData} = await import('@/userscript/buildGzip');
+            const plugin = (configuration as {plugins: Array<{name:string;generateBundle?:{handler:Function}}>}).plugins.find(item => item.name === 'bundle-userscript-css')!;
+            const entry = {type:'chunk', isEntry:true, code:'var fixture = 1;', moduleIds:[]};
+            const css = '/* 世界 */\n:root{--text:"quoted";color:red}';
+            const bundle = {'entry.js':entry, 'fixture.css':{type:'asset', fileName:'fixture.css', source:css}};
+            await Reflect.apply(plugin.generateBundle!.handler, {}, [{}, bundle]);
+            const encoded = JSON.parse(entry.code.match(/globalThis\.__fluentReadUserscriptCssCompressed=("[^"\n]*")/)![1]);
+            expect(encoded.startsWith('~91:')).toBe(standalone === '1');
+            const bytes = standalone === '1' ? decodeUserscriptData(encoded) : Buffer.from(encoded, 'base64');
+            expect(Buffer.from(bytes)).toEqual(gzipUserscriptBuildData(Buffer.from(css)));
+            expect(gunzipSync(bytes).toString('utf8')).toBe(css);
+            expect(bundle).not.toHaveProperty('fixture.css');
+        } finally {vi.unstubAllEnvs();vi.resetModules();}
     });
 });

@@ -4,7 +4,7 @@
  * 主要内容：按四字节生成五个安全 ASCII 字符，显式记录零填充长度，并与运行时共享字母表及识别前缀。
  * 模块边界：仅转换传入字节，不修改图片、CSS、词典、许可、gzip 算法或可执行源码；资源选择由构建插件负责。
  */
-import {USERSCRIPT_DATA_ALPHABET, USERSCRIPT_DATA_PREFIX} from './dataEncoding';
+import {USERSCRIPT_DATA_ALPHABET, USERSCRIPT_DATA_PREFIX, USERSCRIPT_DATA_ALPHABET_91, USERSCRIPT_DATA_PREFIX_91} from './dataEncoding';
 
 export function encodeUserscriptData(bytes: Uint8Array): string {
     let encoded = USERSCRIPT_DATA_PREFIX + (4 - bytes.length % 4) % 4;
@@ -19,4 +19,19 @@ export function encodeUserscriptData(bytes: Uint8Array): string {
         encoded += characters;
     }
     return encoded;
+}
+
+/** 大块静态字节使用安全 ASCII Base91；旧 Base85 表示仍可解码。 */
+export function encodeCompactUserscriptData(bytes: Uint8Array): string {
+    let output = USERSCRIPT_DATA_PREFIX_91, buffer = 0, bits = 0;
+    for (const byte of bytes) {
+        buffer |= byte << bits;bits += 8;
+        if (bits > 13) {
+            let value = buffer & 8191;
+            if (value > 88) {buffer >>>= 13;bits -= 13;} else {value = buffer & 16383;buffer >>>= 14;bits -= 14;}
+            output += USERSCRIPT_DATA_ALPHABET_91[value % 91] + USERSCRIPT_DATA_ALPHABET_91[Math.floor(value / 91)];
+        }
+    }
+    if (bits) {output += USERSCRIPT_DATA_ALPHABET_91[buffer % 91];if (bits > 7 || buffer > 90) output += USERSCRIPT_DATA_ALPHABET_91[Math.floor(buffer / 91)];}
+    return output;
 }

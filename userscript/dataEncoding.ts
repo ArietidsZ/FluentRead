@@ -6,16 +6,59 @@
  */
 
 export const USERSCRIPT_DATA_PREFIX = '~85:';
+export const USERSCRIPT_DATA_PREFIX_91 = '~91:';
+// Excluding '<' and '/' prevents HTML script delimiters if a manager injects this source inline.
+export const USERSCRIPT_DATA_ALPHABET_91 = " !#$%&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 // 可直接写入单引号或双引号的 JavaScript 字符串；不包含反斜杠、空白或非 ASCII 字符。
 export const USERSCRIPT_DATA_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~';
 
 const digits = new Int16Array(128).fill(-1);
+const digits91 = new Int16Array(128).fill(-1);
+for (let index = 0; index < USERSCRIPT_DATA_ALPHABET_91.length; index += 1) digits91[USERSCRIPT_DATA_ALPHABET_91.charCodeAt(index)] = index;
 for (let index = 0; index < USERSCRIPT_DATA_ALPHABET.length; index += 1) {
     digits[USERSCRIPT_DATA_ALPHABET.charCodeAt(index)] = index;
 }
 
+/** Base91 仅用于 gzip 静态资源；保留每个字节，拒绝非字母字符。 */
+function decode91(value: string): Uint8Array {
+    const bytes = new Uint8Array(Math.ceil((value.length - USERSCRIPT_DATA_PREFIX_91.length) * 7 / 8));
+    let pending = -1, buffer = 0, bits = 0, offset = 0;
+    for (let index = USERSCRIPT_DATA_PREFIX_91.length; index < value.length; index++) {
+        const digit = digits91[value.charCodeAt(index)];
+        if (digit === undefined || digit < 0) throw new Error('Invalid userscript resource encoding');
+        if (pending < 0) {pending = digit;continue;}
+        const pair = pending + digit * 91;
+        buffer |= pair << bits;
+        bits += (pair & 8191) > 88 ? 13 : 14;
+        while (bits >= 8) {bytes[offset++] = buffer & 255;buffer >>>= 8;bits -= 8;}
+        pending = -1;
+    }
+    if (pending >= 0) {
+        if (bits === 0 || pending >= 1 << (8 - bits)) throw new Error('Invalid userscript resource padding');
+        bytes[offset++] = (buffer | pending << bits) & 255;
+    } else if (buffer !== 0) throw new Error('Invalid userscript resource padding');
+    // Check the canonical representation too: redundant final digits can otherwise
+    // decode to the same bytes even when the residual bits happen to be zero.
+    let encodedIndex = USERSCRIPT_DATA_PREFIX_91.length, mismatch = 0, checkBuffer = 0, checkBits = 0;
+    const checkDigit = (digit: number) => {mismatch |= +(value[encodedIndex++] !== USERSCRIPT_DATA_ALPHABET_91[digit]);};
+    for (let index = 0; index < offset; index++) {
+        checkBuffer |= bytes[index]! << checkBits; checkBits += 8;
+        if (checkBits > 13) {
+            let block = checkBuffer & 8191;
+            if (block > 88) {checkBuffer >>>= 13;checkBits -= 13;}
+            else {block = checkBuffer & 16383;checkBuffer >>>= 14;checkBits -= 14;}
+            checkDigit(block % 91);checkDigit(Math.floor(block / 91));
+        }
+    }
+    if (checkBits) {checkDigit(checkBuffer % 91);if (checkBits > 7 || checkBuffer > 90) checkDigit(Math.floor(checkBuffer / 91));}
+    mismatch |= +(encodedIndex !== value.length);
+    if (mismatch) throw new Error('Invalid userscript resource padding');
+    return bytes.subarray(0, offset);
+}
+
 /** 解码构建生成的资源；既有 Base64 的合法空白与异常行为继续由浏览器 atob 决定。 */
 export function decodeUserscriptData(value: string): Uint8Array {
+    if (value.startsWith(USERSCRIPT_DATA_PREFIX_91)) return decode91(value);
     if (!value.startsWith(USERSCRIPT_DATA_PREFIX)) {
         return Uint8Array.from(atob(value), character => character.charCodeAt(0));
     }
