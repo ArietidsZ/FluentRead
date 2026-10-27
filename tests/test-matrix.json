@@ -816,6 +816,7 @@
       "tests/siteTranslationHarness.test.ts",
       "tests/siteTranslationStability.test.ts",
       "tests/githubControlledEvidence.test.ts",
+      "tests/gitlabControlledEvidence.test.ts",
       "tests/githubRuntimeDiagnostics.test.ts",
       "tests/siteTranslationMatrixConcurrency.test.ts",
       "tests/siteTranslationIdle.test.ts",

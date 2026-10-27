@@ -103,6 +103,21 @@ function readControlledPageEvidenceInPage(options) {
     'main [data-testid="comment-header"]:not(.markdown-body):not(.markdown-body *):not(:has(.markdown-body))',
     'main #issue-timeline a[data-testid="actor-link"][href]:not(.markdown-body):not(.markdown-body *)',
   ].join(',') : '';
+  // Match only the declared GitLab site profile paths; both sibling label spans
+  // are protected by its production rule and must retain their link context.
+  const gitlabPath = globalThis.location?.pathname || '';
+  const gitlabProfile = ['http:', 'https:'].includes(globalThis.location?.protocol) &&
+    (globalThis.location?.hostname || '').toLowerCase().replace(/\.$/u, '') === 'gitlab.com' &&
+    /^\/.*\/-\/(?:(?:issues|work_items|merge_requests|blob|wikis)\/.*|releases.*)$/u.test(gitlabPath) &&
+    !/^\/(?:login|signin|signup|account|settings|checkout|auth)(?:\/|$)/u.test(gitlabPath);
+  const gitlabLabelProtected = gitlabProfile ? '.gl-label-text,.gl-label-text-scoped' : '';
+  // Keep the ordinary source/partition projection unchanged. A separate per-read,
+  // per-native-node marker lets GitLab labels participate in source/output order.
+  const gitlabMarker = /[\uFFF2\uFFF3]/u;
+  const gitlabMarkers = new WeakMap((gitlabLabelProtected
+    ? [...document.querySelectorAll(gitlabLabelProtected)].filter(node => !node.closest(artifact)) : [])
+    .map((node, index) => [node, `\uFFF2${index}\uFFF3`]));
+  const isGitlabMarker = value => /^\uFFF2\d+\uFFF3$/u.test(value);
   const ubuntuManpage = globalThis.location?.hostname === 'manpages.ubuntu.com' && /^\/manpages\/[^/]+\/man[0-9][^/]*\/[^/]+\.html$/u.test(globalThis.location?.pathname || '');
   // Match the SQLite documentation profile exactly; ordinary page buttons are not protected prose.
   const sqliteDocument = ['sqlite.org', 'www.sqlite.org'].includes(globalThis.location?.hostname) &&
@@ -120,6 +135,7 @@ function readControlledPageEvidenceInPage(options) {
   const literalToken = /^[\w.+/-]+(?:(?:\s*,\s*[\w.+/-]+)+|(?:\s+--?\w[\w-]*)+)?$/u;
   const isProtected = (node, live) => node.matches(protectedSelector) || siteProtected && node.matches(siteProtected) ||
     githubMetadataProtected && live?.matches(githubMetadataProtected) ||
+    gitlabLabelProtected && live?.matches(gitlabLabelProtected) ||
     sqliteDocument && node.matches('button') ||
     ubuntuManpage && live?.matches('#manpage-content section.Sh b,#manpage-content section.Sh i') && literalToken.test(node.textContent.trim()) ||
     node.matches('a[href]') && linkIdentifier.test(node.textContent.trim());
@@ -236,24 +252,39 @@ function readControlledPageEvidenceInPage(options) {
     });
     source.querySelectorAll(artifact).forEach(node => node.remove());
     translated.querySelectorAll(artifact).forEach(node => node.remove());
+    const hasGitlabLabels = Boolean(gitlabLabelProtected && [...source.querySelectorAll('*')].some(node => sourceContexts.get(node)?.matches(gitlabLabelProtected)));
+    if (hasGitlabLabels && gitlabMarker.test(source.textContent + translated.textContent)) throw new Error('GitLab label marker collision');
     const protections = [];
     for (const node of source.querySelectorAll('*')) {
       if (!source.contains(node) || !isProtected(node, sourceContexts.get(node))) continue;
       // Only the outer protected subtree participates: nested MathML/KaTeX is one skeleton.
-      protections.push({tag: node.localName, text: node.matches(formulaSelector) ? visibleFormulaText(node) : node.textContent, href: node.getAttribute('href'), linkHref: sourceContexts.get(node)?.closest('a[href]')?.getAttribute('href') ?? null, formula: node.matches(formulaSelector)});
-      node.remove();
+      const requireElement = Boolean(gitlabLabelProtected && sourceContexts.get(node)?.matches(gitlabLabelProtected));
+      const marker = requireElement ? gitlabMarkers.get(sourceContexts.get(node)) : undefined;
+      if (requireElement && !marker) throw new Error('GitLab native label marker unavailable');
+      protections.push({tag: node.localName, text: node.matches(formulaSelector) ? visibleFormulaText(node) : node.textContent, href: node.getAttribute('href'), linkHref: sourceContexts.get(node)?.closest('a[href]')?.getAttribute('href') ?? null, formula: node.matches(formulaSelector), ...(requireElement ? {requireElement: true, marker} : {})});
+      if (requireElement) node.replaceWith(document.createTextNode(marker)); else node.remove();
     }
     const protectedMatches = [];
+    // GitLab scoped labels have ordered key/value siblings. Record original output
+    // element order before removing matched subtrees, including duplicate texts.
+    const outputOrder = new WeakMap([...translated.querySelectorAll('*')].map((node, index) => [node, index]));
+    let lastGitlabLabelPosition = -1;
     const outputLink = node => node.closest('a[href]')?.getAttribute('href') ?? owner.closest('a[href]')?.getAttribute('href') ?? null;
     for (const part of protections) {
       let matched = !part.text.trim();
       for (const node of translated.querySelectorAll(part.tag)) {
-        if ((part.formula ? visibleFormulaText(node) : node.textContent) === part.text && node.getAttribute('href') === part.href && outputLink(node) === part.linkHref) {node.remove(); matched = true; break;}
+        if ((part.formula ? visibleFormulaText(node) : node.textContent) === part.text && node.getAttribute('href') === part.href && outputLink(node) === part.linkHref) {
+          const position = outputOrder.get(node);
+          if (part.requireElement && (position === undefined || position <= lastGitlabLabelPosition)) continue;
+          if (part.requireElement) lastGitlabLabelPosition = position;
+          if (part.requireElement) node.replaceWith(document.createTextNode(part.marker)); else node.remove();
+          matched = true; break;
+        }
       }
       // Sanitization unwraps custom elements such as <relative-time role=timer>.
       // Only an entire unchanged Text node may match the observed protected subtree;
       // never remove an arbitrary substring or exempt an unmarked prose/date node.
-      if (!matched && part.href === null && !part.formula) {
+      if (!matched && !part.requireElement && part.href === null && !part.formula) {
         const walk = document.createTreeWalker(translated, 4);
         while (walk.nextNode()) {
           if (walk.currentNode.nodeValue === part.text && outputLink(walk.currentNode.parentElement) === part.linkHref) {walk.currentNode.remove(); matched = true; break;}
@@ -262,9 +293,13 @@ function readControlledPageEvidenceInPage(options) {
       protectedMatches.push({...part, matched});
     }
     const inheritedLink = owner.closest('a[href]')?.getAttribute('href') ?? null;
-    const sourceTextNodes = textNodes(source, inheritedLink), outputTextNodes = textNodes(translated, inheritedLink);
+    const markedSourceNodes = textNodes(source, inheritedLink), markedOutputNodes = textNodes(translated, inheritedLink);
+    const sourceTextNodes = markedSourceNodes.filter(node => !isGitlabMarker(node.text));
+    const outputTextNodes = markedOutputNodes.filter(node => !isGitlabMarker(node.text));
     const sourceParts = sourceTextNodes.map(node => node.text);
-    return {index, owner: owner.localName, source: sourceParts.join(''), sourceParts, output: outputTextNodes.map(node => node.text).join(''), sourceTextNodes, outputTextNodes, protectedMatches, omittedParts, sourceHtml: source.outerHTML.slice(0, 4000)};
+    const markedParts = markedSourceNodes.map(node => node.text);
+    const gitlabOrderedProjection = hasGitlabLabels ? {source: markedParts.join(''), sourceParts: markedParts, output: markedOutputNodes.map(node => node.text).join(''), sourceTextNodes: markedSourceNodes, outputTextNodes: markedOutputNodes} : undefined;
+    return {index, owner: owner.localName, source: sourceParts.join(''), sourceParts, output: outputTextNodes.map(node => node.text).join(''), sourceTextNodes, outputTextNodes, protectedMatches, omittedParts, sourceHtml: source.outerHTML.slice(0, 4000), ...(gitlabOrderedProjection ? {gitlabOrderedProjection} : {})};
   });
   if (!partitionBindings) return evidence;
   return partitionBindings.map(record => {
@@ -360,7 +395,9 @@ function hasControlledTextNodeAttribution(row) {
 function assertControlledPageEvidence(evidence, phase) {
   if (!Array.isArray(evidence) || !evidence.length) throw new Error(`${phase}: controlled response owners missing`);
   for (const row of evidence) {
-    if (row.protectedMatches?.some(part => !part.matched) || (!isControlledTranslationForSource(row.output, row.source, row.sourceParts) && !hasControlledTextNodeAttribution(row))) {
+    const marked = row.gitlabOrderedProjection;
+    if (row.protectedMatches?.some(part => !part.matched) || (!isControlledTranslationForSource(row.output, row.source, row.sourceParts) && !hasControlledTextNodeAttribution(row)) ||
+      (marked && !isControlledTranslationForSource(marked.output, marked.source, marked.sourceParts) && !hasControlledTextNodeAttribution(marked))) {
       throw new Error(`${phase}/${row.index}: controlled response not proven for complete source ${JSON.stringify(row)}`);
     }
   }
