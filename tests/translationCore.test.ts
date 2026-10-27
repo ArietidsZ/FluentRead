@@ -3246,6 +3246,88 @@ describe('translation candidate core', () => {
         expect(metadata.outerHTML).toBe(before.replace('last month</relative-time>', '2 months ago</relative-time>'));
     });
 
+    it('protects current GitHub PR list author and timestamp metadata without hiding nearby prose', () => {
+        const {document, core} = page(`
+            <main>
+                <ul data-listview-component="items-list">
+                    <li id="row"><div data-listview-item-title-container="true"><h3>
+                        <a id="current-title" data-testid="listitem-title-link" href="/FluentRead/FluentRead/pull/100"><span id="inside-title" data-testid="timestamp-container">A descriptive pull request title</span></a>
+                    </h3></div><div class="container__W45oI6 description__mZjLFE">
+                        <span id="metadata" data-testid="timestamp-container"><span aria-hidden="true">·</span>
+                            <a id="current-author" data-testid="author-filter-link" href="/FluentRead/FluentRead/pulls?author=ExampleUser">ExampleUser</a>
+                            <span> opened </span><relative-time id="current-time" datetime="2026-10-27T00:30:26Z">Oct 27, 2026</relative-time>
+                        </span><span id="association" data-testid="comment-author-association">Member</span>
+                    </div></li>
+                    <li><span id="timestamp-includes-title" data-testid="timestamp-container"><a id="wrapped-title" data-testid="listitem-title-link" href="/owner/repo/pull/4">A readable nested title</a></span></li>
+                    <li id="no-title"><span id="near-no-title" data-testid="timestamp-container"><a data-testid="author-filter-link">Readable author note</a><relative-time>yesterday</relative-time></span></li>
+                    <li><a data-testid="listitem-title-link" href="/owner/repo/pull/1">Another descriptive title</a><span id="near-no-author" data-testid="timestamp-container">Readable explanation<relative-time>yesterday</relative-time></span></li>
+                    <li><a data-testid="listitem-title-link" href="/owner/repo/pull/2">A third descriptive title</a><span id="temporarily-no-time" data-testid="timestamp-container"><a data-testid="author-filter-link">A readable author paragraph</a></span></li>
+                </ul>
+                <p id="ordinary" data-testid="timestamp-container">Ordinary prose remains readable and independently translatable.</p>
+                <article class="markdown-body"><ul data-listview-component="items-list"><li><a data-testid="listitem-title-link" href="/owner/repo/pull/3">A fourth descriptive title</a><span id="markdown-near" data-testid="timestamp-container"><a data-testid="author-filter-link">Readable markdown mention</a><relative-time>yesterday</relative-time></span></li></ul></article>
+            </main>
+        `, 'https://github.com/FluentRead/FluentRead/pulls');
+        const title = document.querySelector<HTMLElement>('#current-title')!;
+        const row = document.querySelector<HTMLElement>('#row')!;
+        const metadata = document.querySelector<HTMLElement>('#metadata')!;
+        const author = document.querySelector<HTMLElement>('#current-author')!;
+        const time = document.querySelector<HTMLElement>('#current-time')!;
+        const association = document.querySelector<HTMLElement>('#association')!;
+        const originalHTML = metadata.outerHTML, originalNodes = [...metadata.childNodes], originalHref = author.getAttribute('href');
+        const candidates = core.discover(document);
+        expect(candidates.some(({element}) => element === title)).toBe(true);
+        expect(core.resolve(title.querySelector('span')!.firstChild)).toMatchObject({element: title, adapterId: 'github'});
+        expect(candidates.some(({element}) => element.id === 'ordinary')).toBe(true);
+        const wrappedTitle = document.getElementById('wrapped-title')!;
+        expect(candidates.some(({element}) => element === wrappedTitle)).toBe(true);
+        expect(core.resolve(wrappedTitle.firstChild)).toMatchObject({element: wrappedTitle, adapterId: 'github'});
+        expect(core.shouldStayOriginal(association)).toBe(false);
+        for (const element of [metadata, ...metadata.querySelectorAll('*')]) {
+            expect(core.shouldStayOriginal(element)).toBe(true);
+            expect(core.shouldIgnoreMutation(element)).toBe(true);
+            expect(core.resolve(element.firstChild)).toBeNull();
+        }
+        expect(candidates.some(({element}) => element === metadata || metadata.contains(element))).toBe(false);
+        expect(createTranslationSourceSnapshot(row, core.shouldStayOriginal).slots.map(({source}) => source).join(' ')).not.toContain('ExampleUser');
+        for (const id of ['near-no-title', 'ordinary', 'markdown-near', 'inside-title', 'timestamp-includes-title']) {
+            const near = document.getElementById(id)!;
+            expect(core.shouldStayOriginal(near), id).toBe(false);
+        }
+        const temporarilyNoAuthor = document.getElementById('near-no-author')!;
+        expect(core.shouldStayOriginal(temporarilyNoAuthor)).toBe(true);
+        expect(core.shouldIgnoreMutation(temporarilyNoAuthor)).toBe(true);
+        expect(core.discover(temporarilyNoAuthor)).toEqual([]);
+        const followingAuthor = author.nextSibling;
+        author.remove();
+        expect(core.shouldStayOriginal(metadata)).toBe(true);
+        expect(core.shouldIgnoreMutation(metadata)).toBe(true);
+        expect(core.discover(metadata)).toEqual([]);
+        metadata.insertBefore(author, followingAuthor);
+        const temporarilyNoTime = document.getElementById('temporarily-no-time')!;
+        expect(core.shouldStayOriginal(temporarilyNoTime)).toBe(true);
+        expect(core.shouldIgnoreMutation(temporarilyNoTime)).toBe(true);
+        expect(core.discover(temporarilyNoTime)).toEqual([]);
+        const followingTime = time.nextSibling;
+        time.remove();
+        expect(core.shouldStayOriginal(metadata)).toBe(true);
+        expect(core.shouldIgnoreMutation(metadata)).toBe(true);
+        expect(core.discover(metadata)).toEqual([]);
+        metadata.insertBefore(time, followingTime);
+        time.textContent = 'Oct 28, 2026';
+        author.textContent = 'AnotherUser';
+        expect(core.discover(metadata)).toEqual([]);
+        expect(core.shouldIgnoreMutation(time)).toBe(true);
+        expect(author.getAttribute('href')).toBe(originalHref);
+        expect([...metadata.childNodes]).toEqual(originalNodes);
+        expect(metadata.outerHTML).toBe(originalHTML.replace('ExampleUser</a>', 'AnotherUser</a>').replace('Oct 27, 2026</relative-time>', 'Oct 28, 2026</relative-time>'));
+        const clone = metadata.cloneNode(true) as HTMLElement;
+        clone.id = 'dynamic-metadata';
+        row.append(clone);
+        expect(core.shouldStayOriginal(clone)).toBe(true);
+        expect(core.shouldIgnoreMutation(clone)).toBe(true);
+        expect(core.discover(clone)).toEqual([]);
+    });
+
     it('keeps GitHub issue-list labels and metadata original while translating titles', () => {
         const {document, core} = page(`
             <main>

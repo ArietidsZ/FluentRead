@@ -175,6 +175,7 @@
     ],
     "protect": [
       "[class*=\"PullsListItem-module__description__\"]",
+      "main [data-listview-component=\"items-list\"] > li:has([data-testid=\"listitem-title-link\"]) [data-testid=\"timestamp-container\"]:not(.markdown-body):not(.markdown-body *):not([data-testid=\"listitem-title-link\"] *):not(:has([data-testid=\"listitem-title-link\"]))",
       "[data-testid=\"issue-labels\"]",
       "span[class*=\"IssueLabel\"]",
       "[data-testid=\"list-row-repo-name-and-number\"]",
@@ -205,6 +206,7 @@
     ],
     "exclude": [
       "[class*=\"PullsListItem-module__description__\"]",
+      "main [data-listview-component=\"items-list\"] > li:has([data-testid=\"listitem-title-link\"]) [data-testid=\"timestamp-container\"]:not(.markdown-body):not(.markdown-body *):not([data-testid=\"listitem-title-link\"] *):not(:has([data-testid=\"listitem-title-link\"]))",
       "dialog",
       "[role=\"dialog\"]",
       "[data-testid=\"search-modal\"]",
@@ -234,6 +236,7 @@
     ],
     "watchIgnore": [
       "[class*=\"PullsListItem-module__description__\"]",
+      "main [data-listview-component=\"items-list\"] > li:has([data-testid=\"listitem-title-link\"]) [data-testid=\"timestamp-container\"]:not(.markdown-body):not(.markdown-body *):not([data-testid=\"listitem-title-link\"] *):not(:has([data-testid=\"listitem-title-link\"]))",
       "[data-testid=\"issue-labels\"]",
       "span[class*=\"IssueLabel\"]",
       "[data-testid=\"list-row-repo-name-and-number\"]",
