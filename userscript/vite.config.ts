@@ -16,7 +16,7 @@ import {createUserscriptServiceBrandIconsCompressionPlugin} from './serviceBrand
 import {createUserscriptSettingsDataPlugin} from './settingsDataPlugin';
 import {packMessageCatalog, packUiLanguageBundle} from './languageData';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeUserscriptData} from './buildDataEncoding';
+import {encodeUserscriptData, encodeUserscriptDataCompact} from './buildDataEncoding';
 import {UI_LANGUAGE_BUNDLES, zhCNMessages, currentUserscriptLanguageBundle, createUserscriptLanguageUpdate, userscriptPageMessages} from './languageBundles';
 import type {RegisteredUiLanguage, UiLanguageBundle} from '../src/core/i18n/types';
 import {createDeepLXRuntimeBuildPlugin} from '../scripts/testing/deeplx-runtime-build';
@@ -28,6 +28,7 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
 };
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/64.png')).toString('base64')}`;
 const bundleLibraries = process.env.FLUENTREAD_USERSCRIPT_STANDALONE === '1';
+const encodeBuildData = bundleLibraries ? encodeUserscriptDataCompact : encodeUserscriptData;
 const greasyForkSource = process.env.FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE === '1';
 const prepareGreasyForkData = process.env.FLUENTREAD_USERSCRIPT_PREPARE_RESOURCES === '1';
 const vendorUrl = process.env.FLUENTREAD_USERSCRIPT_VENDOR_URL;
@@ -87,7 +88,7 @@ const compressedUiLanguageBundles = greasyForkSource ? {} : Object.fromEntries(O
     .filter(([language]) => language === 'en-US')
     .map(([language, bundle]) => [
     language,
-    ((bytes: Uint8Array) => bundleLibraries ? encodeUserscriptData(bytes) : Buffer.from(bytes).toString('base64'))(
+    ((bytes: Uint8Array) => bundleLibraries ? encodeBuildData(bytes) : Buffer.from(bytes).toString('base64'))(
         gzipUserscriptBuildData(Buffer.from(serializeUiMessages(packUiLanguageBundle({...bundle,
             messages: userscriptPageMessages(bundle.messages)}, bundleLibraries ? defaultMessageColumns[0] : undefined))))),
 ]));
@@ -111,7 +112,7 @@ const uiLanguageUpdates = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
         language === 'en-US' ? pinnedData!.english : baseline)]];
 }));
 const languageUpdateBytes = gzipUserscriptBuildData(Buffer.from(serializeUiMessages(uiLanguageUpdates)));
-const compressedUiLanguageUpdates = bundleLibraries ? encodeUserscriptData(languageUpdateBytes) : languageUpdateBytes.toString('base64');
+const compressedUiLanguageUpdates = bundleLibraries ? encodeBuildData(languageUpdateBytes) : languageUpdateBytes.toString('base64');
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsLicense = fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8');
 const tinycolorLicense = fs.readFileSync(resolve(root, 'public/third-party-notices/tinycolor-MIT.txt'), 'utf8');
@@ -167,7 +168,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                 }
                 const contents = serializeUiMessages(bundleLibraries ? defaultMessageColumns : userscriptPageMessages(zhCNMessages));
                 const compressedBytes = gzipUserscriptBuildData(Buffer.from(contents));
-                const compressed = bundleLibraries ? encodeUserscriptData(compressedBytes) : compressedBytes.toString('base64');
+                const compressed = bundleLibraries ? encodeBuildData(compressedBytes) : compressedBytes.toString('base64');
                 return [
                     `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
                     "import {inflateWithPako} from '@/userscript/pakoRuntime';",
@@ -207,7 +208,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                 ].join('\n');
             }
             const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
-            const compressed = encodeUserscriptData(gzipUserscriptBuildData(Buffer.from(contents)));
+            const compressed = encodeBuildData(gzipUserscriptBuildData(Buffer.from(contents)));
             const digest = createHash('sha256').update(contents).digest('hex');
             return [
                 `/* Non-code site rules: ${normalizePath(sourcePath).slice(projectRoot.length)}; sha256 ${digest}. */`,
@@ -478,7 +479,7 @@ function bundleUserscriptCss(): Plugin {
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
             const cssBytes = greasyForkSource ? undefined : gzipUserscriptBuildData(Buffer.from(css, 'utf8'));
             const compressedCss = cssBytes === undefined ? '' : bundleLibraries
-                ? encodeUserscriptData(cssBytes) : cssBytes.toString('base64');
+                ? encodeBuildData(cssBytes) : cssBytes.toString('base64');
             cssEntries.forEach(([fileName]) => delete bundle[fileName]);
 
             if (greasyForkSource) {

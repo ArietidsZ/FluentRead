@@ -57,7 +57,7 @@ function encodedDataBytes(source: string, decoder = 'decodeUserscriptData'): Uin
     const values = [...source.matchAll(pattern)].map(match => JSON.parse(match[1]) as string);
     expect(values.length).toBeGreaterThan(0);
     return values.map(value => {
-        expect(value).toMatch(/^~85:[0-3]/u);
+        expect(value).toMatch(/^(?:~85:[0-3]|~91:)/u);
         return decodeUserscriptData(value);
     });
 }
@@ -1467,7 +1467,7 @@ describe('standalone locked public and private suffix pure-data encoding', () =>
         const compact = createPlugin(true, process.cwd(), true).transform(original, dataPath)!.code;
         const base64 = JSON.parse(legacy.match(/atob\(("[^"]+")\)/u)![1]);
         const encoded = JSON.parse(compact.match(/decodeUserscriptData\(("[^"]+")\)/u)![1]);
-        expect(encoded.startsWith('~85:')).toBe(true);expect(compact).not.toContain('atob(');
+        expect(encoded.startsWith('~91:')).toBe(true);expect(compact).not.toContain('atob(');
         expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(Buffer.from(base64, 'base64'));
         const a = restoreData(legacy), b = restoreData(compact);
         for (const name of arrayNames) {expect(b[name].constructor).toBe(a[name].constructor);expect(Buffer.from(b[name].buffer)).toEqual(Buffer.from(a[name].buffer));}
