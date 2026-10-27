@@ -30,7 +30,7 @@ Zotero、Obsidian、油猴版本目前独立维护。根版本标签表示整组
 
 2026-10-27 的告警修复保留了桌面 Firefox 140（含 ESR 140），没有提高最低版本或未经验收声明 Android 支持。内置数据同意功能在桌面 140、Android 142 起提供，因此这组清单会保留 Android 最低版本提示；向审核者说明桌面兼容范围。后续支持 Android 时应先完成设备验证，再明确声明兼容版本。[Mozilla 内置数据同意机制](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)、[Android 兼容性验证](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/)
 
-依赖适配由 `scripts/testing/extension-csp-build.ts` 和 `scripts/wasm/package-diagnostics.ts` 在构建中执行：完整源码 SHA-256 不符即停止，不直接修改上游包；WASM 二进制不变。全局回退改用 `globalThis`，ZIP 不再编译历史字符串回调，PDF 使用已有解释器，ONNX 使用静态调用闭包。升级依赖时必须重新审查固定输入与语义测试，不应通过忽略校验规则维持通过。
+依赖适配由 `scripts/testing/extension-csp-build.ts`、`scripts/testing/defuddle-entity-build.ts` 和 `scripts/wasm/package-diagnostics.ts` 在构建中执行：完整源码 SHA-256 不符即停止，不直接修改上游包；WASM 二进制不变。全局回退改用 `globalThis`，ZIP 不再编译历史字符串回调，PDF 使用已有解释器，ONNX 使用静态调用闭包，Defuddle 的实体解码改用共享纯文本解码器。升级依赖时必须重新审查固定输入与语义测试，不应通过忽略校验规则维持通过。
 
 剩余告警需结合本次 ZIP 的实际报告逐项审阅：
 
@@ -39,7 +39,6 @@ Zotero、Obsidian、油猴版本目前独立维护。根版本标签表示整组
 | Vue 静态模板 | 来自编译的包内模板；产品没有启用 `v-html` 或组件原始 HTML 选项 |
 | Defuddle | 操作独立、已清洗的页面快照；不把解析节点插回宿主页面 |
 | 上下文 Markdown 解析 | 输入经过上下文隐私清洗，在独立节点中解析后转换为文本/Markdown |
-| 文档与字幕实体解码 | 用脱离页面的 textarea 解码实体，结果按文本使用 |
 | ONNX 与 PDF 的动态导入 | 模型运行时和 PDF Worker 地址由包内资源配置提供；模型下载内容作为数据使用 |
 
 验证通过表示本地校验器没有错误，不代表 Mozilla 已签名、审核批准，也不代表完成所有 Firefox/Android 真机功能验收。

@@ -94,6 +94,7 @@
     "defuddle": "^0.19.2",
     "dexie": "^4.4.4",
     "element-plus": "^2.9.3",
+    "entities": "4.5.0",
     "franc-min": "^6.2.0",
     "jszip": "3.10.1",
     "koroman": "1.0.16",
