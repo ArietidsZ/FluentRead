@@ -2,6 +2,21 @@
   "microsoft-learn-translator-v3": {
     "url": "https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate",
     "hoverSelector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+    "hoverTargets": [
+      {
+        "name": "primary",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "index": 0
+      },
+      {
+        "name": "http-error-response-paragraph",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "sourceIncludes": [
+          "If an error occurs, the request returns a JSON error response.",
+          "The error code is a 6-digit number"
+        ]
+      }
+    ],
     "requiredSelectors": [
       "main#main h1#azure-translator-in-foundry-tools-30-translate",
       "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p"
@@ -27,6 +42,7 @@
       "nav#side-doc-outline"
     ],
     "interactionSelectors": [
+      "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p > a[href=\"../status-response-codes\"]",
       "#article-header-breadcrumbs nav a[href]",
       "nav#affixed-left-container a[href]",
       "nav#side-doc-outline a[href]"
