@@ -70,13 +70,17 @@ describe('已提交网页译文显示切换', () => {
             width: '20px', height: '20px', clip: 'auto', clipPath: 'none',
             getPropertyValue: () => '', getPropertyPriority: () => ''}));
         const fixture = committed('bilingual', {
-            inlineCodeTexts: ['fetch()', 'parse()'], inlineCodeSourceTexts: ['Use ', ' before ', ' now.'],
-        }, 'Use <code>fetch()</code> before <code>parse()</code> now.');
+            inlineCodeTexts: ['fetch()', 'parse()'], inlineCodeClasses: ['notranslate', null], inlineCodeSourceTexts: ['Use ', ' before ', ' now.'],
+        }, 'Use <code class="notranslate">fetch()</code> before <code>parse()</code> now.');
         expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(true);
         expect(syncTranslationDisplayMode(fixture.owner, fixture.state, 0)).toBe(true);
         expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(true);
         expect(syncTranslationDisplayMode(fixture.owner, fixture.state, 1)).toBe(true);
         const code = Array.from(fixture.owner.children).find(child => child.localName === 'code')!;
+        code.removeAttribute('class');
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(false);
+        expect(refreshTranslationDisplayMode(fixture.owner, fixture.state)).toBe(false);
+        code.setAttribute('class', 'notranslate');
         code.textContent = 'changed()';
         expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(false);
         expect(refreshTranslationDisplayMode(fixture.owner, fixture.state)).toBe(false);

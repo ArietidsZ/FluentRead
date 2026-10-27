@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {createTranslationSourceSnapshot} from '@/src/core/translation/serialization';
-import {createInlineCodePacket, inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
+import {createInlineCodePacket, getInlineCodeClass, inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
 
 function fixture(html = '<p>Use <code>fetch()</code> before <code>parse()</code> now.</p>') {
     const {document} = parseHTML(`<html><body>${html}</body></html>`);
@@ -173,6 +173,62 @@ describe('real MDN adaptation policy', () => {
         const [a, b] = packet!.markers;
         expect(packet!.decode(`但是变量${a}与${b}不同，因为 JavaScript 区分大小写。`))
             .toEqual(['但是变量', '与', '不同，因为 JavaScript 区分大小写。']);
+    });
+});
+
+describe('GitHub comments with protected inline code', () => {
+    it('accepts the observed text/code structure inside noninteractive list semantics and preserves only local code', async () => {
+        const {createTranslationCore} = await import('./helpers/translationCore');
+        const f = fixture('<main><ol role="list"><li role="listitem"><div class="markdown-body"><p dir="auto">The <code class="notranslate">gen(val)</code> will only execute when you iterate.</p></div></li></ol></main>');
+        const core = createTranslationCore({url: new URL('https://github.com/vuejs/core/issues/1000')});
+        const code = f.owner.querySelector('code')!;
+        const snapshot = createTranslationSourceSnapshot(f.owner, core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        const packet = createInlineCodePacket(f.owner, snapshot, core.shouldStayOriginal, {targetLanguage: 'zh-Hans'});
+        expect(packet).not.toBeNull();
+        expect(packet!.codeClasses).toEqual(['notranslate']);
+        expect(packet!.source).not.toContain('gen(val)');
+        expect(packet!.decode(`该 ${packet!.markers[0]} 仅在迭代时执行。`)).toEqual(['该', '仅在迭代时执行。']);
+        expect(code.outerHTML).toBe('<code class="notranslate">gen(val)</code>');
+        expect(snapshot.clone.querySelector('code')?.outerHTML).toBe(code.outerHTML);
+    });
+
+    it('freezes the exact allowed class state on live code and clone', () => {
+        const f = fixture('<p>Use <code class="notranslate">fetch()</code> before <code>parse()</code> now.</p>');
+        expect(f.packet?.codeClasses).toEqual(['notranslate', null]);
+        expect(Object.isFrozen(f.packet!.codeClasses)).toBe(true);
+        const first = f.owner.querySelector('code')!;
+        first.removeAttribute('class');
+        expect(f.packet!.isCurrent()).toBe(false);
+        first.setAttribute('class', 'notranslate');
+        expect(f.packet!.isCurrent()).toBe(true);
+        first.setAttribute('title', 'changed');
+        expect(f.packet!.isCurrent()).toBe(false);
+        first.removeAttribute('title');
+        f.snapshot.clone.querySelector('code')!.removeAttribute('class');
+        expect(f.packet!.isCurrent()).toBe(false);
+        expect(f.packet!.source).not.toContain('fetch()');
+    });
+
+    it('rejects additional, alternate and malformed attributes and interactive list ancestors', () => {
+        for (const html of [
+            '<p>Use <code class="notranslate extra">fetch()</code> now.</p>',
+            '<p>Use <code class="NOTRANSLATE">fetch()</code> now.</p>',
+            '<p>Use <code class="notranslate" onclick="danger()">fetch()</code> now.</p>',
+            '<p>Use <code translate="no">fetch()</code> now.</p>',
+            '<ol role="list" tabindex="0"><li><p>Use <code class="notranslate">fetch()</code> now.</p></li></ol>',
+            '<ol role="listbox"><li><p>Use <code class="notranslate">fetch()</code> now.</p></li></ol>',
+            '<ol role="list"><li contenteditable="true"><p>Use <code class="notranslate">fetch()</code> now.</p></li></ol>',
+        ]) expect(fixture(html).packet, html).toBeNull();
+        const f = fixture();
+        expect(getInlineCodeClass(f.owner)).toBeUndefined();
+        // linkedom normalizes class whitespace; inspect a native-shaped attribute directly.
+        expect(getInlineCodeClass({localName: 'code', attributes: [{name: 'class', namespaceURI: null, value: ' notranslate'}]} as unknown as Element)).toBeUndefined();
+        expect(getInlineCodeClass(f.owner.querySelector('code')!)).toBeNull();
+        const code = f.owner.querySelector('code')!;
+        code.setAttribute('class', 'notranslate');
+        expect(getInlineCodeClass(code)).toBe('notranslate');
+        code.setAttribute('style', 'display:none');
+        expect(getInlineCodeClass(code)).toBeUndefined();
     });
 });
 

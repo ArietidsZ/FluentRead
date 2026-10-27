@@ -491,6 +491,7 @@ async function renderTranslation(
         }, [node]);
         setBilingualContent(node, content, createBilingualTranslationReplay(result.sources, result.translations,
             {...snapshot, inlineCodeTexts: result.inlineCodePacket?.codeTexts,
+                inlineCodeClasses: result.inlineCodePacket?.codeClasses,
                 inlineCodeSourceTexts: result.inlineCodePacket?.sourceTexts}));
         setRenderedStyleAttribute(node);
         if (import.meta.env.BROWSER !== 'userscript') registerPersonalCorrectionResult(node, state, result.personalCorrection);

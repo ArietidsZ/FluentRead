@@ -10,7 +10,7 @@ function fixture() {
     const owner = document.querySelector('p') as unknown as HTMLElement;
     const state = {mode: 'bilingual', kind: 'content', phase: 'translated', bilingualReplay: {
         sources: ['Use', 'before', 'now.'], translations: ['使用', '之前', '现在。'],
-        inlineCodeTexts: ['fetch()', 'parse()'], inlineCodeSourceTexts: ['Use ', ' before ', ' now.'],
+        inlineCodeTexts: ['fetch()', 'parse()'], inlineCodeClasses: [null, null], inlineCodeSourceTexts: ['Use ', ' before ', ' now.'],
         targetLanguage: 'zh-Hans', style: 1,
     }} as unknown as TranslationState;
     return {document, owner, state, style};
@@ -46,6 +46,21 @@ describe('inline code whole-sentence replay source', () => {
         expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(false);
     });
 
+    it('binds notranslate code class exactly and rejects changed or additional attributes', () => {
+        const f = fixture();
+        const code = f.owner.querySelector('code')!;
+        code.setAttribute('class', 'notranslate');
+        f.state.bilingualReplay!.inlineCodeClasses = ['notranslate', null];
+        expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(true);
+        code.removeAttribute('class');
+        expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(false);
+        code.setAttribute('class', 'notranslate');
+        code.setAttribute('title', 'changed');
+        expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(false);
+        f.state.bilingualReplay!.inlineCodeClasses = new Array(2);
+        expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(false);
+    });
+
     it('recognizes only registered single-mode hosts in their exact order', () => {
         const f = fixture();
         const texts = Array.from(f.owner.childNodes).filter(node => node.nodeType === 3) as Text[];
@@ -71,6 +86,7 @@ describe('inline code whole-sentence replay source', () => {
     it('leaves existing non-protocol replay paths unchanged', () => {
         const f = fixture();
         delete f.state.bilingualReplay!.inlineCodeTexts;
+        delete f.state.bilingualReplay!.inlineCodeClasses;
         delete f.state.bilingualReplay!.inlineCodeSourceTexts;
         f.owner.innerHTML = '<p>arbitrary content</p>';
         expect(inlineCodeReplaySourceIsCurrent(f.owner, f.state)).toBe(true);

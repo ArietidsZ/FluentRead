@@ -6,7 +6,7 @@
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
 import {cloneTranslationElementInert} from '@/src/core/translation/inertClone';
-import {inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
+import {getInlineCodeClass, inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
 import {isIdentifierLikeText, isTranslationTextNodeProtected} from "@/src/core/translation/text";
 import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
 import {withFullPageRestorationAnchors} from './viewportStability';
@@ -64,6 +64,8 @@ export interface BilingualTranslationReplay {
     translations: readonly string[];
     /** 整句行内代码协议的本地来源，仅供重放复验，不发送给服务。 */
     inlineCodeTexts?: readonly string[];
+    /** 单个代码节点的受限属性标记，须随文字一起冻结和复验。 */
+    inlineCodeClasses?: readonly (string | null)[];
     /** 与代码位置相邻的原生 Text（含空白），仅保存在本地。 */
     inlineCodeSourceTexts?: readonly string[];
     targetLanguage: string;
@@ -77,10 +79,11 @@ export interface BilingualTranslationReplay {
 export function createBilingualTranslationReplay(
     sources: readonly string[],
     translations: readonly string[],
-    options: Pick<BilingualTranslationReplay, 'targetLanguage' | 'style' | 'longParagraphLineBreak' | 'translationBeforeOriginal' | 'service' | 'displayModeOverridden' | 'inlineCodeTexts' | 'inlineCodeSourceTexts'> & {sourceLanguage: string},
+    options: Pick<BilingualTranslationReplay, 'targetLanguage' | 'style' | 'longParagraphLineBreak' | 'translationBeforeOriginal' | 'service' | 'displayModeOverridden' | 'inlineCodeTexts' | 'inlineCodeSourceTexts' | 'inlineCodeClasses'> & {sourceLanguage: string},
 ): BilingualTranslationReplay {
     return {sources, translations,
         ...(options.inlineCodeTexts ? {inlineCodeTexts: [...options.inlineCodeTexts]} : {}),
+        ...(options.inlineCodeClasses ? {inlineCodeClasses: [...options.inlineCodeClasses]} : {}),
         ...(options.inlineCodeSourceTexts ? {inlineCodeSourceTexts: [...options.inlineCodeSourceTexts]} : {}),
         ...(import.meta.env.BROWSER !== 'userscript' ? {sourceLanguage: options.sourceLanguage} : {}),
         targetLanguage: options.targetLanguage, style: options.style,
@@ -93,10 +96,12 @@ export function createBilingualTranslationReplay(
 export function inlineCodeReplaySourceIsCurrent(node: HTMLElement, state: TranslationState): boolean {
     const replay = state.bilingualReplay;
     const expected = replay?.inlineCodeTexts;
-    if (!expected) return !replay?.inlineCodeSourceTexts;
+    if (!expected) return !replay?.inlineCodeSourceTexts && !replay?.inlineCodeClasses;
     const expectedSourceTexts = replay.inlineCodeSourceTexts;
+    const expectedClasses = replay.inlineCodeClasses;
     if (node.localName !== 'p' || !node.isConnected || expected.length === 0 ||
         !expectedSourceTexts || expectedSourceTexts.length !== expected.length + 1 ||
+        !expectedClasses || expectedClasses.length !== expected.length ||
         replay.sources.length !== expected.length + 1) return false;
     const hosts = state.singleTextSlotHosts ?? [];
     if (state.mode === 'single' ? hosts.length !== replay.sources.length : hosts.length !== 0) return false;
@@ -129,7 +134,8 @@ export function inlineCodeReplaySourceIsCurrent(node: HTMLElement, state: Transl
         } else {
             if (child.nodeType !== 1) return false;
             const code = child as Element;
-            if (code.localName !== 'code' || code.attributes.length !== 0 || code.childNodes.length !== 1 ||
+            const currentClass = getInlineCodeClass(code);
+            if (currentClass === undefined || currentClass !== expectedClasses[(index - 1) / 2] || code.childNodes.length !== 1 ||
                 code.firstChild?.nodeType !== 3 || code.textContent !== expected[(index - 1) / 2]) return false;
             codes.push(code);
         }
@@ -782,6 +788,7 @@ export function setBilingualContent(
             sources: [...replay.sources],
             translations: [...replay.translations],
             ...(replay.inlineCodeTexts ? {inlineCodeTexts: [...replay.inlineCodeTexts]} : {}),
+            ...(replay.inlineCodeClasses ? {inlineCodeClasses: [...replay.inlineCodeClasses]} : {}),
             ...(replay.inlineCodeSourceTexts ? {inlineCodeSourceTexts: [...replay.inlineCodeSourceTexts]} : {}),
         };
         state.sourceStructureSignature = getTranslationSourceStructureSignature(

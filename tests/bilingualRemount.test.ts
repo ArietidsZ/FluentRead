@@ -120,6 +120,58 @@ afterEach(() => {
 
 describe('双语 owner 同源重挂交接', () => {
     it.each([
+        ['notranslate 保持不变', ' class="notranslate"', ' class="notranslate"', 'notranslate', true],
+        ['notranslate 被移除', ' class="notranslate"', '', 'notranslate', false],
+        ['新增 notranslate', '', ' class="notranslate"', null, false],
+        ['新增其他 class', ' class="notranslate"', ' class="notranslate extra"', 'notranslate', false],
+    ] as const)('整句代码重挂仅接受精确相同的代码 class：%s', (_name, oldClass, newClass, expectedClass, shouldTransfer) => {
+        const {document, window} = parseHTML(`<html><body><p>Use <code${oldClass}>fetch()</code> now.</p></body></html>`);
+        const priorStyle = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+        Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: () => ({
+            display: 'inline', visibility: 'visible', contentVisibility: 'visible', opacity: '1', whiteSpace: 'normal',
+            fontFamily: 'Arial', position: 'static', overflow: 'visible', width: '20px', height: '20px', clip: 'auto', clipPath: 'none',
+        })});
+        try {
+            const previous = document.querySelector('p') as unknown as HTMLElement;
+            const oldCode = previous.querySelector('code')!;
+            const slots = collectLiveTranslationTextSlots(previous, getCurrentTranslationCore().shouldStayOriginal);
+            const sources = slots.map(slot => slot.source);
+            const attempt = beginTranslation(previous, 'bilingual', 'content', false, sources.join(' '), slots.map(slot => slot.node))!;
+            expect(markTranslationComplete(previous, attempt.state, attempt.generation)).toBe(true);
+            const wrapper = document.createElement('span') as unknown as HTMLElement;
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '使用代码。';
+            previous.append(wrapper);
+            setBilingualContent(previous, wrapper, {sources, translations: ['使用', '现在。'],
+                inlineCodeTexts: ['fetch()'], inlineCodeClasses: [expectedClass], inlineCodeSourceTexts: ['Use ', ' now.'],
+                targetLanguage: 'zh-Hans', style: 1});
+            const replacement = document.createElement('p') as unknown as HTMLElement;
+            replacement.innerHTML = `Use <code${newClass}>fetch()</code> now.`;
+            const newCode = replacement.querySelector('code')!;
+            previous.replaceWith(replacement);
+            const result = transferEquivalentBilingualOwners(childListRecord(document.body, [replacement], [previous]),
+                (_previous, owner) => ({sourceTextNodes: collectLiveTranslationTextSlots(owner, getCurrentTranslationCore().shouldStayOriginal)
+                    .map(slot => slot.node), reconcileLayout: () => true}));
+            expect(result.transfers).toHaveLength(shouldTransfer ? 1 : 0);
+            expect(replacement.querySelectorAll(BILINGUAL_SELECTOR)).toHaveLength(shouldTransfer ? 1 : 0);
+            expect(replacement.querySelector('code')).toBe(newCode);
+            expect(oldCode.textContent).toBe('fetch()');
+            if (shouldTransfer) {
+                expect(getTranslationState(replacement)?.bilingualReplay?.inlineCodeClasses).toEqual([expectedClass]);
+                expect(restoreTranslation(replacement)).toBe(true);
+                expect(replacement.querySelector('code')).toBe(newCode);
+                expect(newCode.getAttribute('class')).toBe(expectedClass);
+            } else {
+                expect(getTranslationState(replacement)).toBeUndefined();
+            }
+        } finally {
+            if (priorStyle) Object.defineProperty(window, 'getComputedStyle', priorStyle);
+            else Reflect.deleteProperty(window, 'getComputedStyle');
+        }
+    });
+
+    it.each([
         ['完全相同', 'Use ', 'fetch(  value)', true],
         ['代码内部空白被折叠', 'Use ', 'fetch( value)', false],
         ['来源文本空白被折叠', 'Use  ', 'fetch(  value)', false],
@@ -143,7 +195,7 @@ describe('双语 owner 同源重挂交接', () => {
             wrapper.textContent = '使用代码。';
             previous.append(wrapper);
             setBilingualContent(previous, wrapper, {sources, translations: ['使用', '现在。'],
-                inlineCodeTexts: ['fetch(  value)'], inlineCodeSourceTexts: ['Use ', ' now.'],
+                inlineCodeTexts: ['fetch(  value)'], inlineCodeClasses: [null], inlineCodeSourceTexts: ['Use ', ' now.'],
                 targetLanguage: 'zh-Hans', style: 1});
             const replacement = document.createElement('p') as unknown as HTMLElement;
             replacement.innerHTML = `${replacementText}<code>${replacementCode}</code> now.`;
@@ -189,7 +241,7 @@ describe('双语 owner 同源重挂交接', () => {
             wrapper.className = 'fluent-read-bilingual-content'; wrapper.setAttribute('data-fr-translation-owned', 'true');
             wrapper.textContent = '使用代码。'; previous.append(wrapper);
             setBilingualContent(previous, wrapper, {sources, translations: ['使用', '现在。'],
-                inlineCodeTexts: ['fetch()'], inlineCodeSourceTexts: ['Use ', ' now.'], targetLanguage: 'zh-Hans', style: 1});
+                inlineCodeTexts: ['fetch()'], inlineCodeClasses: [null], inlineCodeSourceTexts: ['Use ', ' now.'], targetLanguage: 'zh-Hans', style: 1});
             const replacement = document.createElement('p') as unknown as HTMLElement;
             replacement.innerHTML = 'Use <code>fetch()</code> now.';
             previous.replaceWith(replacement);

@@ -14,7 +14,7 @@ import {sha256Hex} from '@/src/shared/function/sha256';
 const reservedMarker = /__FRCODE/iu;
 // 零宽和双向控制字符虽非标准空白，也不可在槽边界按普通空格处理。
 const nonSimpleWhitespace = /[^\S ]|[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
-const safeDocumentRoles = new Set(['main', 'article', 'document', 'region', 'presentation', 'none', 'generic']);
+const safeDocumentRoles = new Set(['main', 'article', 'document', 'region', 'presentation', 'none', 'generic', 'list', 'listitem']);
 const forbiddenAncestorTags = new Set(['a', 'button', 'input', 'select', 'textarea', 'option', 'pre', 'code', 'script', 'style']);
 const maximumChildren = 129;
 const maximumCharacters = 65536;
@@ -38,10 +38,22 @@ export interface InlineCodePacket {
     readonly markers: readonly string[];
     /** 仅本地用于重放校验；不得发送到服务或进入网络缓存键。 */
     readonly codeTexts: readonly string[];
+    /** 代码的受限 class 状态；仅在本地校验，不能发送或用于网络缓存键。 */
+    readonly codeClasses: readonly (string | null)[];
     /** 异步请求及提交前复验原节点与保护状态。 */
     isCurrent(): boolean;
     /** 按原顺序返回既有文本槽译文；来源或协议不确定时返回 null。 */
     decode(result: unknown): string[] | null;
+}
+
+/** 只接受无属性或唯一的标准 class="notranslate"；undefined 表示不安全的骨架。 */
+export function getInlineCodeClass(element: Element): string | null | undefined {
+    if (element.localName !== 'code') return undefined;
+    if (element.attributes.length === 0) return null;
+    if (element.attributes.length !== 1) return undefined;
+    const attribute = element.attributes[0]!;
+    return attribute.name === 'class' && attribute.namespaceURI == null && attribute.value === 'notranslate'
+        ? 'notranslate' : undefined;
 }
 
 /** 实时节点的站点策略、可见性和交互祖先必须与调用方范围一致。 */
@@ -86,7 +98,7 @@ export function inlineCodeNodesAreAllowed(owner: HTMLElement, textNodes: readonl
 }
 
 /**
- * 快照必须与原生节点逐项对应；代码只允许无属性、单 Text 的简单结构。
+ * 快照必须与原生节点逐项对应；代码只允许无属性或唯一 notranslate class、单 Text 的简单结构。
  * 标记固定顺序使返回结果能复用原有 DOM 骨架和仅译文槽。
  */
 export function createInlineCodePacket(
@@ -107,6 +119,7 @@ export function createInlineCodePacket(
     const originals: string[] = [];
     const codeTexts: Node[] = [];
     const clonedCodeTexts: Node[] = [];
+    const codeClasses: Array<string | null> = [];
     for (let index = 0; index < live.length; index += 1) {
         const node = live[index]!, cloned = copy[index]!;
         if (index % 2 === 0) {
@@ -121,11 +134,13 @@ export function createInlineCodePacket(
         } else {
             if (node.nodeType !== 1 || cloned.nodeType !== 1) return null;
             const code = node as Element, cloneCode = cloned as Element;
-            if (code.localName !== 'code' || cloneCode.localName !== 'code' || code.attributes.length ||
-                cloneCode.attributes.length || code.childNodes.length !== 1 || cloneCode.childNodes.length !== 1 ||
+            const codeClass = getInlineCodeClass(code);
+            if (codeClass === undefined || getInlineCodeClass(cloneCode) !== codeClass ||
+                code.childNodes.length !== 1 || cloneCode.childNodes.length !== 1 ||
                 code.firstChild?.nodeType !== 3 || cloneCode.firstChild?.nodeType !== 3 ||
                 !code.textContent || code.textContent !== cloneCode.textContent) return null;
             codes.push(code);
+            codeClasses.push(codeClass);
             codeTexts.push(code.firstChild);
             clonedCodeTexts.push(cloneCode.firstChild);
             originals.push(code.textContent);
@@ -158,14 +173,16 @@ export function createInlineCodePacket(
                     slot.source === frozenSlotParts[index / 2]!.source && slot.suffix === frozenSlotParts[index / 2]!.suffix;
             }
             const code = node as Element, cloned = copy[index] as Element;
-            return code.attributes.length === 0 && cloned.attributes.length === 0 && code.childNodes.length === 1 &&
+            return getInlineCodeClass(code) === codeClasses[(index - 1) / 2] &&
+                getInlineCodeClass(cloned) === codeClasses[(index - 1) / 2] && code.childNodes.length === 1 &&
                 cloned.childNodes.length === 1 && code.firstChild === codeTexts[(index - 1) / 2] &&
                 cloned.firstChild === clonedCodeTexts[(index - 1) / 2] &&
                 code.firstChild?.nodeType === 3 && cloned.firstChild?.nodeType === 3 &&
                 code.textContent === originals[index] && cloned.textContent === originals[index];
         });
     };
-    return Object.freeze({source, detectionText, sourceTexts: Object.freeze([...sources]), markers: Object.freeze(markers), codeTexts: protectedCodeTexts, isCurrent, decode(result: unknown): string[] | null {
+    return Object.freeze({source, detectionText, sourceTexts: Object.freeze([...sources]), markers: Object.freeze(markers), codeTexts: protectedCodeTexts,
+        codeClasses: Object.freeze([...codeClasses]), isCurrent, decode(result: unknown): string[] | null {
         if (typeof result !== 'string' || result.length > maximumCharacters || nonSimpleWhitespace.test(result) || !isCurrent()) return null;
         const parts: string[] = [];
         let offset = 0;
