@@ -15,8 +15,8 @@ import {createUserscriptAboutImagesCompressionPlugin} from './aboutImagesPlugin'
 import {createUserscriptServiceBrandIconsCompressionPlugin} from './serviceBrandIconsPlugin';
 import {createUserscriptSettingsDataPlugin} from './settingsDataPlugin';
 import {packKeyColumn, packLanguageUpdates, packMessageCatalog, packUiLanguageBundle} from './languageData';
-import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeCompactUserscriptData, encodeUserscriptData} from './buildDataEncoding';
+import {gzipLargeStandaloneUserscriptData, gzipUserscriptBuildData} from './buildGzip';
+import {encodeUserscriptDataCompact, encodeUserscriptData} from './buildDataEncoding';
 import {UI_LANGUAGE_BUNDLES, zhCNMessages, currentUserscriptLanguageBundle, createUserscriptLanguageUpdate, userscriptPageMessages} from './languageBundles';
 import type {RegisteredUiLanguage, UiLanguageBundle} from '../src/core/i18n/types';
 import {createDeepLXRuntimeBuildPlugin} from '../scripts/testing/deeplx-runtime-build';
@@ -83,14 +83,17 @@ function serializeUiMessages(value: unknown): string {
 }
 // 与中文内嵌目录一致，仅投影扩展文档页专用 key；固定远程与外部资源继续使用原 bundle。
 const defaultMessageColumns = packMessageCatalog(userscriptPageMessages(zhCNMessages));
-const compressedUiLanguageBundles = greasyForkSource ? {} : Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
-    .filter(([language]) => language === 'en-US')
-    .map(([language, bundle]) => [
-    language,
-    ((bytes: Uint8Array) => bundleLibraries ? encodeCompactUserscriptData(bytes) : Buffer.from(bytes).toString('base64'))(
-        gzipUserscriptBuildData(Buffer.from(serializeUiMessages(packUiLanguageBundle({...bundle,
-            messages: userscriptPageMessages(bundle.messages)}, bundleLibraries ? defaultMessageColumns[0] as readonly string[] : undefined, bundleLibraries))))),
-]));
+const compressedUiLanguageBundles: Record<string, string> = {};
+const englishBundle = UI_LANGUAGE_BUNDLES['en-US'];
+if (!greasyForkSource && englishBundle) {
+    const input = Buffer.from(serializeUiMessages(packUiLanguageBundle(
+        {...englishBundle, messages: userscriptPageMessages(englishBundle.messages)},
+        bundleLibraries ? defaultMessageColumns[0] as readonly string[] : undefined,
+        bundleLibraries,
+    )));
+    const bytes = bundleLibraries ? await gzipLargeStandaloneUserscriptData(input, root) : gzipUserscriptBuildData(input);
+    compressedUiLanguageBundles['en-US'] = bundleLibraries ? encodeUserscriptDataCompact(bytes) : bytes.toString('base64');
+}
 const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language !== 'en-US')
     .map(([language, bundle]) => {
@@ -111,7 +114,7 @@ const uiLanguageUpdates = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
         language === 'en-US' ? pinnedData!.english : baseline)]];
 }));
 const languageUpdateBytes = gzipUserscriptBuildData(Buffer.from(serializeUiMessages(bundleLibraries ? packLanguageUpdates(uiLanguageUpdates) : uiLanguageUpdates)));
-const compressedUiLanguageUpdates = bundleLibraries ? encodeCompactUserscriptData(languageUpdateBytes) : languageUpdateBytes.toString('base64');
+const compressedUiLanguageUpdates = bundleLibraries ? encodeUserscriptDataCompact(languageUpdateBytes) : languageUpdateBytes.toString('base64');
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsLicense = fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8');
 const tinycolorLicense = fs.readFileSync(resolve(root, 'public/third-party-notices/tinycolor-MIT.txt'), 'utf8');
@@ -167,7 +170,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                 }
                 const contents = serializeUiMessages(bundleLibraries ? [packKeyColumn(defaultMessageColumns[0] as readonly string[]), defaultMessageColumns[1]] : userscriptPageMessages(zhCNMessages));
                 const compressedBytes = gzipUserscriptBuildData(Buffer.from(contents));
-                const compressed = bundleLibraries ? encodeCompactUserscriptData(compressedBytes) : compressedBytes.toString('base64');
+                const compressed = bundleLibraries ? encodeUserscriptDataCompact(compressedBytes) : compressedBytes.toString('base64');
                 return [
                     `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
                     "import {inflateWithPako} from '@/userscript/pakoRuntime';",
@@ -207,7 +210,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                 ].join('\n');
             }
             const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
-            const compressed = (bundleLibraries ? encodeCompactUserscriptData : encodeUserscriptData)(gzipUserscriptBuildData(Buffer.from(contents)));
+            const compressed = (bundleLibraries ? encodeUserscriptDataCompact : encodeUserscriptData)(gzipUserscriptBuildData(Buffer.from(contents)));
             const digest = createHash('sha256').update(contents).digest('hex');
             return [
                 `/* Non-code site rules: ${normalizePath(sourcePath).slice(projectRoot.length)}; sha256 ${digest}. */`,
@@ -476,9 +479,11 @@ function bundleUserscriptCss(): Plugin {
 
             const cssEntries = Object.entries(bundle).filter(([, item]) => item.type === 'asset' && item.fileName.endsWith('.css'));
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
-            const cssBytes = greasyForkSource ? undefined : gzipUserscriptBuildData(Buffer.from(css, 'utf8'));
+            const cssBytes = greasyForkSource ? undefined : bundleLibraries
+                ? await gzipLargeStandaloneUserscriptData(Buffer.from(css, 'utf8'), root)
+                : gzipUserscriptBuildData(Buffer.from(css, 'utf8'));
             const compressedCss = cssBytes === undefined ? '' : bundleLibraries
-                ? encodeCompactUserscriptData(cssBytes) : cssBytes.toString('base64');
+                ? encodeUserscriptDataCompact(cssBytes) : cssBytes.toString('base64');
             cssEntries.forEach(([fileName]) => delete bundle[fileName]);
 
             if (greasyForkSource) {

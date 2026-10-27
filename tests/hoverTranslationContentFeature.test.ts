@@ -185,6 +185,168 @@ describe('hover translation content feature', () => {
         expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47]]);
     });
 
+    describe('可信坐标手势边界', () => {
+        it.each([[0, 0], [31, 47]])('已知坐标(%s,%s)的同坐标mousemove不把Control单次切换升级为滑动', (x, y) => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: x, clientY: y}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: x, clientY: y, ctrlKey: true}));
+            expect(deps.handleTranslation).not.toHaveBeenCalled();
+            expect(windowTarget.animationFrames.size).toBe(0);
+
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[x, y]]);
+            expect(deps.noteBilingualHostGesture).toHaveBeenCalledTimes(2);
+            expect(deps.cancelPendingHoverTranslation).not.toHaveBeenCalled();
+        });
+
+        it.each([[0, 0], [31, 47]])('未知指针的首个可信mousemove(%s,%s)仍开始连续翻译', (x, y) => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: x, clientY: y, ctrlKey: true}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[x, y, {delayMs: 120, continuous: true}]]);
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[x, y, {delayMs: 120, continuous: true}]]);
+            expect(windowTarget.animationFrames.size).toBe(0);
+        });
+
+        it('真正移动后移回按键前原点，释放仍提交连续末点且不触发单次恢复', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([
+                [41, 57, {delayMs: 120, continuous: true}],
+                [31, 47, {delayMs: 120, continuous: true}],
+            ]);
+            expect(windowTarget.animationFrames.size).toBe(0);
+        });
+
+        it('真正移动后的同坐标mousemove不清除既有滑动状态或在松键时恢复', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[41, 57, {delayMs: 120, continuous: true}]]);
+            expect(windowTarget.animationFrames.size).toBe(0);
+        });
+    });
+
+    describe('可信坐标手势起点', () => {
+        it('mouseover只在纵向移动后回到起点仍保留连续手势', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 31, clientY: 57}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47, {delayMs: 120, continuous: true}]]);
+        });
+
+        it('起点的mouseover不将单次按键误判为连续移动', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 31, clientY: 47}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            expect(deps.handleTranslation).not.toHaveBeenCalled();
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47]]);
+        });
+
+        it('mouseover先更新新坐标时仍识别真实移动', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 41, clientY: 57}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[41, 57, {delayMs: 120, continuous: true}]]);
+        });
+
+        it('mouseover越过起点后mousemove返回起点，保留已经观察到的移动', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 41, clientY: 57}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47, {delayMs: 120, continuous: true}]]);
+        });
+
+        it('未知起点时mouseover先于首个mousemove仍启动连续翻译', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mouseover', trustedEvent({clientX: 31, clientY: 47}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[31, 47, {delayMs: 120, continuous: true}]]);
+        });
+
+        it('同坐标之后真实移动并回到原点，仍提交连续末点', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([
+                [41, 57, {delayMs: 120, continuous: true}], [31, 47, {delayMs: 120, continuous: true}],
+            ]);
+            expect(windowTarget.animationFrames.size).toBe(0);
+        });
+
+        it('多键部分松开后移动，再重新按满时捕获当前位置作为起点', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            deps.config.hotkey = 'Control+Shift';
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true, shiftKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true, shiftKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true, shiftKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[41, 57]]);
+        });
+
+        it('多键部分松开再按满不清除已建立的连续滑动态', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            deps.config.hotkey = 'Control+Shift';
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true, shiftKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true, shiftKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 51, clientY: 67, ctrlKey: true}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true, shiftKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 51, clientY: 67, ctrlKey: true, shiftKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([
+                [41, 57, {delayMs: 120, continuous: true}], [51, 67, {delayMs: 120, continuous: true}],
+            ]);
+        });
+
+        it('blur清除旧手势，新手势重新捕获起点', () => {
+            const {deps, documentTarget, windowTarget} = mountHarness({}, false);
+            documentTarget.emit('mousemove', trustedEvent({clientX: 31, clientY: 47}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            windowTarget.emit('blur', trustedEvent());
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57}));
+            windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+            documentTarget.emit('mousemove', trustedEvent({clientX: 41, clientY: 57, ctrlKey: true}));
+            windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+            expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[41, 57]]);
+        });
+    });
+
     it.each([[31, 47], [0, 0]])('可信mouseover在未移动时提供坐标(%s,%s)，合成事件不能替换它', (x, y) => {
         const {deps, documentTarget, windowTarget} = mountHarness({}, false);
         documentTarget.emit('mouseover', trustedEvent({isTrusted: false, clientX: 11, clientY: 22}));

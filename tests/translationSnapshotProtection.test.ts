@@ -14,7 +14,7 @@ import {
     type TranslationCandidateCore,
 } from '@/src/core/translation/public';
 import {createTranslationCore} from './helpers/translationCore';
-import {appendBilingualTranslation} from '@/src/features/full-page-translation/content/renderer';
+import {appendBilingualTranslation, materializeCandidate} from '@/src/features/full-page-translation/content/renderer';
 import {
     beginTranslation,
     getTranslationState,
@@ -49,9 +49,9 @@ afterEach(() => {
 });
 
 /** 功能层使用真实快照、renderer 与状态恢复；仅译文供应结果采用确定性文本。 */
-function commitBilingual(owner: HTMLElement, core = createTranslationCore()) {
+function commitBilingual(owner: HTMLElement, core = createTranslationCore(), synthetic = false) {
     const sourceSlots = collectLiveTranslationTextSlots(owner, core.shouldStayOriginal);
-    const attempt = beginTranslation(owner, 'bilingual', 'content', false,
+    const attempt = beginTranslation(owner, 'bilingual', 'content', synthetic,
         extractTranslationText(owner, core.shouldStayOriginal), sourceSlots.map(slot => slot.node))!;
     expect(attempt).not.toBeNull();
     const snapshot = createTranslationSourceSnapshot(owner, core.shouldStayOriginal,
@@ -62,10 +62,222 @@ function commitBilingual(owner: HTMLElement, core = createTranslationCore()) {
     expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
     const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
     setBilingualContent(owner, wrapper, {sources, translations, targetLanguage: 'zh-Hans', style: 1});
-    return {wrapper, sources, state: attempt.state};
+    return {wrapper, sources, snapshot, state: attempt.state};
 }
 
 describe('双语快照展示保护', () => {
+    it('omits GitHub pull-list author metadata from an ancestor translation without changing the original', () => {
+        const {document} = page('');
+        document.body.innerHTML = `<main><ul data-listview-component="items-list"><li>
+            <h3><a id="title" data-testid="listitem-title-link" href="/owner/repo/pull/100">A readable pull request title</a></h3>
+            <div id="description" class="container__W45oI6 description__mZjLFE"><span><span>#100</span></span>
+                <span id="metadata" data-testid="timestamp-container"><span aria-hidden="true">·</span>
+                    <a id="author" data-testid="author-filter-link" href="/owner/repo/pulls?author=ExampleUser">ExampleUser</a>
+                    <span> opened </span><relative-time id="time">Oct 27, 2026</relative-time>
+                </span><span id="association" data-testid="comment-author-association">Member</span>
+                <span><button data-testid="checks-status-badge-button">1/1</button></span>
+            </div>
+        </li></ul></main>`;
+        const core = createTranslationCore({url: new URL('https://github.com/owner/repo/pulls')});
+        const title = document.querySelector<HTMLElement>('#title')!;
+        const owner = document.querySelector<HTMLElement>('#description')!;
+        const metadata = document.querySelector<HTMLElement>('#metadata')!;
+        const author = document.querySelector<HTMLElement>('#author')!;
+        const time = document.querySelector<HTMLElement>('#time')!;
+        const authorText = author.firstChild!, timeText = time.firstChild!;
+        const original = owner.innerHTML, originalMetadata = metadata.outerHTML;
+        expect(core.shouldOmitFromTranslation(metadata)).toBe(true);
+        expect(core.shouldStayOriginal(metadata)).toBe(true);
+        expect(core.shouldOmitFromTranslation(title)).toBe(false);
+        expect(core.resolve(title.firstChild)).toMatchObject({element: title, adapterId: 'github'});
+
+        for (let cycle = 0; cycle < 2; cycle += 1) {
+            const {wrapper, sources} = commitBilingual(owner, core);
+            expect(sources.join(' ')).not.toContain('ExampleUser');
+            expect(sources.join(' ')).not.toContain('Oct 27, 2026');
+            expect(sources.join(' ')).toContain('Member');
+            expect(wrapper.textContent).toContain('译:Member');
+            expect(wrapper.querySelector('[data-testid="timestamp-container"]')).toBeNull();
+            expect(wrapper.textContent).not.toContain('ExampleUser');
+            expect(metadata.outerHTML).toBe(originalMetadata);
+            expect(author.firstChild).toBe(authorText);
+            expect(time.firstChild).toBe(timeText);
+            expect(author.getAttribute('href')).toBe('/owner/repo/pulls?author=ExampleUser');
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(owner.innerHTML).toBe(original);
+            expect(author.firstChild).toBe(authorText);
+            expect(time.firstChild).toBe(timeText);
+        }
+    });
+
+    it.each(['slot="comment"', 'id="t1_nested-comment-rtjson-content"'])(
+        'Reddit %s 表格内分段翻译和恢复保持原始结构、链接及代码', (marker) => {
+            const {document} = page('');
+            document.body.innerHTML = `<main><shreddit-comment><div ${marker}><table><thead><tr>
+                <th><p id="heading-one">The first readable heading.</p><p id="heading-two">The second readable heading.</p></th></tr></thead>
+                <tbody><tr><td id="mixed">A readable introduction with <a id="link" href="/guide">the original guide</a> and <code id="code">KEEP_CODE</code>.
+                <p id="first">The first paragraph has its own context.</p><p id="second">The second paragraph has its own context.</p>
+                A closing sentence with <strong>important details</strong>.</td></tr>
+                <tr><td><ul><li><p id="list-one">The first list paragraph remains readable.</p><p id="list-two">The second list paragraph remains readable.</p></li></ul>
+                <blockquote><p id="quote-one">The first quoted paragraph remains readable.</p><p id="quote-two">The second quoted paragraph remains readable.</p></blockquote></td></tr>
+                <tr><td id="plain">A plain cell with an independent explanation.</td></tr><tr><td><p id="single">A single paragraph keeps its complete source.</p></td></tr></tbody></table>
+                <div contenteditable="true" id="editor"><p>A private draft stays original.</p></div></div></shreddit-comment></main>`;
+            const core = createTranslationCore({url: new URL('https://www.reddit.com/r/example/comments/123/topic/')});
+            const original = document.body.innerHTML;
+            const originals: Array<{node: ChildNode; value: string | null}> = [];
+            const walker = document.createTreeWalker(document.body, 4 /* NodeFilter.SHOW_TEXT */);
+            while (walker.nextNode()) originals.push({node: walker.currentNode as ChildNode, value: walker.currentNode.nodeValue});
+            const link = document.getElementById('link')!, code = document.getElementById('code')!;
+            const expected = ['heading-one', 'heading-two', 'first', 'second', 'list-one', 'list-two',
+                'quote-one', 'quote-two', 'plain', 'single'];
+            for (let cycle = 0; cycle < 2; cycle += 1) {
+                const candidates = core.discover(document);
+                expect(candidates.filter(candidate => candidate.element.id === 'mixed' && candidate.nodes)).toHaveLength(2);
+                for (const id of expected) expect(candidates.filter(candidate => candidate.element.id === id), id).toHaveLength(1);
+                const active: HTMLElement[] = [];
+                for (const candidate of candidates) {
+                    const materialized = materializeCandidate(candidate, false)!;
+                    expect(materialized).not.toBeNull();
+                    const {wrapper, sources} = commitBilingual(materialized.node, core, materialized.synthetic);
+                    active.push(materialized.node);
+                    expect(sources.join(' ')).not.toContain('KEEP_CODE');
+                    expect(wrapper.querySelector('[contenteditable]')).toBeNull();
+                }
+                expect(document.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(12);
+                expect(document.getElementById('link')).toBe(link);
+                expect(document.getElementById('code')).toBe(code);
+                expect(link.getAttribute('href')).toBe('/guide');
+                expect(code.textContent).toBe('KEEP_CODE');
+                expect(document.querySelector('#editor .fluent-read-bilingual-content')).toBeNull();
+                for (const id of expected) expect(document.querySelectorAll(`#${id} .fluent-read-bilingual-content`), id).toHaveLength(1);
+                for (const owner of active.reverse()) expect(restoreTranslation(owner)).toBe(true);
+                expect(document.body.innerHTML).toBe(original);
+                expect(originals.every(entry => entry.node.isConnected && entry.node.nodeValue === entry.value)).toBe(true);
+            }
+        },
+    );
+
+    it.each(['slot="comment"', 'id="t1_wrapped-comment-rtjson-content"'])(
+        'Reddit %s 的嵌套 DIV 正文两次翻译恢复保留所有文字与控件', (marker) => {
+            const {document} = page('');
+            document.body.innerHTML = `<main><shreddit-comment><div ${marker}><table><tbody><tr><td id="mixed">An opening explanation with <a id="wrapped-link" href="/guide">the original guide</a>.
+                <div id="outer">The outer introduction provides useful background.
+                    <div id="inner">The nested explanation keeps <code id="wrapped-code">DO_NOT_TRANSLATE</code> safe.</div>
+                    <p id="inside">An inner paragraph remains independently readable.</p>
+                    The outer conclusion remains readable.
+                    <button id="wrapped-button"><div>A protected action remains unchanged.</div></button>
+                    <div contenteditable="true" id="wrapped-editor"><p>A protected draft remains unchanged.</p></div>
+                </div>
+                <p id="peer">A peer paragraph remains independently readable.</p>
+                A final explanation follows the paragraph.</td></tr></tbody></table></div></shreddit-comment></main>`;
+            const core = createTranslationCore({url: new URL('https://www.reddit.com/r/example/comments/123/topic/')});
+            const before = document.body.innerHTML;
+            const ids = ['mixed', 'outer', 'inner', 'inside', 'peer', 'wrapped-link', 'wrapped-code', 'wrapped-button', 'wrapped-editor'];
+            const nodes = ids.map(id => ({id, node: document.getElementById(id)!}));
+            const protectedNodes = ['wrapped-code', 'wrapped-button', 'wrapped-editor'].map(id => ({node: document.getElementById(id)!, html: document.getElementById(id)!.outerHTML}));
+            const originals: Array<{node: ChildNode; value: string | null}> = [];
+            const walker = document.createTreeWalker(document.body, 4 /* NodeFilter.SHOW_TEXT */);
+            while (walker.nextNode()) originals.push({node: walker.currentNode as ChildNode, value: walker.currentNode.nodeValue});
+            for (let cycle = 0; cycle < 2; cycle += 1) {
+                const candidates = core.discover(document);
+                expect(candidates).toHaveLength(7);
+                const owners: HTMLElement[] = [], sources: string[] = [];
+                for (const candidate of candidates) {
+                    const materialized = materializeCandidate(candidate, false)!;
+                    expect(materialized).not.toBeNull();
+                    const result = commitBilingual(materialized.node, core, materialized.synthetic);
+                    owners.push(materialized.node);
+                    sources.push(result.sources.join(' '));
+                }
+                for (const expected of ['An opening explanation', 'the original guide', 'The outer introduction', 'The nested explanation',
+                    'An inner paragraph', 'The outer conclusion', 'A peer paragraph', 'A final explanation']) {
+                    expect(sources.filter(source => source.includes(expected)), expected).toHaveLength(1);
+                }
+                expect(sources.join(' ')).not.toMatch(/DO_NOT_TRANSLATE|A protected action|A protected draft/);
+                expect(document.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(7);
+                expect(nodes.every(({id, node}) => document.getElementById(id) === node)).toBe(true);
+                expect(protectedNodes.every(({node, html}) => node.outerHTML === html)).toBe(true);
+                expect(document.querySelector('#wrapped-editor .fluent-read-bilingual-content')).toBeNull();
+                expect(document.querySelector('#wrapped-button .fluent-read-bilingual-content')).toBeNull();
+                for (const owner of owners.reverse()) expect(restoreTranslation(owner)).toBe(true);
+                expect(document.body.innerHTML).toBe(before);
+                expect(originals.every(entry => entry.node.isConnected && entry.node.nodeValue === entry.value)).toBe(true);
+            }
+        },
+    );
+
+    it.each(['del', 's'])('%s 删除语义保留在最终译文中，两轮翻译恢复不改宿主节点或安全边界', (tag) => {
+        const {owner} = page(`Was <${tag} id="deleted" class="host-deletion" onclick="unsafe()">ten</${tag}> ` +
+            'now <strong id="replacement">eight</strong>. <code id="source-code">const value = 10;</code> ' +
+            '<a id="source-link" href="https://example.org/guide" title="Guide">Read the guide</a> ' +
+            '<a id="unsafe-link" href="javascript:unsafe()">Read the warning</a>');
+        const sourceHTML = owner.innerHTML;
+        const sourceChildren = [...owner.childNodes];
+        const deleted = owner.querySelector<HTMLElement>('#deleted')!;
+        const deletedText = deleted.firstChild;
+        const replacement = owner.querySelector('#replacement')!;
+        const link = owner.querySelector<HTMLAnchorElement>('#source-link')!;
+        const linkText = link.firstChild;
+        const code = owner.querySelector('#source-code')!;
+        const codeText = code.firstChild;
+        const originalDeletedHTML = deleted.outerHTML;
+        let previousWrapper: HTMLElement | undefined;
+
+        for (let cycle = 0; cycle < 2; cycle += 1) {
+            const {wrapper, sources, snapshot} = commitBilingual(owner);
+            const translatedDeleted = wrapper.querySelector(tag)!;
+            expect(translatedDeleted, '最终 wrapper 必须保留删除语义，而不只是快照含有标签').not.toBeNull();
+            expect(translatedDeleted.textContent).toBe('译:ten');
+            expect(snapshot.clone.querySelector(tag)?.textContent).toBe('译:ten');
+            expect(wrapper.querySelector('strong')?.textContent).toBe('译:eight');
+            expect(translatedDeleted.hasAttribute('id')).toBe(false);
+            expect(translatedDeleted.hasAttribute('class')).toBe(false);
+            expect(wrapper.querySelector('[onclick]')).toBeNull();
+            expect(wrapper.querySelector('a')?.getAttribute('href')).toBe('https://example.org/guide');
+            expect(wrapper.querySelector('a')?.getAttribute('title')).toBe('Guide');
+            expect(wrapper.querySelectorAll('a')[1]?.hasAttribute('href')).toBe(false);
+            expect(sources).not.toContain('const value = 10;');
+            expect(wrapper.querySelector('code')?.textContent).toBe('const value = 10;');
+            expect(wrapper).not.toBe(previousWrapper);
+            expect(owner.querySelector('#deleted')).toBe(deleted);
+            expect(deleted.firstChild).toBe(deletedText);
+            expect(deleted.outerHTML).toBe(originalDeletedHTML);
+            expect(owner.querySelector('#replacement')).toBe(replacement);
+            expect(owner.querySelector('#source-link')).toBe(link);
+            expect(link.firstChild).toBe(linkText);
+            expect(owner.querySelector('#source-code')).toBe(code);
+            expect(code.firstChild).toBe(codeText);
+
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(owner.innerHTML).toBe(sourceHTML);
+            expect([...owner.childNodes]).toEqual(sourceChildren);
+            sourceChildren.forEach((node, index) => expect(owner.childNodes[index]).toBe(node));
+            expect(wrapper.isConnected).toBe(false);
+            previousWrapper = wrapper;
+        }
+    });
+
+    it.each(['del', 's'])('服务 HTML 的 %s 仅保留删除语义，不放行属性、脚本或危险链接', (tag) => {
+        const {owner} = page('Original source remains unchanged.');
+        const sourceHTML = owner.innerHTML;
+        vi.stubGlobal('DOMParser', class FixtureDOMParser {
+            parseFromString(source: string) {
+                return parseHTML(`<html><body>${source}</body></html>`).document;
+            }
+        });
+        const wrapper = appendBilingualTranslation(owner,
+            `<${tag} onclick="unsafe()" class="host" style="position:fixed" cite="javascript:unsafe()" datetime="2026-10-26">` +
+            `<a href="javascript:unsafe()">已撤回的建议</a><script>unsafe()</script></${tag}>`);
+        const deleted = wrapper.querySelector(tag)!;
+        expect(deleted.textContent).toBe('已撤回的建议');
+        expect([...deleted.attributes]).toEqual([]);
+        expect(deleted.querySelector('a')?.hasAttribute('href')).toBe(false);
+        expect(wrapper.querySelector('script')).toBeNull();
+        wrapper.remove();
+        expect(owner.innerHTML).toBe(sourceHTML);
+    });
+
     it.each([
         ['inline RGB', '<a href="https://example.org/guide" style="color:rgb(220, 38, 38)"><span>@steipete</span></a>', 'rgb(220, 38, 38)'],
         ['class', '<a href="https://example.org/guide" class="host-link"><span>@steipete</span></a>', 'rgb(31, 111, 235)'],

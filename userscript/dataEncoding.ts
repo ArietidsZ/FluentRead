@@ -1,29 +1,29 @@
 /**
  * @file userscript/dataEncoding.ts
- * 文件职责：恢复独立脚本内嵌静态资源的二进制编码，兼容原有 Base64 数据。
- * 主要内容：识别带填充标记的 ASCII Base85，校验字符、块范围与尾部填充，并逐字节恢复构建期的 gzip 数据。
+ * 文件职责：恢复脚本内嵌静态资源的二进制编码，兼容原有 Base64 和 Base85 数据。
+ * 主要内容：识别 standalone 的 Base91 与带填充标记的 Base85，校验字符与尾部，逐字节恢复构建期的 gzip 数据。
  * 模块边界：只处理字节表示，不解压、不解析或执行内容，不改变 UTF-8、pako、浏览器解压及资源加载语义。
  */
 
 export const USERSCRIPT_DATA_PREFIX = '~85:';
-export const USERSCRIPT_DATA_PREFIX_91 = '~91:';
-// Excluding '<' and '/' prevents HTML script delimiters if a manager injects this source inline.
-export const USERSCRIPT_DATA_ALPHABET_91 = " !#$%&'()*+,-.0123456789:;=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+export const USERSCRIPT_COMPACT_DATA_PREFIX = '~91:';
+// The alphabet excludes double quotes, backslash, slash and whitespace; slash exclusion prevents HTML closing tags.
+export const USERSCRIPT_COMPACT_DATA_ALPHABET = "!#$%&'()*+,-.0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 // 可直接写入单引号或双引号的 JavaScript 字符串；不包含反斜杠、空白或非 ASCII 字符。
 export const USERSCRIPT_DATA_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~';
 
 const digits = new Int16Array(128).fill(-1);
 const digits91 = new Int16Array(128).fill(-1);
-for (let index = 0; index < USERSCRIPT_DATA_ALPHABET_91.length; index += 1) digits91[USERSCRIPT_DATA_ALPHABET_91.charCodeAt(index)] = index;
+for (let index = 0; index < USERSCRIPT_COMPACT_DATA_ALPHABET.length; index += 1) digits91[USERSCRIPT_COMPACT_DATA_ALPHABET.charCodeAt(index)] = index;
 for (let index = 0; index < USERSCRIPT_DATA_ALPHABET.length; index += 1) {
     digits[USERSCRIPT_DATA_ALPHABET.charCodeAt(index)] = index;
 }
 
 /** Base91 仅用于 gzip 静态资源；保留每个字节，拒绝非字母字符。 */
 function decode91(value: string): Uint8Array {
-    const bytes = new Uint8Array(Math.ceil((value.length - USERSCRIPT_DATA_PREFIX_91.length) * 7 / 8));
+    const bytes = new Uint8Array(Math.ceil((value.length - USERSCRIPT_COMPACT_DATA_PREFIX.length) * 7 / 8));
     let pending = -1, buffer = 0, bits = 0, offset = 0;
-    for (let index = USERSCRIPT_DATA_PREFIX_91.length; index < value.length; index++) {
+    for (let index = USERSCRIPT_COMPACT_DATA_PREFIX.length; index < value.length; index++) {
         const digit = digits91[value.charCodeAt(index)];
         if (digit === undefined || digit < 0) throw new Error('Invalid userscript resource encoding');
         if (pending < 0) {pending = digit;continue;}
@@ -39,8 +39,8 @@ function decode91(value: string): Uint8Array {
     } else if (buffer !== 0) throw new Error('Invalid userscript resource padding');
     // Check the canonical representation too: redundant final digits can otherwise
     // decode to the same bytes even when the residual bits happen to be zero.
-    let encodedIndex = USERSCRIPT_DATA_PREFIX_91.length, mismatch = 0, checkBuffer = 0, checkBits = 0;
-    const checkDigit = (digit: number) => {mismatch |= +(value[encodedIndex++] !== USERSCRIPT_DATA_ALPHABET_91[digit]);};
+    let encodedIndex = USERSCRIPT_COMPACT_DATA_PREFIX.length, mismatch = 0, checkBuffer = 0, checkBits = 0;
+    const checkDigit = (digit: number) => {mismatch |= +(value[encodedIndex++] !== USERSCRIPT_COMPACT_DATA_ALPHABET[digit]);};
     for (let index = 0; index < offset; index++) {
         checkBuffer |= bytes[index]! << checkBits; checkBits += 8;
         if (checkBits > 13) {
@@ -58,7 +58,7 @@ function decode91(value: string): Uint8Array {
 
 /** 解码构建生成的资源；既有 Base64 的合法空白与异常行为继续由浏览器 atob 决定。 */
 export function decodeUserscriptData(value: string): Uint8Array {
-    if (value.startsWith(USERSCRIPT_DATA_PREFIX_91)) return decode91(value);
+    if (value.startsWith(USERSCRIPT_COMPACT_DATA_PREFIX)) return decode91(value);
     if (!value.startsWith(USERSCRIPT_DATA_PREFIX)) {
         return Uint8Array.from(atob(value), character => character.charCodeAt(0));
     }

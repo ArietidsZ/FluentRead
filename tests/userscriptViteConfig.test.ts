@@ -6,12 +6,13 @@ import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {createHash, createHmac, createCipheriv} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {EventEmitter} from 'node:events';
 import {resolve} from 'node:path';
 import {gunzipSync, gzipSync} from 'node:zlib';
 import {runInNewContext} from 'node:vm';
 import {describe, expect, it, vi} from 'vitest';
 import {ungzip} from 'pako';
-import {gzipUserscriptBuildData} from '@/userscript/buildGzip';
+import {gzipLargeStandaloneUserscriptData, gzipUserscriptBuildData} from '@/userscript/buildGzip';
 import {unpackUiLanguageBundle} from '@/userscript/languageData';
 import {decodeUserscriptData} from '@/userscript/dataEncoding';
 import {zhCNMessages, UI_LANGUAGE_BUNDLES, userscriptMessages, currentUserscriptLanguageBundle, createUserscriptLanguageUpdate} from '@/userscript/languageBundles';
@@ -189,6 +190,88 @@ describe('userscript bundled CommonJS initialization', () => {
 });
 
 describe('userscript build gzip portability', () => {
+    it('compresses large standalone data reproducibly without changing the parent process error listeners', async () => {
+        const input = Buffer.from('CSS 数据与离线目录🙂\0\n'.repeat(10_000));
+        const before = Buffer.from(input);
+        const uncaught = process.listeners('uncaughtException');
+        const unhandled = process.listeners('unhandledRejection');
+        const first = await gzipLargeStandaloneUserscriptData(input, process.cwd());
+        const second = await gzipLargeStandaloneUserscriptData(new Uint8Array(input), process.cwd());
+        expect(first).toEqual(second);
+        expect(first.byteLength).toBeLessThanOrEqual(gzipUserscriptBuildData(input).byteLength);
+        expect(gunzipSync(first)).toEqual(before);
+        expect(input).toEqual(before);
+        expect(process.listeners('uncaughtException')).toEqual(uncaught);
+        expect(process.listeners('unhandledRejection')).toEqual(unhandled);
+    });
+
+    it('rejects worker startup, exit and invalid gzip while falling back for larger results', async () => {
+        const root = mkdtempSync(resolve(tmpdir(), 'fluentread-zopfli-worker-'));
+        const directory = resolve(root, 'userscript');
+        const worker = resolve(directory, 'zopfliBuildWorker.cjs');
+        const input = Buffer.from('compressible resource '.repeat(5_000));
+        mkdirSync(directory);
+        try {
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow();
+            writeFileSync(worker, 'process.exit(0);');
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow('提前退出');
+            writeFileSync(worker, 'throw new Error("controlled worker failure");');
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow('controlled worker failure');
+            writeFileSync(worker, 'require("node:worker_threads").parentPort.postMessage("invalid");');
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow('返回了无效数据');
+            writeFileSync(worker, 'require("node:worker_threads").parentPort.postMessage(Uint8Array.of(1,2,3));');
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow();
+            const wrong = [...gzipSync(Buffer.from('not the original data'))];
+            writeFileSync(worker, `require("node:worker_threads").parentPort.postMessage(Uint8Array.from(${JSON.stringify(wrong)}));`);
+            await expect(gzipLargeStandaloneUserscriptData(input, root)).rejects.toThrow('构建压缩器校验失败');
+            writeFileSync(worker, 'require("node:worker_threads").parentPort.postMessage(new Uint8Array(100000));');
+            expect(await gzipLargeStandaloneUserscriptData(input, root)).toEqual(gzipUserscriptBuildData(input));
+        } finally {rmSync(root, {recursive: true, force: true});}
+    });
+
+    it('uses the existing compressor for small data without accessing a worker', async () => {
+        const input = Buffer.from('small offset view 😀');
+        const missingRoot = resolve(tmpdir(), 'fluentread-no-such-worker');
+        expect(await gzipLargeStandaloneUserscriptData(input, missingRoot)).toEqual(gzipUserscriptBuildData(input));
+    });
+
+    it('terminates a stalled compressor and fails the build after the time limit', async () => {
+        const root = mkdtempSync(resolve(tmpdir(), 'fluentread-zopfli-timeout-'));
+        const directory = resolve(root, 'userscript');
+        mkdirSync(directory);
+        writeFileSync(resolve(directory, 'zopfliBuildWorker.cjs'), 'setInterval(() => {}, 1000);');
+        vi.useFakeTimers();
+        try {
+            const assertion = expect(gzipLargeStandaloneUserscriptData(Buffer.from('data '.repeat(20_000)), root))
+                .rejects.toThrow('构建压缩器超时');
+            await vi.advanceTimersByTimeAsync(60_000);
+            await assertion;
+        } finally {vi.useRealTimers();rmSync(root, {recursive: true, force: true});}
+    });
+
+    it('ignores a queued worker response after a timeout while termination is still pending', async () => {
+        let instance!: EventEmitter;
+        let finishTermination!: (code: number) => void;
+        const terminate = vi.fn(() => new Promise<number>(resolve => {finishTermination = resolve;}));
+        class DelayedWorker extends EventEmitter {
+            constructor() {super(); instance = this;}
+            terminate = terminate;
+        }
+        vi.useFakeTimers();
+        vi.doMock('node:worker_threads', () => ({Worker: DelayedWorker}));
+        vi.resetModules();
+        try {
+            const {gzipLargeStandaloneUserscriptData: compress} = await import('@/userscript/buildGzip');
+            const assertion = expect(compress(Buffer.from('data '.repeat(20_000)), process.cwd()))
+                .rejects.toThrow('构建压缩器超时');
+            await vi.advanceTimersByTimeAsync(60_000);
+            instance.emit('message', Uint8Array.of(1, 2, 3));
+            expect(terminate).toHaveBeenCalledOnce();
+            finishTermination(0);
+            await assertion;
+        } finally {vi.doUnmock('node:worker_threads');vi.useRealTimers();vi.resetModules();}
+    });
+
     it('roundtrips every byte and an offset view through independent gzip and existing binary decoders', () => {
         const storage = Uint8Array.from({length: 4_098}, (_, index) => index % 256);
         const input = storage.subarray(1, storage.length - 1);

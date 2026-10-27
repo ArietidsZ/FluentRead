@@ -1,14 +1,14 @@
 /**
  * @file userscript/aboutImagesPlugin.ts
  * 文件职责：仅为完整独立脚本无损压缩关于页的两张离线 JPEG。
- * 主要内容：精确替换普通图像访问模块，以 ASCII85 保存 gzip 数据，首次显式取用时通过既有 pako 字符串端口恢复完整原 data URL。
+ * 主要内容：精确替换普通图像访问模块，以 ASCII91 保存 gzip 数据，首次显式取用时通过既有 pako 字符串端口恢复完整原 data URL。
  * 模块边界：不改变图像字节或 public 资源，不顶层解压，不新增全局状态、异步加载或网络回退。
  */
 import {createHash} from 'node:crypto';
 import {readFileSync, realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeCompactUserscriptData} from './buildDataEncoding';
+import {encodeUserscriptDataCompact} from './buildDataEncoding';
 import {normalizePath, type Plugin} from 'vite';
 
 /** 普通、Greasy Fork 与扩展出口沿用原模块；只处理没有 query 或虚拟前缀的精确物理路径。 */
@@ -20,7 +20,7 @@ export function createUserscriptAboutImagesCompressionPlugin(root: string, enabl
         const image = readFileSync(resolve(root, relativePath));
         const dataUrl = `data:image/jpeg;base64,${image.toString('base64')}`;
         return {
-            compressed: encodeCompactUserscriptData(gzipUserscriptBuildData(Buffer.from(dataUrl, 'utf8'), 9)),
+            compressed: encodeUserscriptDataCompact(gzipUserscriptBuildData(Buffer.from(dataUrl, 'utf8'), 9)),
             sha256: createHash('sha256').update(image).digest('hex'),
         };
     };

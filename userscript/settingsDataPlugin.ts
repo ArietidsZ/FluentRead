@@ -7,7 +7,7 @@
 import {resolve} from 'node:path';
 import {gunzipSync} from 'node:zlib';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeCompactUserscriptData, encodeUserscriptData} from './buildDataEncoding';
+import {encodeUserscriptDataCompact, encodeUserscriptData} from './buildDataEncoding';
 import ts from 'typescript';
 import {normalizePath, type Plugin} from 'vite';
 
@@ -121,7 +121,7 @@ export function createUserscriptSettingsDataPlugin(root: string, enabled: boolea
                     const compressed = gzipUserscriptBuildData(Buffer.from(json));
                     if (target.appearance && JSON.stringify(JSON.parse(gunzipSync(compressed).toString('utf8'))) !== json) throw unsupported();
                     // 和原字面量一样，未被消费的表不应触发还原；整个闭包只还原固定数据，无外部写入。
-                    const encoded = fullOptions ? encodeCompactUserscriptData(compressed) : encodeUserscriptData(compressed);
+                    const encoded = fullOptions ? encodeUserscriptDataCompact(compressed) : encodeUserscriptData(compressed);
                     const decoded = `JSON.parse(__fluentreadInflateSettingsData(__fluentreadDecodeSettingsData(${JSON.stringify(encoded)})))`;
                     const value = shared
                         ? `/* @__PURE__ */ (() => {const data = ${decoded}; data[${JSON.stringify(shared.key)}] = ${shared.reference}; return data;})()`

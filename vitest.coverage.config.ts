@@ -19,6 +19,7 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'json', 'html'],
             include: [
+                'userscript/buildGzip.ts',
                 'src/platform/storage/configStorageRuntime.ts',
                 'src/shared/dom/downloadTextFile.ts',
                 'src/features/vocabulary/background/undoMaintenance.ts',
@@ -741,6 +742,8 @@ export default defineConfig({
                 'src/core/translation/lineBreak.ts',
                 'src/core/translation/registry.ts',
                 'src/core/translation/serialization.ts',
+                'src/core/translation/inlineCodeProtocol.ts',
+                'src/core/translation/inlineCodeMarkers.ts',
                 'src/core/translation/inertClone.ts',
                 'src/core/translation/slotProtocol.ts',
                 'src/core/translation/layoutMeasurements.ts',

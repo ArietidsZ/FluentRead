@@ -2521,6 +2521,43 @@ function findHoverTextPointInPage({selector, index, textIncludes = []}) {
       // 目的地也是稳定性的一部分；同一文字下的链接更新会重置既有 200ms 计时。
       return `google-news-stretched-link:${JSON.stringify([href, destination])}`;
     }
+    // Steam 讨论列表在标题上方放置同一行的空白链接；只接受实测的命中栈与主题链接。
+    // 普通用户不会点击该链接；仍以标题原文 Range 和真实键盘事件执行悬浮测试。
+    if (typeof location !== 'undefined' && location.origin === 'https://steamcommunity.com' &&
+      location.pathname === '/app/570/discussions/' && !location.search && !location.hash &&
+      parent === target && target.matches('#AppHubContent .forum_topics > .forum_topic > .forum_topic_name')) {
+      const row = target.parentElement;
+      const overlays = [...row.children].filter(child => child.matches('a.forum_topic_overlay'));
+      const stack = document.elementsFromPoint?.(x, y);
+      const barrier = 'dialog, [role="dialog"], [role="alertdialog"], [aria-modal="true"], button, [role="button"], ' +
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]';
+      const topicId = row.getAttribute('data-gidforumtopic');
+      const href = hit.getAttribute('href');
+      if (!row.matches('div.forum_topic[role="button"]') ||
+        row.matches('[aria-modal="true"], [contenteditable]:not([contenteditable="false"])') ||
+        !hit.matches('a.forum_topic_overlay') || hit.parentElement !== row || overlays.length !== 1 || overlays[0] !== hit ||
+        [...hit.childNodes].some(node => node.nodeType !== 3 || node.textContent?.trim()) ||
+        hit.closest(excluded) || hit.closest(barrier) !== row || target.closest(barrier) !== row ||
+        row.parentElement?.closest(barrier) || !topicId || !/^\d+$/u.test(topicId) || !href ||
+        !stack || stack[0] !== hit || stack[1] !== target || stack[2] !== row) return null;
+      let link;
+      try { link = new URL(href, location.href); } catch { return null; }
+      if (link.origin !== location.origin || link.search || link.hash ||
+        !new RegExp(`^/app/570/discussions/\\d+/${topicId}/?$`, 'u').test(link.pathname)) return null;
+      const style = getComputedStyle(hit);
+      const transparent = style.backgroundColor === 'transparent' || /^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/u.test(style.backgroundColor);
+      if (style.position !== 'absolute' || style.display === 'none' || style.visibility !== 'visible' ||
+        style.pointerEvents === 'none' || style.opacity !== '1' || !transparent || style.backgroundImage !== 'none' ||
+        style.boxShadow !== 'none' || style.filter !== 'none' || (style.backdropFilter && style.backdropFilter !== 'none') ||
+        !['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'outlineWidth'].every(key => style[key] === '0px')) return null;
+      for (const owner of [hit, target, row]) {
+        for (const pseudo of ['::before', '::after']) {
+          const content = getComputedStyle(owner, pseudo).content;
+          if (content !== 'none' && content !== 'normal' && content !== '') return null;
+        }
+      }
+      return `steam-community-topic-overlay:${JSON.stringify([href, topicId])}`;
+    }
     if (hit.closest(excluded)) return null;
     // PH 首页把产品名链接的空 span 拉伸到整张卡片。仅识别已观察到的结构，
     // 且命中栈第二项必须是当前介绍的原文 parent，不能穿过其他遮罩或控件。
@@ -3053,7 +3090,7 @@ async function runInteractionScenarios(page, scenarios, timeout, phase) {
 
 async function captureEvidence(page, outputPath) {
   try {
-    await page.screenshot({path: outputPath, fullPage: false, timeout: 10000});
+    await page.screenshot({path: outputPath, fullPage: false, timeout: 10000, caret: 'initial'});
   } catch (error) {
     process.stderr.write(`证据截图失败（不影响 DOM/交互断言）：${error.message}\n`);
   }
@@ -3966,6 +4003,7 @@ if (require.main === module) {
 
 module.exports = {
   parseArgs,
+  captureEvidence,
   prepareDismissiblePromotion,
   authorizeFacebookReadingDialog,
   releaseFacebookReadingDialog,

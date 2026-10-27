@@ -4847,6 +4847,7 @@
       ],
       "paths": [
         "/*/-/issues/*",
+        "/*/-/work_items/*",
         "/*/-/merge_requests/*",
         "/*/-/blob/*",
         "/*/-/wikis/*",
@@ -4887,6 +4888,7 @@
     ],
     "protect": [
       ".gl-label-text",
+      ".gl-label-text-scoped",
       ".author-link"
     ],
     "exclude": [

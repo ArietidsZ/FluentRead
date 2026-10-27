@@ -12,6 +12,13 @@ import {
     attachTranslationGlossaryContext,
     getTranslationGlossaryContext,
 } from '@/src/services/translation/requestSnapshot';
+import {sha256Hex} from '@/src/shared/function/sha256';
+
+function inlineSource(): string {
+    const parts = ['The variable ', ' is not the same as ', ' because the language is case sensitive.'];
+    const nonce = sha256Hex(parts.join('\0')).slice(0, 16);
+    return parts.map((part, index) => part + (index < 2 ? `__FRCODE_${nonce}_${index}__` : '')).join('');
+}
 
 describe('background translation fallback handler', () => {
     it('只认无 type 且自有 origin 的历史翻译消息', () => {
@@ -117,6 +124,28 @@ describe('background translation fallback handler', () => {
         for (const value of ['true', 1, null, [], {}]) {
             expect(() => parseTranslationRequest({origin: 'literal text', validateTranslationSlots: value}))
                 .toThrow('validateTranslationSlots 必须是布尔值');
+        }
+    });
+
+    it('行内代码缓存协议只接收显式布尔及受限的单条无上下文来源', () => {
+        const source = inlineSource();
+        expect(parseTranslationRequest({origin: source, enableAIContext: false, validateInlineCodeTranslation: true}))
+            .toEqual({origin: source, enableAIContext: false, validateInlineCodeTranslation: true});
+        expect(parseTranslationRequest({origin: 'ordinary', validateInlineCodeTranslation: false}))
+            .toEqual({origin: 'ordinary', validateInlineCodeTranslation: false});
+        for (const value of [1, 'true', null, {}, []]) {
+            expect(() => parseTranslationRequest({origin: source, validateInlineCodeTranslation: value}))
+                .toThrow('validateInlineCodeTranslation 必须是布尔值');
+        }
+        for (const invalid of [
+            {origin: [source]}, {origin: 'ordinary'}, {origin: source, enableAIContext: undefined},
+            {origin: source, enableAIContext: true}, {origin: source, validateTranslationSlots: true},
+            {origin: source, aiMultiSegment: true}, {origin: source, documentBatch: true},
+            {origin: source, glossaryContext: 'document'}, {origin: source, context: 'page'},
+            {origin: source, pageContext: 'private page'}, {origin: source, discourseContext: 'context'},
+        ]) {
+            expect(() => parseTranslationRequest({enableAIContext: false, ...invalid, validateInlineCodeTranslation: true}))
+                .toThrow('行内代码翻译请求格式无效');
         }
     });
 

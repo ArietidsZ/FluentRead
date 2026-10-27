@@ -1,8 +1,31 @@
-/** Static resource byte encoding preserves existing gzip payloads and rejects ambiguous new encodings. */
+/** Static resource encoding preserves gzip payloads and checks invalid characters and padding. */
 import {expect, it} from 'vitest';
 import {gzipSync, gunzipSync} from 'node:zlib';
-import {encodeCompactUserscriptData, encodeUserscriptData} from '@/userscript/buildDataEncoding';
-import {decodeUserscriptData, USERSCRIPT_DATA_ALPHABET, USERSCRIPT_DATA_ALPHABET_91} from '@/userscript/dataEncoding';
+import {encodeUserscriptData, encodeUserscriptDataCompact} from '@/userscript/buildDataEncoding';
+import {decodeUserscriptData, USERSCRIPT_DATA_ALPHABET, USERSCRIPT_COMPACT_DATA_ALPHABET} from '@/userscript/dataEncoding';
+
+it('round-trips compact standalone data for every byte, offset and tail length', () => {
+    const input = Uint8Array.from({length: 2051}, (_, index) => (index * 73 + (index >>> 3)) & 255);
+    expect(new Set(USERSCRIPT_COMPACT_DATA_ALPHABET).size).toBe(91);
+    for (let length = 0; length <= 2048; length += 1) {
+        const bytes = input.subarray(3, 3 + length);
+        const encoded = encodeUserscriptDataCompact(bytes);
+        expect(encoded.startsWith('~91:')).toBe(true);
+        expect(encoded).not.toMatch(/["/\\\s\u0080-\uffff]/u);
+        expect(decodeUserscriptData(encoded)).toEqual(bytes);
+    }
+    for (const text of ['中文 日本語 한국어', 'français español русский 😀', '\\0 &lt; \ud800']) {
+        const original = Buffer.from(text);
+        expect(gunzipSync(decodeUserscriptData(encodeUserscriptDataCompact(gzipSync(original))))).toEqual(original);
+    }
+    expect(() => decodeUserscriptData('~91:中')).toThrow(/Invalid userscript resource/u);
+    expect(() => decodeUserscriptData('~91:"')).toThrow(/Invalid userscript resource/u);
+    expect(() => decodeUserscriptData('~91:!')).toThrow(/Invalid userscript resource padding/u);
+    expect(decodeUserscriptData('~91:!!')).toEqual(Uint8Array.of(0));
+    // 两字符和三字符分别覆盖非零尾部位与超出字节范围的尾部符号。
+    expect(() => decodeUserscriptData('~91:!%')).toThrow(/Invalid userscript resource padding/u);
+    expect(() => decodeUserscriptData('~91:!!&')).toThrow(/Invalid userscript resource padding/u);
+});
 
 it('keeps every byte value and every padding width, including offset Uint8Array views', () => {
     const bytes = Uint8Array.from({length: 1028}, (_, index) => index & 0xff);
@@ -20,25 +43,25 @@ it('keeps every byte value and every padding width, including offset Uint8Array 
 it('roundtrips compact Base91 for every length, all byte values and offset views',()=>{
     const input=Uint8Array.from({length:4099},(_,index)=>(index*73+29)&255);
     for(let length=0;length<=4096;length++) {
-      const bytes=input.subarray(2,2+length),encoded=encodeCompactUserscriptData(bytes);
-      expect(encoded).toMatch(/^~91:/);expect(encoded).not.toMatch(/["\\<\/\u0080-\uffff]/u);
+      const bytes=input.subarray(2,2+length),encoded=encodeUserscriptDataCompact(bytes);
+      expect(encoded).toMatch(/^~91:/);expect(encoded).not.toMatch(/["\\\/\s\u0080-\uffff]/u);
       expect(decodeUserscriptData(encoded)).toEqual(bytes);
     }
     expect(()=>decodeUserscriptData('~91:"')).toThrow(/Invalid userscript resource/);
-    expect(new Set(USERSCRIPT_DATA_ALPHABET_91).size).toBe(91);
+    expect(new Set(USERSCRIPT_COMPACT_DATA_ALPHABET).size).toBe(91);
     expect(()=>decodeUserscriptData('~91:!')).toThrow(/Invalid userscript resource/);
     expect(()=>decodeUserscriptData('~91:+f6w4.|X-2= ')).toThrow(/Invalid userscript resource/);
-    for (const a of USERSCRIPT_DATA_ALPHABET_91) for (const b of USERSCRIPT_DATA_ALPHABET_91) {
+    for (const a of USERSCRIPT_COMPACT_DATA_ALPHABET) for (const b of USERSCRIPT_COMPACT_DATA_ALPHABET) {
       const encoded='~91:'+a+b;
-      try { expect(encodeCompactUserscriptData(decodeUserscriptData(encoded))).toBe(encoded); }
+      try { expect(encodeUserscriptDataCompact(decodeUserscriptData(encoded))).toBe(encoded); }
       catch (error) { if (!(error instanceof Error && error.message.startsWith('Invalid userscript resource'))) throw error; }
     }
     let random=0x9e3779b9;
     for(let sample=0;sample<5000;sample++) {
       random=(Math.imul(random,1664525)+1013904223)>>>0;
       let encoded='~91:';const length=4+(random%30);
-      for(let i=0;i<length;i++){random=(Math.imul(random,1664525)+1013904223)>>>0;encoded+=USERSCRIPT_DATA_ALPHABET_91[random%91];}
-      try {expect(encodeCompactUserscriptData(decodeUserscriptData(encoded))).toBe(encoded);}
+      for(let i=0;i<length;i++){random=(Math.imul(random,1664525)+1013904223)>>>0;encoded+=USERSCRIPT_COMPACT_DATA_ALPHABET[random%91];}
+      try {expect(encodeUserscriptDataCompact(decodeUserscriptData(encoded))).toBe(encoded);}
       catch(error){if(!(error instanceof Error && error.message.startsWith('Invalid userscript resource')))throw error;}
     }
 });
