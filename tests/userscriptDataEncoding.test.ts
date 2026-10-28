@@ -25,6 +25,8 @@ it('round-trips compact standalone data for every byte, offset and tail length',
     // 两字符和三字符分别覆盖非零尾部位与超出字节范围的尾部符号。
     expect(() => decodeUserscriptData('~91:!%')).toThrow(/Invalid userscript resource padding/u);
     expect(() => decodeUserscriptData('~91:!!&')).toThrow(/Invalid userscript resource padding/u);
+    // 此输入通过尾部位校验，但存在等价的非规范末尾；必须拒绝，而非接受不唯一的编码。
+    expect(() => decodeUserscriptData('~91:PxNC{.~qS*g!')).toThrow(/Invalid userscript resource padding/u);
 });
 
 it('keeps every byte value and every padding width, including offset Uint8Array views', () => {
