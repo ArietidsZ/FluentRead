@@ -9,6 +9,10 @@ import type {ImageTranslationTextLayout} from './rendering';
 export const MANGA_TEXT_FONT = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", sans-serif';
 const OPEN = /^[（【「『《〈“‘(\[]+$/u;
 const CLOSE = /^[，。！？、；：）】」』》〉”’….,!?;:)\]]+$/u;
+const OPEN_ANY = /[（【「『《〈“‘(\[]/u;
+const CLOSE_ANY = /[，。！？、；：）】」』》〉”’….,!?;:)\]]/u;
+// 无字素分割器时完整保留主线的分词和标点行为，不推断复杂字符的边界。
+const LEGACY_CJK = /\s+|[\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]\p{Mark}*|[^\s\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]+/gu;
 const CJK = /\s+|[\uFF66-\uFF9D][\uFF9E\uFF9F](?:\p{Mark}|[\u200c\u200d])*|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af](?:\p{Mark}|[\u200c\u200d])*|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]+/gu;
 const SIMPLE_TEXT = /^[\x20-\x7e\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\uac00-\ud7a3\uff01-\uff65]*$/u;
 const TEXT_EXTEND = /[\p{Mark}\p{Grapheme_Extend}]/u;
@@ -19,6 +23,7 @@ export interface MangaTextLayout extends ImageTranslationTextLayout {ink?: {heig
 
 /** 按实际字素边界合并相邻词，空白保留原有归一化规则；无分段器时沿用码点回退。 */
 function tokenizeMangaText(paragraph:string):string[] {
+    if(!segmenter)return paragraph.match(LEGACY_CJK)||[];
     const tokens=paragraph.match(CJK)||[];
     const mayCross=tokens.length>1&&segmenter
         &&tokens.some((token,index)=>index>0&&!/^\s/u.test(token)&&!/^\s/u.test(tokens[index-1]))
@@ -40,13 +45,46 @@ function tokenizeMangaText(paragraph:string):string[] {
     return merged;
 }
 
+/** 普通标点直接识别；带组合符的单一字素按分割器边界识别，避免拆开字素。 */
+function isPunctuationToken(token:string,contains:RegExp):boolean {
+    if(!segmenter||!contains.test(token))return false;
+    const iterator=segmenter.segment(token)[Symbol.iterator]();
+    return !iterator.next().done&&iterator.next().done===true;
+}
+
+/** 仅拆出词首闭标点和词尾开标点，词内小数、网址及括号仍保留原词。 */
+function splitEdgePunctuation(tokens:string[]):string[] {
+    if(!segmenter)return tokens;
+    const result:string[]=[];
+    for(let index=0;index<tokens.length;index++){
+        const token=tokens[index];
+        if(token.length===1){result.push(token);continue;}
+        const prefix=index>0&&!/^\s+$/u.test(tokens[index-1])&&!/^[A-Za-z0-9]/u.test(token)&&CLOSE_ANY.test(token);
+        const suffix=index<tokens.length-1&&!/[A-Za-z0-9]$/u.test(token)&&OPEN_ANY.test(token);
+        if(!prefix&&!suffix){result.push(token);continue;}
+        const parts=Array.from(segmenter.segment(token),part=>part.segment);
+        let left=0,right=parts.length;
+        if(prefix)while(left<right-1&&CLOSE_ANY.test(parts[left]))result.push(parts[left++]);
+        if(suffix)while(right>left+1&&OPEN_ANY.test(parts[right-1]))right--;
+        result.push(parts.slice(left,right).join(''));
+        for(let position=right;position<parts.length;position++)result.push(parts[position]);
+    }
+    return result;
+}
+
 function bindPunctuation(tokens: string[]): string[] {
     const result: string[] = [];
     let opening = '';
     for (const token of tokens) {
         if (OPEN.test(token)) {opening += token; continue;}
-        if (CLOSE.test(token) && !opening && result.length && !/^\s+$/u.test(result[result.length - 1])) result[result.length - 1] += token;
-        else {result.push(opening + token); opening = '';}
+        if (segmenter && opening && /^\s+$/u.test(token)) {opening += ' '; continue;}
+        if (CLOSE.test(token) && !opening && result.length && !/^\s+$/u.test(result[result.length - 1])) {result[result.length - 1] += token;continue;}
+        // 两个相邻 ASCII 字符不属于同一字素；普通单字及英文词不需要分割器。
+        if(token.length>1&&!(token.charCodeAt(0)<128&&token.charCodeAt(1)<128)){
+            if(isPunctuationToken(token,OPEN_ANY)){opening+=token;continue;}
+            if(isPunctuationToken(token,CLOSE_ANY)&&!opening&&result.length&&!/^\s+$/u.test(result[result.length-1])){result[result.length-1]+=token;continue;}
+        }
+        result.push(opening + token);opening = '';
     }
     if (opening) result.push(opening);
     return result;
@@ -58,7 +96,7 @@ export interface MangaTextSearchCandidate {readonly width:number;readonly height
 
 function parseMangaText(normalized:string):MangaTextSource {
     const paragraphs = normalized.split('\n').map(paragraph => paragraph.trim());
-    const tokens = paragraphs.map(paragraph => bindPunctuation(tokenizeMangaText(paragraph)));
+    const tokens = paragraphs.map(paragraph => bindPunctuation(splitEdgePunctuation(tokenizeMangaText(paragraph))));
     return {paragraphs,tokens,splitTokens:new Map<string,string[]>()};
 }
 
