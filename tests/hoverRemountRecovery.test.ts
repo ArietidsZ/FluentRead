@@ -21,9 +21,13 @@ class MockObserver {
 }
 
 function record(target: Node, removed: readonly Node[], added: readonly Node[],
-    previousSibling: Node | null = null, nextSibling: Node | null = null): MutationRecord {
+    previousSibling?: Node | null, nextSibling?: Node | null): MutationRecord {
+    // 同条 replace 记录的默认边界来自已接入的新节点；需构造不一致证据时显式传入。
+    const replacement = added.length === 1 && added[0]?.parentNode === target ? added[0] : undefined;
     return {type: 'childList', target, removedNodes: removed as unknown as NodeList,
-        addedNodes: added as unknown as NodeList, previousSibling, nextSibling} as MutationRecord;
+        addedNodes: added as unknown as NodeList,
+        previousSibling: previousSibling === undefined ? replacement?.previousSibling ?? null : previousSibling,
+        nextSibling: nextSibling === undefined ? replacement?.nextSibling ?? null : nextSibling} as MutationRecord;
 }
 
 function fixture(url = URL_X) {
@@ -313,6 +317,259 @@ describe('X hover request recovery at native remount', () => {
         expect(await waiting).toBe(true);
         expect(f.tracking!.finish(true)?.element).toBe(next.querySelector('.post'));
     });
+
+    it.each(['single-record', 'separate-records'] as const)(
+        'accepts a same-batch replacement at both original sibling boundaries: %s', kind => {
+            const f = fixture();
+            const old = f.document.querySelector('main')!, parent = old.parentNode!;
+            const previous = f.document.createElement('aside'), nextSibling = f.document.createElement('footer');
+            parent.insertBefore(previous, old); parent.appendChild(nextSibling);
+            const next = f.document.createElement('main'); next.innerHTML = articleHtml();
+            old.remove(); parent.insertBefore(next, nextSibling); f.makeHovered(next.querySelector('.post')!);
+            if (kind === 'single-record') f.observer.emit(record(parent, [old], [next], previous, nextSibling));
+            else f.observer.emit(record(parent, [old], [], previous, nextSibling), record(parent, [], [next], previous, nextSibling));
+            expect(f.tracking!.finish(true)?.element).toBe(next.querySelector('.post'));
+        },
+    );
+
+    it.each(['post', 'source'] as const)('refuses to begin tracking when the original %s is already ambiguous', kind => {
+        const f = fixture(); f.tracking!.cancel();
+        if (kind === 'post') f.document.querySelector('main')!.insertAdjacentHTML('beforeend', articleHtml());
+        else f.owner.parentElement!.appendChild(f.owner.cloneNode(true));
+        expect(trackXHoverRemount(f.candidate, 40, 30, f.isCurrent)).toBeNull();
+    });
+
+    it.each(['another-article', 'nested-quote', 'another-main'] as const)(
+        'retains global source uniqueness before tracking across %s, even with different post identities', kind => {
+            const f = fixture(); f.tracking!.cancel();
+            const other = articleHtml('/Bob/status/456');
+            if (kind === 'another-article') f.document.querySelector('main')!.insertAdjacentHTML('beforeend', other);
+            else if (kind === 'nested-quote') f.document.querySelector('article')!.insertAdjacentHTML('beforeend', other);
+            else f.document.body.insertAdjacentHTML('beforeend', `<main>${other}</main>`);
+            expect(trackXHoverRemount(f.candidate, 40, 30, f.isCurrent)).toBeNull();
+        },
+    );
+
+    it('still tracks when another main contains a different unique post and source', () => {
+        const f = fixture(); f.tracking!.cancel();
+        f.document.body.insertAdjacentHTML('beforeend', `<main>${articleHtml('/Bob/status/456', 'Different visible text.')}</main>`);
+        const tracking = trackXHoverRemount(f.candidate, 40, 30, f.isCurrent);
+        expect(tracking).not.toBeNull();
+        tracking?.cancel();
+    });
+
+    it.each(['malformed', 'many-links', 'many-candidates'] as const)(
+        'rejects the initial document when unrelated %s exceed the original uniqueness boundary', kind => {
+            const f = fixture(); f.tracking!.cancel();
+            if (kind === 'malformed') f.document.body.insertAdjacentHTML('beforeend', '<a data-base-ui-tooltip-trigger href="http://[">bad</a>');
+            else if (kind === 'many-links') f.document.body.insertAdjacentHTML('beforeend', '<a data-base-ui-tooltip-trigger href="/other">x</a>'.repeat(2049));
+            else f.document.querySelector('main')!.insertAdjacentHTML('beforeend', `<article>${'<div></div>'.repeat(4097)}</article>`);
+            expect(trackXHoverRemount(f.candidate, 40, 30, f.isCurrent)).toBeNull();
+        },
+    );
+
+    it('refuses initial candidates when identical text requires too many distinct structural identities', () => {
+        const f = fixture(); f.tracking!.cancel();
+        const main = f.document.querySelector('main')!;
+        main.insertAdjacentHTML('beforeend', '<article>' + Array.from({length: 9}, (_, index) =>
+            `<div>${source} <a href="/other-${index}">NASA</a></div>`).join('') + '</article>');
+        expect(trackXHoverRemount(f.candidate, 40, 30, f.isCurrent)).toBeNull();
+    });
+
+    it('refuses the initial document when candidate text comparisons exhaust the shared character budget', () => {
+        const f = fixture(); f.tracking!.cancel();
+        const text = 'A'.repeat(50_000);
+        f.owner.textContent = text;
+        f.document.querySelector('main')!.insertAdjacentHTML('beforeend', '<article>' +
+            Array.from({length: 6}, () => `<div>${'A'.repeat(49_999)}B</div>`).join('') + '</article>');
+        expect(trackXHoverRemount(f.candidate, 40, 30, f.isCurrent)).toBeNull();
+    });
+
+    it.each(['same-batch', 'earlier-batch', 'earlier-parent-dismantled', 'same-batch-parent-dismantled'] as const)(
+        'rejects an existing owner moved into the original gap: %s', kind => {
+            const f = fixture();
+            const main = f.document.querySelector('main')!, old = main.querySelector('article')!;
+            const foreign = f.document.createElement('section');
+            const holder = f.document.createElement('div');
+            const existing = old.cloneNode(true) as HTMLElement;
+            holder.appendChild(existing); foreign.appendChild(holder); main.appendChild(foreign);
+            f.observer.emit(record(main, [], [foreign], old, null));
+            const removeExisting = record(holder, [existing], [], null, null);
+            const removeHolder = record(foreign, [holder], [], null, null);
+            if (kind === 'earlier-batch') {
+                existing.remove(); f.observer.emit(removeExisting);
+            } else if (kind === 'earlier-parent-dismantled') {
+                holder.remove(); f.observer.emit(removeHolder); existing.remove();
+            } else if (kind === 'same-batch-parent-dismantled') {
+                holder.remove(); existing.remove();
+            } else existing.remove();
+            old.remove(); main.insertBefore(existing, foreign);
+            f.makeHovered(existing.querySelector('.post')!);
+            const removal = record(main, [old], [], null, foreign);
+            const addition = record(main, [], [existing], null, foreign);
+            if (kind === 'same-batch') f.observer.emit(removal, removeExisting, addition);
+            else if (kind === 'same-batch-parent-dismantled') f.observer.emit(removal, removeHolder, removeExisting, addition);
+            else f.observer.emit(removal, addition);
+            expect(f.tracking!.finish(true)).toBeNull();
+        },
+    );
+
+    it.each(['transient-record', 'missing-transient-record'] as const)(
+        'rejects a new owner containing an original descendant after dismantling: %s', kind => {
+        const f = fixture();
+        const old = f.document.querySelector('article')!, parent = old.parentNode!;
+        const movedLink = f.owner.querySelector('a')!;
+        const next = old.cloneNode(true) as HTMLElement;
+        old.remove(); movedLink.remove(); next.querySelector('.post a')!.replaceWith(movedLink);
+        parent.appendChild(next); f.makeHovered(next.querySelector('.post')!);
+        const records = [record(parent, [old], []), ...(kind === 'transient-record' ? [record(f.owner, [movedLink], [])] : []),
+            record(parent, [], [next])];
+        f.observer.emit(...records);
+        expect(f.tracking!.finish(true)).toBeNull();
+    });
+
+    it('rejects a replacement moved out of its saved gap after the initial match', () => {
+        const f = fixture();
+        const old = f.document.querySelector('main')!, parent = old.parentNode!;
+        const previous = f.document.createElement('aside'), nextSibling = f.document.createElement('footer');
+        parent.insertBefore(previous, old); parent.appendChild(nextSibling);
+        const next = f.document.createElement('main'); next.innerHTML = articleHtml();
+        old.replaceWith(next); f.makeHovered(next.querySelector('.post')!);
+        f.observer.emit(record(parent, [old], [next], previous, nextSibling));
+        parent.appendChild(next);
+        f.observer.emit(record(parent, [next], [], previous, nextSibling), record(parent, [], [next], nextSibling, null));
+        expect(f.tracking!.finish(true)).toBeNull();
+        expect(f.observer.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('consumes queued movement before finish even when the replacement has returned to its original gap', () => {
+        const f = fixture();
+        const {next} = f.replaceArticle();
+        const parent = next.parentNode!, previous = next.previousSibling, nextSibling = next.nextSibling;
+        const foreign = f.document.createElement('section'); f.document.body.appendChild(foreign);
+        next.remove(); foreign.appendChild(next); next.remove(); parent.insertBefore(next, nextSibling);
+        f.observer.enqueue(record(parent, [next], [], previous, nextSibling), record(foreign, [], [next], null, null),
+            record(foreign, [next], [], null, null), record(parent, [], [next], previous, nextSibling));
+        expect(f.tracking!.finish(true)).toBeNull();
+        expect(f.observer.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('accepts a queued new unrelated badge during finish without changing the source', () => {
+        const f = fixture();
+        const {next, fresh} = f.replaceArticle();
+        const badge = f.document.createElement('span'); badge.textContent = 'New badge';
+        next.appendChild(badge); f.observer.enqueue(record(next, [], [badge]));
+        expect(f.tracking!.finish(true)?.element).toBe(fresh);
+    });
+
+    it('recognizes a queued same-gap replacement directly during finish', () => {
+        const f = fixture();
+        const old = f.document.querySelector('article')!, parent = old.parentNode!;
+        const next = old.cloneNode(true) as HTMLElement;
+        old.replaceWith(next); const fresh = next.querySelector('.post')!; f.makeHovered(fresh);
+        f.observer.enqueue(record(parent, [old], [next]));
+        expect(f.tracking!.finish(true)?.element).toBe(fresh);
+    });
+
+    it('rejects a queued detached replacement and does not process records after explicit cancel', () => {
+        const f = fixture();
+        const {next} = f.replaceArticle();
+        const parent = next.parentNode!; next.remove();
+        f.observer.enqueue(record(parent, [next], []));
+        expect(f.tracking!.finish(true)).toBeNull();
+        const g = fixture(); g.tracking!.cancel();
+        const take = vi.spyOn(g.observer, 'takeRecords');
+        g.observer.enqueue(record(g.document.body, [], [g.document.createElement('i')]));
+        expect(g.tracking!.finish(true)).toBeNull();
+        expect(take).not.toHaveBeenCalled();
+    });
+
+    it('keeps a valid replacement when a new unrelated badge is inserted inside it', () => {
+        const f = fixture();
+        const {next, fresh} = f.replaceArticle();
+        const badge = f.document.createElement('span'); badge.textContent = 'New badge';
+        next.appendChild(badge);
+        f.observer.emit(record(next, [], [badge]));
+        expect(f.observer.disconnect).not.toHaveBeenCalled();
+        expect(f.tracking!.finish(true)?.element).toBe(fresh);
+    });
+
+    it('rejects a previously connected badge moved inside a valid replacement', () => {
+        const f = fixture();
+        const foreign = f.document.createElement('aside'), badge = f.document.createElement('span');
+        foreign.appendChild(badge); f.document.body.prepend(foreign);
+        f.observer.emit(record(f.document.body, [], [foreign], null, f.document.querySelector('main')));
+        const {next} = f.replaceArticle();
+        badge.remove(); next.appendChild(badge);
+        f.observer.emit(record(foreign, [badge], []), record(next, [], [badge]));
+        expect(f.tracking!.finish(true)).toBeNull();
+    });
+
+    it('rejects reinserting a new badge into a replacement after it was removed', () => {
+        const f = fixture();
+        const {next} = f.replaceArticle();
+        const badge = f.document.createElement('span'); badge.textContent = 'Badge';
+        next.appendChild(badge); f.observer.emit(record(next, [], [badge]));
+        badge.remove(); f.observer.emit(record(next, [badge], []));
+        next.appendChild(badge); f.observer.emit(record(next, [], [badge]));
+        expect(f.tracking!.finish(true)).toBeNull();
+    });
+
+    it('cancels rather than retaining an unbounded removed subtree history', async () => {
+        const f = fixture();
+        const other = f.document.createElement('section');
+        other.innerHTML = '<i></i>'.repeat(16_384);
+        f.document.body.appendChild(other); other.remove();
+        f.observer.emit(record(f.document.body, [other], []));
+        expect(await f.tracking!.waitForReplacement()).toBe(false);
+        expect(f.observer.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('cancels when prior additions exactly consume the shared history before another root', async () => {
+        const f = fixture();
+        const large = f.document.createElement('section'), other = f.document.createElement('aside');
+        large.innerHTML = '<i></i>'.repeat(16_383);
+        f.document.body.append(large, other);
+        f.observer.emit(record(f.document.body, [], [large, other]));
+        expect(await f.tracking!.waitForReplacement()).toBe(false);
+        expect(f.observer.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it.each(['pending', 'same-batch'] as const)(
+        'cancels if unrelated added history exceeds its budget while %s', async kind => {
+            const f = fixture();
+            const old = f.document.querySelector('article')!, parent = old.parentNode!;
+            const large = f.document.createElement('section');
+            large.innerHTML = '<i></i>'.repeat(16_384);
+            old.remove(); f.document.body.appendChild(large);
+            const removal = record(parent, [old], []), addition = record(f.document.body, [], [large]);
+            if (kind === 'pending') {f.observer.emit(removal); f.observer.emit(addition);}
+            else f.observer.emit(removal, addition);
+            expect(await f.tracking!.waitForReplacement()).toBe(false);
+            expect(f.observer.disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each(['wrong-gap', 'changed-previous', 'changed-next', 'extra-change', 'extra-removal', 'multiple-additions', 'moved-after-record'] as const)(
+        'refuses an ambiguous same-batch replacement: %s', kind => {
+            const f = fixture();
+            const old = f.document.querySelector('main')!, parent = old.parentNode!;
+            const previous = f.document.createElement('aside'), nextSibling = f.document.createElement('footer');
+            parent.insertBefore(previous, old); parent.appendChild(nextSibling);
+            const next = f.document.createElement('main'); next.innerHTML = articleHtml();
+            old.remove(); parent.insertBefore(next, nextSibling); f.makeHovered(next.querySelector('.post')!);
+            const unrelated = f.document.createElement('section');
+            if (kind === 'wrong-gap' || kind === 'moved-after-record') parent.appendChild(next);
+            const addition = record(parent, [], [next], kind === 'changed-previous' || kind === 'wrong-gap' ? nextSibling : previous,
+                kind === 'changed-next' || kind === 'wrong-gap' ? null : nextSibling);
+            const removal = record(parent, kind === 'extra-removal' ? [old, unrelated] : [old], [], previous, nextSibling);
+            if (kind === 'multiple-additions') f.observer.emit(removal, record(parent, [], [next, unrelated], previous, nextSibling));
+            else if (kind === 'extra-change') f.observer.emit(removal, addition, record(parent, [], [unrelated], nextSibling, null));
+            else f.observer.emit(removal, addition);
+            expect(f.tracking!.finish(true)).toBeNull();
+            expect(f.observer.disconnect).toHaveBeenCalledOnce();
+        },
+    );
 
     it('cancels immediately when either saved boundary no longer bounds the original gap', async () => {
         for (const changed of ['previous', 'next'] as const) {

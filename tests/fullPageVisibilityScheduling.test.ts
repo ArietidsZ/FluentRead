@@ -1157,6 +1157,77 @@ describe("全文翻译可见性锚点", () => {
         expect(subtitle.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
     });
 
+    describe('Microsoft Learn parameter table protection transitions in a full-page session', () => {
+        function fixture() {
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            runtime.realTextExtraction = true;
+            runtime.realSourceSnapshots = true;
+            document.body.innerHTML = `<main><article><table id="table" aria-label="Response status codes">
+                <thead><tr><th>Query parameter</th><th>Description</th></tr></thead><tbody><tr>
+                <td id="parameter">api-version</td><td id="description">Required parameter for the selected version.</td>
+                </tr></tbody></table></article></main>`;
+            const table = document.querySelector<HTMLElement>('#table')!;
+            const parameter = document.querySelector<HTMLElement>('#parameter')!;
+            const description = document.querySelector<HTMLElement>('#description')!;
+            [parameter, description].forEach(element => setLayoutBox(element, 300, 40));
+            runtime.realCore = new TranslationCandidateCore({
+                url: new URL('https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate'),
+                adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined)),
+            });
+            const setLabel = (label: string | null, oldValue: string) => {
+                if (label === null) table.removeAttribute('aria-label');
+                else table.setAttribute('aria-label', label);
+                TestMutationObserver.instances.find(observer => observer.observed.has(document.documentElement))!.emitRegistered([
+                    {type: 'attributes', target: table, attributeName: 'aria-label', oldValue,
+                        addedNodes: [], removedNodes: []} as unknown as MutationRecord,
+                ]);
+            };
+            return {parameter, description, setLabel};
+        }
+
+        it('restores an already translated parameter and rediscovers it after the table loses parameter semantics', async () => {
+            const {parameter, description, setLabel} = fixture();
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(parameter.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            expect(description.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            setLabel('Required parameters', 'Response status codes');
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(parameter)).toBe(true);
+            expect(parameter.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(getTranslationState(parameter)).toBeUndefined();
+            expect(description.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            setLabel(null, 'Required parameters');
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(parameter)).toBe(false);
+            expect(parameter.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            expect(description.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+
+        it('does not insert a late result after a loading parameter becomes protected', async () => {
+            const {parameter, description, setLabel} = fixture();
+            const pending = deferred<string[]>();
+            runtime.requests.mockImplementation(origins => origins.some(origin => origin.includes('api-version'))
+                ? pending.promise : Promise.resolve(origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(250);
+            const loading = getTranslationState(parameter)!;
+            expect(loading.phase).toBe('loading');
+            expect(description.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            setLabel('Required parameters', 'Response status codes');
+            await finishScheduledWork();
+            expect(loading.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(parameter)).toBeUndefined();
+            pending.resolve(['迟到的译文']);
+            await finishScheduledWork();
+            expect(parameter.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(parameter.textContent).toBe('api-version');
+            expect(description.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+    });
+
     describe('X video label protection transitions in a full-page session', () => {
         function fixture(kind: 'gif' | 'author', protectedInitially: boolean) {
             replaceGlobal('performance', {now: () => Date.now()});
@@ -2988,6 +3059,162 @@ describe("全文翻译可见性锚点", () => {
         } as unknown as MutationRecord]);
         await finishScheduledWork();
         expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+    });
+
+    it('Bluesky 转发结构补齐后撤销已提交的标签译文', async () => {
+        runtime.config.fullPageTranslationMode = 'all'; runtime.config.display = 1;
+        runtime.realTextExtraction = true; runtime.realSourceSnapshots = true;
+        document.body.innerHTML = `<main><div data-testid="feedItem-by-example" role="link"><div>
+            <div></div><div><div></div><div><a id="repost" href="/profile/bsky.app" role="link"
+                aria-label="Reposted by a public account" aria-pressed="false" data-no-underline="1">
+                <div><div><div id="label" dir="auto">Reposted by a public account with a long display name</div></div></div>
+            </a></div></div></div></div></main>`;
+        const label = document.querySelector<HTMLElement>('#label')!;
+        const link = document.querySelector<HTMLElement>('#repost')!;
+        setLayoutBox(label, 400, 50);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'),
+            adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined))});
+        expect(runtime.realCore.shouldStayOriginal(label)).toBe(false);
+        autoTranslateEnglishPage(); await finishScheduledWork();
+        expect(getTranslationState(label)?.phase).toBe('translated');
+        expect(label.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        link.insertBefore(icon, link.firstChild);
+        expect(runtime.realCore.shouldStayOriginal(label)).toBe(true);
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'childList', target: link, addedNodes: [icon], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(getTranslationState(label)).toBeUndefined();
+        expect(label.querySelector('.fluent-read-bilingual-content')).toBeNull();
+    });
+
+    it('Bluesky 转发结构补齐时取消在途标签翻译，迟到结果不得插入', async () => {
+        runtime.config.fullPageTranslationMode = 'all'; runtime.config.display = 1;
+        runtime.realTextExtraction = true; runtime.realSourceSnapshots = true;
+        document.body.innerHTML = `<main><div data-testid="feedItem-by-example" role="link"><div>
+            <div></div><div><div></div><div><a id="repost" href="/profile/bsky.app" role="link"
+                aria-label="Reposted by a public account" aria-pressed="false" data-no-underline="1">
+                <div><div><div id="label" dir="auto">Reposted by a public account with a long display name</div></div></div>
+            </a></div></div></div></div></main>`;
+        const label = document.querySelector<HTMLElement>('#label')!, link = document.querySelector<HTMLElement>('#repost')!;
+        setLayoutBox(label, 400, 50);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'),
+            adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined))});
+        const pending = deferred<string[]>(); runtime.requests.mockReturnValueOnce(pending.promise);
+        autoTranslateEnglishPage(); await vi.advanceTimersByTimeAsync(51); await waitForRequestCount(1);
+        const state = getTranslationState(label)!;
+        expect(state.phase).toBe('loading');
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); link.insertBefore(icon, link.firstChild);
+        expect(runtime.realCore.shouldStayOriginal(label)).toBe(true);
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'childList', target: link, addedNodes: [icon], removedNodes: []} as unknown as MutationRecord]);
+        expect(state.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(label)).toBeUndefined();
+        pending.resolve(['迟到译文不得出现']); await finishScheduledWork();
+        expect(label.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(label.textContent).toBe('Reposted by a public account with a long display name');
+    });
+
+    it('Bluesky 动态新增完整转发链接保持原文，同时新帖正文仍参与全文翻译', async () => {
+        runtime.config.fullPageTranslationMode = 'all'; runtime.config.display = 1;
+        runtime.realTextExtraction = true; runtime.realSourceSnapshots = true;
+        document.body.innerHTML = '<main id="feed"><p id="initial">The initial readable English paragraph.</p></main>';
+        const main = document.querySelector<HTMLElement>('#feed')!;
+        setLayoutBox(document.querySelector<HTMLElement>('#initial')!, 400, 50);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'),
+            adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined))});
+        autoTranslateEnglishPage(); await finishScheduledWork();
+        const card = document.createElement('div'); card.dataset.testid = 'feedItem-by-new.example'; card.setAttribute('role', 'link');
+        card.innerHTML = `<div><div></div><div><div></div><div><a id="new-repost" href="/profile/bsky.app" role="link"
+            aria-label="Reposted by Bluesky" aria-pressed="false" data-no-underline="1"><svg></svg><div><div>
+            <div id="new-label" dir="auto">Reposted by an account with a readable display name</div></div></div></a></div></div>
+            <div data-testid="postText" id="new-body">A newly posted sentence with useful readable context.</div></div>`;
+        main.append(card);
+        const label = document.querySelector<HTMLElement>('#new-label')!, body = document.querySelector<HTMLElement>('#new-body')!;
+        setLayoutBox(label, 400, 50); setLayoutBox(body, 400, 50);
+        expect(runtime.realCore.shouldStayOriginal(label)).toBe(true);
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'childList', target: main, addedNodes: [card], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(getTranslationState(label)).toBeUndefined();
+        expect(label.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(body.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        const bodyState = getTranslationState(body), requestsBeforeRemoval = runtime.requests.mock.calls.length;
+        const link = document.querySelector<HTMLElement>('#new-repost')!, icon = link.querySelector('svg')!;
+        icon.remove();
+        expect(runtime.realCore.shouldStayOriginal(label)).toBe(false);
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'childList', target: link, addedNodes: [], removedNodes: [icon]} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(getTranslationState(label)?.phase).toBe('translated');
+        expect(label.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        expect(getTranslationState(body)).toBe(bodyState);
+        expect(body.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(requestsBeforeRemoval + 1);
+    });
+
+    describe('LinkedIn Pulse reply control dynamic protection', () => {
+        const setup = (action: string) => {
+            runtime.config.fullPageTranslationMode = 'all'; runtime.config.display = 1;
+            runtime.realTextExtraction = true; runtime.realSourceSnapshots = true;
+            document.body.innerHTML = `<main><article class="article-main"><div class="comments"><section class="comment">
+                <div class="comment__actions"><a id="reply" class="comment__action comment__reply" href="/signup/cold-join" data-feed-action="${action}">
+                    <div><icon aria-hidden="true"><svg></svg></icon><span id="label" class="action-btn__button-text">Reply to this comment</span></div>
+                </a></div><p id="body" class="comment__text">A readable comment contains <a href="https://example.test/reference">a useful reference</a>.</p>
+            </section></div></article></main>`;
+            const label = document.querySelector<HTMLElement>('#label')!, link = document.querySelector<HTMLElement>('#reply')!;
+            const body = document.querySelector<HTMLElement>('#body')!;
+            setLayoutBox(label, 400, 50); setLayoutBox(body, 400, 50);
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://www.linkedin.com/pulse/example-article'),
+                adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined))});
+            return {label, link, body, owner: label.parentElement as HTMLElement};
+        };
+        const changeAction = (link: HTMLElement, value: string) => {
+            const oldValue = link.getAttribute('data-feed-action');
+            link.setAttribute('data-feed-action', value);
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: link, attributeName: 'data-feed-action', oldValue,
+                addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        };
+
+        it('removes an existing reply translation when its native action becomes protected', async () => {
+            const {label, link, body, owner} = setup('readArticle');
+            autoTranslateEnglishPage(); await finishScheduledWork();
+            expect(getTranslationState(owner)?.phase).toBe('translated');
+            const bodyState = getTranslationState(body);
+            expect(body.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            changeAction(link, 'replyToComment'); await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(label)).toBe(true);
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(getTranslationState(body)).toBe(bodyState);
+            expect(body.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        });
+
+        it('aborts a pending reply translation and rejects its late response when protection forms', async () => {
+            const {link, owner} = setup('readArticle');
+            const pending = deferred<string[]>();
+            runtime.requests.mockImplementation(origins => origins.some(origin => origin.includes('Reply to this comment'))
+                ? pending.promise : Promise.resolve(origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage(); await vi.advanceTimersByTimeAsync(51); await waitForRequestCount(1);
+            const state = getTranslationState(owner)!;
+            expect(state.phase).toBe('loading');
+            changeAction(link, 'replyToComment');
+            expect(state.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(owner)).toBeUndefined();
+            pending.resolve(['迟到译文不得出现']); await finishScheduledWork();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        });
+
+        it('rediscovers a reply when its action ceases to be protected without redoing comment prose', async () => {
+            const {label, link, body, owner} = setup('replyToComment');
+            autoTranslateEnglishPage(); await finishScheduledWork();
+            expect(getTranslationState(owner)).toBeUndefined();
+            const bodyState = getTranslationState(body), requestsBefore = runtime.requests.mock.calls.length;
+            expect(body.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            changeAction(link, 'readArticle'); await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(label)).toBe(false);
+            expect(getTranslationState(owner)?.phase).toBe('translated');
+            expect(owner.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(getTranslationState(body)).toBe(bodyState);
+            expect(body.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(runtime.requests).toHaveBeenCalledTimes(requestsBefore + 1);
+        });
     });
 
     it.each([

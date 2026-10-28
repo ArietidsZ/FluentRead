@@ -81,6 +81,13 @@ function serializeUiMessages(value: unknown): string {
     return JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
         ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : item);
 }
+/** 独立版消息优先比较现有紧凑 gzip，再选择经构建 worker 校验的较小结果。 */
+export async function gzipStandaloneUiMessages(input: Uint8Array,
+    compress = gzipLargeStandaloneUserscriptData): Promise<Buffer> {
+    const baseline = gzipUserscriptBuildData(input, undefined, true);
+    const candidate = await compress(input, root);
+    return candidate.byteLength < baseline.byteLength ? candidate : baseline;
+}
 // 与中文内嵌目录一致，仅投影扩展文档页专用 key；固定远程与外部资源继续使用原 bundle。
 const defaultMessageColumns = packMessageCatalog(userscriptPageMessages(zhCNMessages));
 const compressedUiLanguageBundles: Record<string, string> = {};
@@ -113,7 +120,9 @@ const uiLanguageUpdates = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     return [[language, createUserscriptLanguageUpdate(currentUserscriptLanguageBundle(language as RegisteredUiLanguage),
         language === 'en-US' ? pinnedData!.english : baseline)]];
 }));
-const languageUpdateBytes = gzipUserscriptBuildData(Buffer.from(serializeUiMessages(bundleLibraries ? packLanguageUpdates(uiLanguageUpdates) : uiLanguageUpdates)), undefined, bundleLibraries);
+const languageUpdateInput = Buffer.from(serializeUiMessages(bundleLibraries ? packLanguageUpdates(uiLanguageUpdates) : uiLanguageUpdates));
+const languageUpdateBytes = bundleLibraries && !greasyForkSource ? await gzipStandaloneUiMessages(languageUpdateInput)
+    : gzipUserscriptBuildData(languageUpdateInput, undefined, bundleLibraries);
 const compressedUiLanguageUpdates = bundleLibraries ? encodeUserscriptDataCompact(languageUpdateBytes) : languageUpdateBytes.toString('base64');
 const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-notices/unicode-17.0.0.txt'), 'utf8')}\n*/`;
 const serviceIconsLicense = fs.readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8');
@@ -169,9 +178,10 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                     ].join('\n');
                 }
                 const contents = serializeUiMessages(bundleLibraries ? [packKeyColumn(defaultMessageColumns[0] as readonly string[]), defaultMessageColumns[1]] : userscriptPageMessages(zhCNMessages));
-                const compressedBytes = gzipUserscriptBuildData(Buffer.from(contents), undefined, bundleLibraries);
-                const compressed = bundleLibraries ? encodeUserscriptDataCompact(compressedBytes) : compressedBytes.toString('base64');
-                return [
+                const input = Buffer.from(contents);
+                const emit = (compressedBytes: Buffer) => {
+                    const compressed = bundleLibraries ? encodeUserscriptDataCompact(compressedBytes) : compressedBytes.toString('base64');
+                    return [
                     `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
                     "import {inflateWithPako} from '@/userscript/pakoRuntime';",
                     ...(bundleLibraries ? ["import {decodeUserscriptData} from '@/userscript/dataEncoding';",
@@ -180,7 +190,10 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                         : `const bytes = Uint8Array.from(atob(${JSON.stringify(compressed)}), (character) => character.charCodeAt(0));`,
                     bundleLibraries ? 'export const zhCNMessages = restoreDefaultMessageColumns(JSON.parse(inflateWithPako(bytes)));'
                         : 'export const zhCNMessages = JSON.parse(inflateWithPako(bytes));',
-                ].join('\n');
+                    ].join('\n');
+                };
+                return bundleLibraries ? gzipStandaloneUiMessages(input).then(emit)
+                    : emit(gzipUserscriptBuildData(input));
             }
             if (!id.startsWith(compressedCatalogPrefix)) return null;
             const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);

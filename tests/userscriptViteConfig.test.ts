@@ -13,7 +13,7 @@ import {runInNewContext} from 'node:vm';
 import {describe, expect, it, vi} from 'vitest';
 import {ungzip} from 'pako';
 import {gzipLargeStandaloneUserscriptData, gzipUserscriptBuildData} from '@/userscript/buildGzip';
-import {unpackUiLanguageBundle} from '@/userscript/languageData';
+import {unpackLanguageUpdates, unpackUiLanguageBundle} from '@/userscript/languageData';
 import {decodeUserscriptData} from '@/userscript/dataEncoding';
 import {zhCNMessages, UI_LANGUAGE_BUNDLES, userscriptMessages, currentUserscriptLanguageBundle, createUserscriptLanguageUpdate} from '@/userscript/languageBundles';
 import {zhCNMessages as extensionChinese} from '@/src/core/i18n/messages/zh-CN';
@@ -42,6 +42,7 @@ import {
     executionGuardEnd,
     executionGuardStart,
     createUserscriptCatalogCompressionPlugin,
+    gzipStandaloneUiMessages,
     createStandaloneOpenAITransportPlugin,
     findDexieGlobalRegistration,
     findFreeBrowserGlobals,
@@ -190,6 +191,17 @@ describe('userscript bundled CommonJS initialization', () => {
 });
 
 describe('userscript build gzip portability', () => {
+    it('keeps the compact UI message gzip if an isolated candidate is not smaller and propagates worker errors', async () => {
+        const input = Buffer.from('流畅阅读 — café 🙂\n'.repeat(500));
+        const baseline = gzipUserscriptBuildData(input, undefined, true);
+        const larger = vi.fn(async () => Buffer.alloc(baseline.length + 1));
+        const chosen = await gzipStandaloneUiMessages(input, larger);
+        expect(chosen).toEqual(baseline);
+        expect(gunzipSync(chosen)).toEqual(input);
+        expect(larger).toHaveBeenCalledOnce();
+        await expect(gzipStandaloneUiMessages(input, async () => {throw new Error('message worker failed');}))
+            .rejects.toThrow('message worker failed');
+    });
     it('compresses large standalone data reproducibly without changing the parent process error listeners', async () => {
         const input = Buffer.from('CSS 数据与离线目录🙂\0\n'.repeat(10_000));
         const before = Buffer.from(input);
@@ -971,14 +983,42 @@ describe('userscript browser shim injection', () => {
         expect(restored.legacyText['回到视频片段']).toBe(extensionBundles['en-US'].legacyText['回到视频片段']);
     });
 
+    it.each([[false, false], [true, false], [false, true], [true, true]])(
+        'preserves every actual UI update and Chinese loader mode, standalone=%s greasy=%s', async (standalone, greasy) => {
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', standalone ? '1' : '0');
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', greasy ? '1' : '0');
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+            try {
+                vi.resetModules();
+                const {default: config, createUserscriptCatalogCompressionPlugin: createPlugin} = await import('@/userscript/vite.config');
+                const defines = (config as {define: Record<string, string>}).define;
+                const value = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_LANGUAGE_UPDATES__) as string;
+                const bytes = standalone ? decodeUserscriptData(value) : Buffer.from(value, 'base64');
+                const actual = unpackLanguageUpdates(JSON.parse(gunzipSync(bytes).toString('utf8')));
+                const pinned = greasy ? runInNewContext(readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 5000}) as {english: typeof UI_LANGUAGE_BUNDLES['en-US']} : undefined;
+                const expected = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES).flatMap(([language, baseline]) => {
+                    if (language === 'en-US' && !pinned) return [];
+                    const current = currentUserscriptLanguageBundle(language as Parameters<typeof currentUserscriptLanguageBundle>[0]);
+                    return [[language, createUserscriptLanguageUpdate(current, language === 'en-US' ? pinned!.english : baseline)]];
+                }));
+                expect(actual).toEqual(expected);
+                const plugin = createPlugin() as unknown as {resolveId: (source: string, importer: string) => string; load: (id: string) => string | Promise<string>};
+                const source = plugin.load(plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts')));
+                expect(source instanceof Promise).toBe(standalone && !greasy);
+                expect(await source).toContain('zhCNMessages');
+            } finally {vi.unstubAllEnvs(); vi.resetModules();}
+        },
+    );
+
     it('applies the same absent-page boundary to standalone and preserves every remaining message', async () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '1');
         try {
             vi.resetModules();
             const {default: standalone, createUserscriptCatalogCompressionPlugin: createPlugin} = await import('@/userscript/vite.config');
             const defines = (standalone as {define: Record<string, string>}).define;
-            const plugin = createPlugin() as unknown as {resolveId: (source: string, importer: string) => string; load: (id: string) => string};
-            const source = plugin.load(plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts')));
+            const plugin = createPlugin() as unknown as {resolveId: (source: string, importer: string) => string; load: (id: string) => Promise<string>};
+            const source = await plugin.load(plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts')));
             const {transformWithEsbuild} = await import('vite');
             const provider = await import('@/userscript/defaultMessageData');
             const compiled = await transformWithEsbuild(source, 'standalone-chinese.js', {format: 'cjs', target: 'es2018'});
@@ -1000,6 +1040,23 @@ describe('userscript browser shim injection', () => {
             }
             expect(defines.__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__).toBe((userscriptConfig as {define: Record<string, string>}).define.__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__);
         } finally {vi.unstubAllEnvs();vi.resetModules();}
+    });
+
+    it('rejects the standalone Chinese catalog load if its isolated compression fails', async () => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '1');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '0');
+        try {
+            vi.resetModules();
+            const {createUserscriptCatalogCompressionPlugin: createPlugin} = await import('@/userscript/vite.config');
+            const gzipModule = await import('@/userscript/buildGzip');
+            const worker = vi.spyOn(gzipModule, 'gzipLargeStandaloneUserscriptData')
+                .mockRejectedValueOnce(new Error('controlled Chinese catalog failure'));
+            const plugin = createPlugin() as unknown as {resolveId:(source:string, importer:string)=>string;load:(id:string)=>Promise<string>};
+            const id = plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts'));
+            await expect(plugin.load(id)).rejects.toThrow('controlled Chinese catalog failure');
+            expect(worker).toHaveBeenCalledOnce();
+            worker.mockRestore();
+        } finally {vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.resetModules();}
     });
 
     it('initializes shared keys through the actual standalone loader dependency graph without provider prewarming', async () => {

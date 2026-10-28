@@ -342,6 +342,8 @@
       "tests/siteAdaptationSession.test.ts",
       "tests/siteAdaptationSettings.test.ts",
       "tests/siteAdaptationCatalog.test.ts",
+      "tests/linkedinCommentAction.test.ts",
+      "tests/microsoftLearnParameterTokens.test.ts",
       "tests/siteCoverageAudit.test.ts",
       "tests/commonSiteRules.test.ts",
       "tests/githubIssueMetadataRules.test.ts",

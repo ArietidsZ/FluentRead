@@ -255,8 +255,8 @@ describe('userscript remote UI language data', () => {
             const provider = await import('@/userscript/defaultMessageData');
             const encoding = await import('@/userscript/dataEncoding');
             expect(provider.readDefaultMessageKeys()).toBeUndefined();
-            const plugin = createPlugin() as unknown as {resolveId: (source: string, importer: string) => string; load: (id: string) => string};
-            const generated = plugin.load(plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts')));
+            const plugin = createPlugin() as unknown as {resolveId: (source: string, importer: string) => string; load: (id: string) => Promise<string>};
+            const generated = await plugin.load(plugin.resolveId('./messages/zh-CN', resolve(process.cwd(), 'src/core/i18n/index.ts')));
             const compiled = await transformWithEsbuild(generated, 'standalone-default-messages.js', {format: 'cjs', target: 'es2018'});
             const realm = {module: {exports: {} as {zhCNMessages: Record<string, string>}}, require: (id: string) => {
                 if (id === '@/userscript/pakoRuntime') return {inflateWithPako: (bytes: Uint8Array) => ungzip(bytes, {to: 'string'})};

@@ -28,12 +28,12 @@ interface ScanEntry {node: Node; inMain: boolean; inMainArticle: boolean; articl
 function scanBudget(): ScanBudget {return {nodes: MAX_TOTAL_SCAN_NODES, text: MAX_SCAN_TEXT, urls: MAX_SCAN_TEXT};}
 
 /** 分片前先检查剩余预算，避免一次宽节点构造无界列表；false 统一表示不安全。 */
-function scan(root: Node, budget: ScanBudget, visit: (entry: ScanEntry) => boolean): boolean {
+function scan(root: Node, budget: ScanBudget, visit: (entry: ScanEntry) => boolean, nodeCost = 1): boolean {
     const pending: ScanEntry[] = [{node: root, inMain: false, inMainArticle: false, article: null}];
     let remaining = MAX_SCAN_NODES;
     while (pending.length) {
         const entry = pending.pop()!;
-        if (--budget.nodes < 0) return false;
+        if ((budget.nodes -= nodeCost) < 0) return false;
         remaining -= 1;
         if (!visit(entry)) return false;
         const element = entry.node.nodeType === 1 ? entry.node as Element : null;
@@ -141,7 +141,8 @@ function sourceIdentity(candidate: TranslationCandidate): string | null {
     return JSON.stringify([signature, slots.map(({prefix, source, suffix}) => [prefix, source, suffix])]);
 }
 
-function sourceIsUnique(document: Document, candidate: TranslationCandidate, source: string, text: string, budget = scanBudget()): boolean {
+function sourceIsUnique(document: Document, candidate: TranslationCandidate, source: string, text: string,
+    budget = scanBudget()): boolean {
     let count = 0;
     let elements = 0;
     let identities = 0;
@@ -157,6 +158,45 @@ function sourceIsUnique(document: Document, candidate: TranslationCandidate, sou
     return complete && count === 1;
 }
 
+/**
+ * 起点的链接与正文唯一性共享一次完整文档遍历，仍为旧的两次遍历逐节点计费。
+ * 先验完整文档中的帖子链接，再按原顺序复核所有 main/article 正文，不缩小重复检查范围。
+ */
+function initialIdentityIsUnique(document: Document, candidate: TranslationCandidate, source: string,
+    text: string, post: string, budget: ScanBudget, seen: WeakSet<Node>): boolean {
+    const base = document.location.href;
+    const candidates: HTMLElement[] = [];
+    let links = 0, posts = 0;
+    // 为旧流程的第二次文档遍历逐节点预留预算，不能因合并而接受原本超限的页面。
+    const complete = scan(document, budget, ({node, inMainArticle}) => {
+        seen.add(node);
+        if (node.nodeType !== 1) return true;
+        const element = node as HTMLElement;
+        if (isPostLink(element)) {
+            if (++links > MAX_POST_LINKS) return false;
+            const url = postUrl(element, base, budget);
+            if (!url) return false;
+            if (url.origin + url.pathname.replace(/\/$/u, '') === post && ++posts > 1) return false;
+        }
+        if (inMainArticle && element.localName === candidate.element.localName) {
+            if (candidates.length >= MAX_POST_ELEMENTS) return false;
+            candidates.push(element);
+        }
+        return true;
+    }, 2);
+    if (!complete || posts !== 1) return false;
+    let count = 0, identities = 0;
+    for (const element of candidates) {
+        if (!sameText(element, text, budget)) {
+            if (budget.nodes < 0 || budget.text < 0) return false;
+            continue;
+        }
+        if (++identities > MAX_SOURCE_IDENTITIES) return false;
+        if (sourceIdentity({...candidate, element}) === source && ++count > 1) return false;
+    }
+    return count === 1;
+}
+
 interface RemovedAncestor {
     readonly parent: Node;
     readonly ownerPath: readonly number[];
@@ -168,6 +208,14 @@ interface PendingReplacement {
     readonly previous: Node | null;
     readonly next: Node | null;
     readonly identity: RemovedAncestor;
+}
+
+interface ReplacementLocation extends PendingReplacement { readonly root: Node }
+
+/** 已选中的替换根仍须占据与旧根相同的兄弟位置。 */
+function remainsAtOriginalLocation({root, parent, previous, next}: ReplacementLocation): boolean {
+    return root.parentNode === parent && root.previousSibling === previous && root.nextSibling === next &&
+        (!previous || previous.parentNode === parent) && (!next || next.parentNode === parent);
 }
 
 /** 间隔期间同一父节点的前后兄弟必须仍然紧邻，不能用文字推测位置。 */
@@ -222,15 +270,25 @@ export function trackXHoverRemount(candidate: TranslationCandidate, _x: number, 
     if (!article || !article.contains(owner)) return null;
     const ancestors = captureAncestors(owner, article);
     if (!ancestors) return null;
-    const oldPost = postIdentity(article, document);
-    const sourceText = boundedText(owner);
+    // 起点上已经连接的节点不能被证明是本次重挂新产生的替换。
+    // 复用原有的全页唯一性扫描记录它们，避免另外遍历一遍文档。
+    const seenHistory = new WeakSet<Node>();
+    const initialBudget = scanBudget();
+    const oldPost = postIdentity(article, document, initialBudget);
+    const sourceText = boundedText(owner, initialBudget);
     if (sourceText === null) return null;
     const source = sourceIdentity(candidate);
-    if (!oldPost || source === null) return null;
+    if (!oldPost || source === null ||
+        !initialIdentityIsUnique(document, candidate, source, sourceText, oldPost, initialBudget, seenHistory)) return null;
     const route = document.location.href;
     let current = true;
     let replacement: HTMLElement | null = null;
+    let replacementLocation: ReplacementLocation | null = null;
     let pending: PendingReplacement | null = null;
+    // 记录观察期间的增删树，拒绝把先前已连接的宿主节点认作新生成的替换。
+    // 每条回调先冻结仍可见的后代；临时观察产生的后代移除记录也进入同一历史。
+    const historyBudget = scanBudget();
+    historyBudget.nodes = MAX_SCAN_NODES;
     let timer: number;
     let graceTimer: number | undefined;
     let waiting: Promise<boolean> | undefined;
@@ -279,30 +337,53 @@ export function trackXHoverRemount(candidate: TranslationCandidate, _x: number, 
         settleWaiting(true);
         return true;
     };
+    const neverSeen = (root: Node): boolean => scan(root, scanBudget(), ({node}) => !seenHistory.has(node));
+    const rememberAdded = (records: readonly MutationRecord[], except?: Node, acceptedRoot?: Node): boolean => {
+        for (const record of records) {
+            for (const root of record.addedNodes) {
+                if (root === except) continue;
+                // 接受后的新徽标等不属于先前宿主身份；但此前见过的节点移入仍须拒绝。
+                if (acceptedRoot?.contains(root)) {if (!neverSeen(root)) return false;}
+                else if (!scan(root, historyBudget, ({node}) => {seenHistory.add(node); return true;})) return false;
+            }
+        }
+        return true;
+    };
     const processRecords = (records: MutationRecord[]) => {
         if (!current) return;
-        if (replacement) {if (!replacement.isConnected) cancel(); return;}
         if (records.length > MAX_RECORDS) { cancel(); return; }
+        let removedCount = 0, addedCount = 0;
+        for (const record of records) {
+            removedCount += record.removedNodes.length;
+            addedCount += record.addedNodes.length;
+            if (removedCount > MAX_RECORDS || addedCount > MAX_RECORDS) {cancel(); return;}
+            for (const root of record.removedNodes) {
+                if (!scan(root, historyBudget, ({node}) => {seenHistory.add(node); return true;})) {cancel(); return;}
+            }
+        }
+        if (replacement) {
+            if (!replacement.isConnected || !replacementLocation || !remainsAtOriginalLocation(replacementLocation) ||
+                !rememberAdded(records, undefined, replacementLocation.root) || !neverSeen(replacementLocation.root)) cancel();
+            return;
+        }
         if (pending) {
             const changes = records.filter(record => record.target === pending!.parent);
-            if (!changes.length) return;
+            if (!changes.length) {if (!rememberAdded(records)) cancel(); return;}
             if (!pending.parent.isConnected || pending.parent.ownerDocument !== document || view.document !== document ||
                 document.location.href !== route || !isCurrent() || changes.length !== 1) { cancel(); return; }
             const change = changes[0]!;
             if (change.removedNodes.length || change.addedNodes.length !== 1 ||
                 change.previousSibling !== pending.previous || change.nextSibling !== pending.next) { cancel(); return; }
             const added = change.addedNodes[0]!;
+            replacementLocation = {...pending, root: added};
             if (added.parentNode !== pending.parent || added.previousSibling !== pending.previous || added.nextSibling !== pending.next ||
-                !tryReplacement([added], pending.identity)) cancel();
+                !rememberAdded(records, added) || !neverSeen(added) || !tryReplacement([added], pending.identity)) cancel();
             return;
         }
         // 单条 mutation 也可能包含大量节点；先限额再遍历，避免批量复制或无界扫描。
         const matching: Array<{record: MutationRecord; identity: RemovedAncestor}> = [];
-        let removedCount = 0;
         let detachedAncestor = false;
         for (const record of records) {
-            removedCount += record.removedNodes.length;
-            if (removedCount > MAX_RECORDS) { cancel(); return; }
             // 被移除的 MAIN 可能在同一批回调前已被宿主拆散，不能再依赖 contains(owner)。
             // 只信任请求开始时记录的祖先、仍连接的原父节点及其同批替换。
             for (const root of record.removedNodes) {
@@ -313,17 +394,28 @@ export function trackXHoverRemount(candidate: TranslationCandidate, _x: number, 
                 }
             }
         }
-        if (!matching.length) {if (detachedAncestor) cancel(); return;}
+        if (!matching.length) {if (detachedAncestor || !rememberAdded(records)) cancel(); return;}
         if (matching.length !== 1 || owner.isConnected || view.document !== document ||
             !isCurrent() || document.location.href !== route) { cancel(); return; }
         const {record, identity} = matching[0]!;
-        const added: Node[] = [];
-        for (const item of records) {
-            if (item.target !== record.target) continue;
-            if (item.addedNodes.length > MAX_RECORDS - added.length) { cancel(); return; }
-            added.push(...item.addedNodes);
+        const changes = records.filter(item => item.target === record.target);
+        if (record.removedNodes.length !== 1 || record.target.ownerDocument !== document || changes[0] !== record) {cancel(); return;}
+        // 同批替换也必须填回移除位置：同一父级上的其他新增节点不能凭文本相同被认作旧 owner。
+        const addition = record.addedNodes.length ? record : changes.length === 2 ? changes[1]! : undefined;
+        if (addition) {
+            if ((addition === record ? changes.length !== 1 : changes.length !== 2 || addition.removedNodes.length !== 0) ||
+                addition.addedNodes.length !== 1 || addition.previousSibling !== record.previousSibling ||
+                addition.nextSibling !== record.nextSibling) {cancel(); return;}
+            const added = addition.addedNodes[0]!;
+            replacementLocation = {parent: record.target, previous: record.previousSibling,
+                next: record.nextSibling, identity, root: added};
+            if (added.parentNode !== record.target || added.previousSibling !== record.previousSibling ||
+                added.nextSibling !== record.nextSibling || !rememberAdded(records, added) || !neverSeen(added) ||
+                !tryReplacement([added], identity)) cancel();
+            return;
         }
-        if (added.length) {if (!tryReplacement(added, identity)) cancel(); return;}
+        if (changes.length !== 1) {cancel(); return;}
+        if (!rememberAdded(records)) {cancel(); return;}
         pending = {parent: record.target, previous: record.previousSibling ?? null, next: record.nextSibling ?? null, identity};
         if (view.document !== document || pending.parent.ownerDocument !== document || !isOriginalGap(pending)) {cancel(); return;}
         startGrace();
@@ -350,9 +442,15 @@ export function trackXHoverRemount(candidate: TranslationCandidate, _x: number, 
             return waiting;
         },
         finish(stale) {
+            // 宿主可能在同一任务中移动节点再移回原位；最终 DOM 不会揭示排队的迁移记录。
+            if (current) {
+                const records = observer.takeRecords();
+                if (records.length) processRecords(records);
+            }
             const next = replacement;
             const usable = current && stale && view.document === document && isCurrent() && document.location.href === route && !owner.isConnected
-                && next?.isConnected && next.ownerDocument === document && next.matches(':hover');
+                && next?.isConnected && next.ownerDocument === document && next.matches(':hover') && replacementLocation !== null
+                && remainsAtOriginalLocation(replacementLocation) && neverSeen(replacementLocation.root);
             if (!usable || !next) {cancel(); return null;}
             const nextArticle = next.closest<HTMLElement>('article');
             const budget = scanBudget();
