@@ -8,6 +8,80 @@ const hole=(x0:number,x1:number,y0=70,y1=90)=>({x0,x1,y0,y1});
 const expectFailure=(result:ReturnType<typeof planMangaTextFlow>,reason:string)=>{expect(result.accepted).toBe(false);if(!result.accepted){expect(result.reason).toBe(reason);expect(result.chunks).toEqual([]);}return result;};
 
 describe('漫画无孔水平流式规划',()=>{
+    it('透明孔分隔时不能拆开 emoji ZWJ 字素，即使每半部分单独放得下',()=>{
+        const text='👩‍㊗️',r=planMangaTextFlow(text,reference([text]),[hole(102,103)],metrics);
+        if(r.accepted){expect(r.chunks.map(chunk=>chunk.text)).toEqual([text]);}
+        else expect(r.chunks).toEqual([]);
+    });
+    it.each([
+        ['（\uFE0F字',[hole(105,115)]],['漢！\uFE0F字',[hole(100,110)]],
+        ['（\u200d字',[hole(105,115)]],['漢！\u0301字',[hole(100,110)]],
+        ['ABC（漢字）',[hole(105,115)]],['漢!HELLO',[hole(100,110)]],['𠀀HELLO（文字）',[hole(112,122)]],
+        ['漢 !HELLO',[hole(100,110)]],['漢 \t ,ABC',[hole(100,110)]],
+        ['漢 \t !\uFE0FHELLO',[hole(100,110)]],['「  !HELLO',[hole(100,110)]],
+    ])('带组合符的标点随相邻文字跨孔：%s',(text,holes)=>{
+        const r=planMangaTextFlow(text,reference([text]),holes,metrics);
+        if(!r.accepted){expect(r.chunks).toEqual([]);return;}
+        expect(r.chunks.map(chunk=>chunk.text).join('')).toBe(text);
+        expect(r.chunks.every(chunk=>!/[（(][\p{Mark}\u200c\u200d]*$/u.test(chunk.text)
+            && !/^[！!，。?][\p{Mark}\u200c\u200d]*/u.test(chunk.text))).toBe(true);
+    });
+    it.each(['👩‍㊗️','㊙️‍👨','𠀀\u{E0100}HELLO','かﾞHELLO','漢🏽TEST','\u0600𠀀A','A \u0301漢'])
+    ('多孔和不同框尺寸均只在完整字素边界切分：%s',text=>{
+        const segmenter=new Intl.Segmenter(undefined,{granularity:'grapheme'});
+        const boundaries=new Set([0,...Array.from(segmenter.segment(text),part=>part.index+part.segment.length)]);
+        for(const [w,holes] of [[200,[hole(102,103),hole(130,131)]],[100,[hole(51,53)]],[45,[hole(23,25)]]] as const){
+            const r=planMangaTextFlow(text,reference([text],{...box,x1:w}),holes,metrics);
+            if(!r.accepted){expect(r.chunks).toEqual([]);continue;}
+            expect(r.chunks.map(chunk=>chunk.text).join('')).toBe(text);
+            let offset=0;for(const chunk of r.chunks){offset+=chunk.text.length;expect(boundaries.has(offset)).toBe(true);}
+        }
+    });
+    it.each(['Supercalifragilistic','https://x.test/3.14','3.14','AB(CD)'])
+    ('绕孔不会拆开英文长词、网址或数字 %s',text=>{
+        const r=planMangaTextFlow(text,reference([text],{...box,x1:45}),[hole(20,25)],metrics);
+        expectFailure(r,'intact-tokens-do-not-fit');
+    });
+    it('无字素分段器时复杂词界拒绝绕孔并保留可恢复的完整输入',async()=>{
+        vi.resetModules();vi.stubGlobal('Intl',new Proxy(Intl,{get:(target,key)=>key==='Segmenter'?undefined:Reflect.get(target,key)}));
+        try{
+            const {planMangaTextFlow:fallback}=await import('@/src/features/image-translation/services/mangaTextFlow');
+            const text='👩‍㊗️',r=fallback(text,reference([text]),[hole(102,103)],metrics);
+            expectFailure(r,'grapheme-segmentation-unavailable');
+            for(const [text,holes] of [['ABC（漢字）',[hole(105,115)]],['漢!HELLO',[hole(100,110)]],
+                ['漢 !HELLO',[hole(100,110)]],['漢 \t ,ABC',[hole(100,110)]]] as const){
+                expectFailure(fallback(text,reference([text]),holes,metrics),'grapheme-segmentation-unavailable');
+            }
+            const leading='  !HELLO',first=fallback(leading,reference([leading]),[],metrics);
+            expect(first.accepted).toBe(true);if(first.accepted)expect(first.chunks.map(chunk=>chunk.text).join('')).toBe(leading);
+            const simple='你好 HELLO';const safe=fallback(simple,reference([simple]),[],metrics);
+            expect(safe.accepted).toBe(true);if(safe.accepted)expect(safe.chunks.map(chunk=>chunk.text).join('')).toBe(simple);
+            // 未发生词界拆分的整词无需猜测字素边界。
+            const word='e\u0301HELLO',whole=fallback(word,reference([word]),[],metrics);
+            expect(whole.accepted).toBe(true);if(whole.accepted)expect(whole.chunks.map(chunk=>chunk.text).join('')).toBe(word);
+        }finally{vi.unstubAllGlobals();vi.resetModules();}
+    });
+    it('无分段器且复杂字素跨词时，绘制链回退连续矩形而不创建绕孔画布',async()=>{
+        vi.resetModules();vi.stubGlobal('Intl',new Proxy(Intl,{get:(target,key)=>key==='Segmenter'?undefined:Reflect.get(target,key)}));
+        const createElement=vi.fn();vi.stubGlobal('document',{createElement});
+        try{
+            const {drawMangaTranslations}=await import('@/src/features/image-translation/services/mangaRendering');
+            const text='👩‍㊗️',pixelWidth=200,pixelHeight=160,pixels=new Uint8ClampedArray(pixelWidth*pixelHeight*4).fill(255);
+            const c={font:'',lineWidth:0,textAlign:'',save:vi.fn(),restore:vi.fn(),beginPath:vi.fn(),rect:vi.fn(),clip:vi.fn(),fillRect:vi.fn(),strokeText:vi.fn(),fillText:vi.fn(),drawImage:vi.fn(),
+                measureText:vi.fn(function(this:{font:string},value:string){const size=Number(this.font.match(/ ([\d.e+-]+)px/)![1]),width=Array.from(value).length*size*.6;
+                    return {width,actualBoundingBoxLeft:0,actualBoundingBoxRight:width,actualBoundingBoxAscent:size*.7,actualBoundingBoxDescent:size*.2};})};
+            const bounds={x0:0,y0:0,x1:200,y1:160},protectedHole=hole(102,103,0,160);
+            drawMangaTranslations(c as any,pixels,pixelWidth,pixelHeight,[{text,fontSize:10,bbox:bounds}],true,[{uniform:false,color:'#fff'}],
+                {rectangles:[protectedHole],runs:new Uint16Array(),rowStarts:new Uint32Array()});
+            expect(createElement).not.toHaveBeenCalled();expect(c.drawImage).not.toHaveBeenCalled();
+            expect(c.fillText.mock.calls.map(call=>call[0]).join('')).toBe(text);
+            expect(c.save).toHaveBeenCalledTimes(c.restore.mock.calls.length);
+            c.fillText.mockClear();
+            expect(()=>drawMangaTranslations(c as any,pixels,pixelWidth,pixelHeight,[{text,fontSize:10,bbox:bounds}],true,[{uniform:false,color:'#fff'}],
+                {rectangles:[hole(0,200,0,160)],runs:new Uint16Array(),rowStarts:new Uint32Array()})).toThrow('已保留原图');
+            expect(createElement).not.toHaveBeenCalled();expect(c.fillText).not.toHaveBeenCalled();
+        }finally{vi.unstubAllGlobals();vi.resetModules();}
+    });
     it('复用既有完整排版与字体，纯measure端口不触Canvas',()=>{
         const text='你好世界';
         const layout=layoutMangaTranslationText(text,200,160,(s)=>metrics(s).width,10,()=>({ascent:7,descent:3}));
@@ -50,6 +124,19 @@ describe('漫画无孔水平流式规划',()=>{
         for(const text of ['「 \t 你好','（ 「 你好']){
             const r=planMangaTextFlow(text,reference([text]),[hole(102,112)],metrics);expect(r.accepted).toBe(true);
             if(r.accepted){expect(r.chunks.map(c=>c.text).join('')).toBe(text);expect(r.chunks.every(c=>!/[「（]\s*$/u.test(c.text))).toBe(true);}
+        }
+    });
+    it('开括号后只有空白和闭标点时不能在正文前截断',async()=>{
+        for(const noSegmenter of [false,true]){
+            if(noSegmenter){vi.resetModules();vi.stubGlobal('Intl',new Proxy(Intl,{get:(target,key)=>key==='Segmenter'?undefined:Reflect.get(target,key)}));}
+            try{
+                const {planMangaTextFlow:plan}=await import('@/src/features/image-translation/services/mangaTextFlow');
+                for(const text of ['「  !HELLO','「 \t ,ABC','「  !\uFE0FHELLO']){
+                    const r=plan(text,reference([text]),[hole(100,110)],metrics);
+                    if(r.accepted){expect(r.chunks.map(c=>c.text).join('')).toBe(text);expect(r.chunks.every(c=>!/^「[\s!,\uFE0F]+$/u.test(c.text))).toBe(true);}
+                    else expect(r.chunks).toEqual([]);
+                }
+            }finally{if(noSegmenter){vi.unstubAllGlobals();vi.resetModules();}}
         }
     });
     it('绑定不跨原reference行；孤立标点和没有后字的开括号空白仍原样保留',()=>{

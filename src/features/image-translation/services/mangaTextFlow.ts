@@ -1,13 +1,13 @@
 /**
  * @file src/features/image-translation/services/mangaTextFlow.ts
  * 文件职责：在既有漫画字号、完整行和基线不变的前提下，规划绕过透明保护孔的水平文字片段。
- * 主要内容：沿用原布局的字体和纵向字形带，绑定东亚标点且不拆词，将完整 token 顺序放入同一行的无孔区间；
+ * 主要内容：沿用原布局的字体和纵向字形带，按实际字素边界合并词界、绑定东亚标点且不拆词，将完整 token 顺序放入同一行的无孔区间；无字素分割器时仅在词界可安全确认时规划，否则回退连续矩形；
  * 使用调用方提供的原生字形左右及上下界和描边留量检查每个片段，横向安全量不改变纵向坐标；限制全文、行、token、
  * 度量次数、被测字符和投影工作量，任何可预期的不适配均返回完整回退结果，真正的度量异常保留原对象向上传播。
  * 模块边界：纯文字与矩形算法，复用 mangaTypography 的布局类型及调用方已经选定的字体；不访问 Canvas、像素或字体资源，
  * 不重排原行、不缩小字号、不修补原图，也不把名义度量范围当作最终原生栅格安全证明。
  */
-import type {MangaTextLayout} from './mangaTypography';
+import {hasMangaMixedClosingPrefix,hasMangaUnboundEdgePunctuation,isMangaOpeningToken,isMangaClosingToken,splitEdgePunctuation,type MangaTextLayout} from './mangaTypography';
 import type {MangaRegion} from './mangaRegions';
 
 export const MANGA_TEXT_FLOW_LIMITS = Object.freeze({utf16:4096,tokens:256,rows:16,spans:32,projections:65536,measure:1024,measuredUtf16:65536});
@@ -28,19 +28,49 @@ export type MangaTextFlowRow = {row:number;empty:true;baseline:number}
 export type MangaTextFlowResult = {accepted:true;chunks:MangaTextFlowChunk[];rows:MangaTextFlowRow[];fontSize:number;font:string;lineWidth:number;cost:MangaTextFlowCost}
     | {accepted:false;reason:string;details?:unknown;cost:MangaTextFlowCost;chunks:[]};
 
-const OPEN=/^[（【「『《〈“‘(\[]+$/u;
-const CLOSE=/^[，。！？、；：）】」』》〉”’….,!?;:)\]]+$/u;
 const TOKENS=/\s+|[\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]\p{Mark}*|[^\s\u2e80-\u9fff\u3040-\u30ff\uac00-\ud7af]+/gu;
+// 与主线漫画排版的普通文本快路径一致，排除组合符、连接符、韩文 Jamo 与 emoji。
+const SIMPLE_GRAPHEMES=/^[\x20-\x7e\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u2e80-\u9fff\uac00-\ud7a3\uff01-\uff65]*$/u;
+const GRAPHEME_EXTEND=/[\p{Mark}\p{Grapheme_Extend}]/u;
+const segmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter(undefined,{granularity:'grapheme'}):undefined;
 const supported=(text:string)=>/^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Common}\p{Script=Inherited}]*$/u.test(text)
     && !/[\p{Bidi_Control}\u200e\u200f]/u.test(text);
 class FlowRejection extends Error {}
-function tokens(text:string):string[] {
+function tokens(text:string):string[]|undefined {
+    const initial:string[]=text.match(TOKENS)||[];
+    const simple=SIMPLE_GRAPHEMES.test(text)&&!GRAPHEME_EXTEND.test(text);
+    if(initial.length>1&&!segmenter&&(!simple||hasMangaUnboundEdgePunctuation(initial)))return;
+    let parts=initial;
+    if(initial.length>1&&!simple&&segmenter){
+        const iterator=segmenter.segment(text)[Symbol.iterator](),merged:string[]=[];
+        let offset=0,end=0,pending='';
+        for(const token of initial){
+            offset+=token.length;
+            while(end<offset)end+=iterator.next().value!.segment.length;
+            pending+=token;
+            if(offset===end){merged.push(pending);pending='';}
+        }
+        parts=merged;
+    }
     const result:string[]=[];let opening='';
-    for(const token of text.match(TOKENS)||[]){
-        if(OPEN.test(token)){opening+=token;continue;}
+    // 保留原有空白，闭标点跨空白时用共享拆分器识别其词首字素。
+    const punctuationInput:string[]=[];let hasPrevious=false;
+    for(let index=0;index<parts.length;index++){
+        const token=parts[index];
+        if(segmenter&&hasPrevious&&index>0&&/^\s+$/u.test(parts[index-1])&&hasMangaMixedClosingPrefix(token)){
+            punctuationInput.push(...splitEdgePunctuation(['x',token]).slice(1));
+        }else punctuationInput.push(token);
+        if(!/^\s+$/u.test(token))hasPrevious=true;
+    }
+    // 普通文字没有待拆的词边缘标点时，保持原 token，避免逐字素再分割。
+    const punctuationParts=simple&&!hasMangaUnboundEdgePunctuation(punctuationInput)?punctuationInput:splitEdgePunctuation(punctuationInput);
+    for(const token of punctuationParts){
+        if(isMangaOpeningToken(token)){opening+=token;continue;}
         // 原空白逐字保留，但不能让开括号或句末符号隔着空白独自落到孔的另一侧。
         if(opening&&/^\s+$/u.test(token)){opening+=token;continue;}
-        if(CLOSE.test(token)&&!opening&&result.length){
+        // 开括号后暂时只有闭标点时继续等待正文，避免只有标点的片段跨孔悬空。
+        if(opening&&isMangaClosingToken(token)){opening+=token;continue;}
+        if(isMangaClosingToken(token)&&!opening&&result.length){
             let previous=result.length-1;
             while(previous>=0&&/^\s+$/u.test(result[previous]))previous--;
             if(previous>=0){result[previous]+=result.slice(previous+1).join('')+token;result.length=previous+1;continue;}
@@ -69,7 +99,9 @@ export function planMangaTextFlow(text:string,ref:MangaTextFlowReference,holes:r
         const line=ref.layout.lines[row];inputUtf16+=line.length;
         if(inputUtf16>limit.utf16)return fail('input-budget');
         if(!supported(line))return fail('unsupported-bidi-or-context-script');
-        const parts=tokens(line);cost.tokens+=parts.length;
+        const parts=tokens(line);
+        if(!parts)return fail('grapheme-segmentation-unavailable');
+        cost.tokens+=parts.length;
         if(cost.tokens>limit.tokens)return fail('token-budget');
         const y=b.y0+(b.y1-b.y0-ink.height)/2+ink.baselines[row];
         if(!line){rows.push({row,empty:true,baseline:y});continue;}
