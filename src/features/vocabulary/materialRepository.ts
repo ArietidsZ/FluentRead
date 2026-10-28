@@ -46,22 +46,30 @@ export class MaterialRepository {
             // 首次打开材料前可能已经显式收藏。一次索引现有引用的来源，避免把这次
             // 新收藏当旧词书再次导入；同词条的其他明确来源仍正常迁移。
             const linkedSources = new Map<string, Set<string>>();
-            for (const material of await this.db.materials.toArray()) {
-                const sources = [material.identityKey, ...(material.aliases ?? [])];
-                if (material.kind === 'document' && material.source.url) {
-                    const url = canonicalMaterialUrl(material.source.url);
-                    if (url) sources.push(`article:${url}`);
-                }
-                for (const key of [...sources]) if (key.startsWith('article:')) {
-                    const url = privateArticleSource(key.slice('article:'.length));
-                    if (url) sources.push(`legacy-article:${url}`);
-                }
-                for (const reference of material.references) if (reference.kind === 'vocabulary') {
-                    const keys = linkedSources.get(reference.id) ?? new Set<string>();
-                    for (const key of sources) keys.add(key);
-                    linkedSources.set(reference.id, keys);
-                }
-            }
+            let cursorFailed = false, cursorError: unknown;
+            const readMaterial = this.db.materials.hook.reading.fire;
+            await this.db.materials.toCollection().raw().until(() => cursorFailed).each(rawMaterial => {
+                try {
+                    const material = readMaterial(rawMaterial) as MaterialRecord;
+                    const sources = [material.identityKey, ...(material.aliases ?? [])];
+                    if (material.kind === 'document' && material.source.url) {
+                        const url = canonicalMaterialUrl(material.source.url);
+                        if (url) sources.push(`article:${url}`);
+                    }
+                    for (const key of [...sources]) if (key.startsWith('article:')) {
+                        const url = privateArticleSource(key.slice('article:'.length));
+                        if (url) sources.push(`legacy-article:${url}`);
+                    }
+                    for (const reference of material.references) if (reference.kind === 'vocabulary') {
+                        const keys = linkedSources.get(reference.id) ?? new Set<string>();
+                        for (const key of sources) keys.add(key);
+                        linkedSources.set(reference.id, keys);
+                    }
+                } catch (error) {cursorFailed = true; cursorError = error;}
+            });
+            // Dexie 的游标回调会吞掉同步异常；在捕获范围内运行原读取钩子，
+            // 停止游标后在事务内重新抛出，保持原有失败回滚语义。
+            if (cursorFailed) throw cursorError;
             // 读写事务隔离其他写入；仅首次新增读取容量，后续成功新增在本事务内递增。
             let materialCount: number | undefined;
             for (const entry of entries) for (const context of entry.contexts) {
