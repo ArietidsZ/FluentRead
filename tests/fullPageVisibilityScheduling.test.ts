@@ -42,6 +42,7 @@ const runtime = vi.hoisted(() => ({
         visualRange?: TranslationCandidate['visualRange'];
         visualSourceText?: string;
     } | null,
+    pointCalls: [] as Array<[number, number, string]>,
     requests: vi.fn<(origins: readonly string[]) => Promise<string[]>>(async (origins) =>
         origins.map((origin) => `译:${origin}`),
     ),
@@ -54,6 +55,7 @@ const runtime = vi.hoisted(() => ({
     retryCallbacks: [] as Array<() => void>,
     config: {
         on: true,
+        personalCorrectionsEnabled: false,
         service: "microsoft",
         hoverTranslationService: "",
         model: {microsoft: "microsoft-default", freeTranslation: "free-default"} as Record<string, string>,
@@ -325,7 +327,8 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         parseTranslationSlots: () => runtime.parsedSlots,
         resolveTranslationCandidate: (start: Node | null | undefined) =>
             [...runtime.candidates].reverse().find((candidate) => candidate.element === start),
-        resolveTranslationCandidateAtPoint: (_x: number, _y: number, scope = 'content') => {
+        resolveTranslationCandidateAtPoint: (x: number, y: number, scope = 'content') => {
+            runtime.pointCalls.push([x, y, scope]);
             const candidate = runtime.pointCandidate;
             if (!candidate || isProtected(candidate.element) || (candidate.scope === 'all' && scope !== 'all')) return null;
             return scope === 'all' ? {...candidate, scope: 'all'} : candidate;
@@ -358,9 +361,11 @@ import {
     restoreOriginalContent,
     restoreTranslationOwner,
 } from "@/src/features/full-page-translation/content/runtime";
-import {getTranslationState} from "@/src/features/full-page-translation/content/state";
+import {beginTranslation, getTranslationState} from "@/src/features/full-page-translation/content/state";
 import {resolveFullPageVisibilityAnchor} from '@/src/features/full-page-translation/content/visibilityAnchor';
 import * as personalCorrectionRuntime from '@/src/features/full-page-translation/content/personalCorrections';
+import * as hoverRemountRecovery from '@/src/features/full-page-translation/content/hoverRemountRecovery';
+import {personalCorrections} from '@/src/services/personal-corrections/public';
 import {syncPageTranslationDisplayMode} from '@/src/features/full-page-translation/content/displayMode';
 import {toggleTranslationSection} from '@/src/features/full-page-translation/content/sectionTranslation';
 import {createBilingualRemountCapitulationRegistry} from '@/src/features/full-page-translation/content/bilingualRemount';
@@ -550,6 +555,7 @@ describe("全文翻译可见性锚点", () => {
         vi.useFakeTimers();
         runtime.candidates = [];
         runtime.pointCandidate = null;
+        runtime.pointCalls = [];
         runtime.requests.mockReset();
         runtime.requests.mockImplementation(async (origins) => origins.map((origin) => `译:${origin}`));
         runtime.requestOptions = [];
@@ -560,6 +566,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.cancelQueue.mockReset();
         runtime.retryCallbacks = [];
         runtime.config.on = true;
+        runtime.config.personalCorrectionsEnabled = false;
         runtime.config.service = "microsoft";
         runtime.config.model = {microsoft: "microsoft-default", freeTranslation: "free-default"};
         runtime.config.customModel = {};
@@ -1110,6 +1117,202 @@ describe("全文翻译可见性锚点", () => {
         };
         return {core, flag, excluded, neighbor, exclude};
     }
+
+    it('keeps an X video author protected across player-icon removal and an unrelated rescan', async () => {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.realTextExtraction = true;
+        runtime.realSourceSnapshots = true;
+        document.body.innerHTML = `<main><article><div><video></video><div data-slot="xds-context-menu-trigger">
+            <button id="play"><svg data-icon="icon-player-play"></svg></button>
+            <span><span><div class="x-avatar"><img alt="@someone"></div></span>
+            <div><span><div id="author" class="text-white line-clamp-1">Author name must stay original</div></span></div></span>
+            <p id="subtitle">A video subtitle remains translatable.</p>
+        </div></div></article></main>`;
+        const author = document.querySelector<HTMLElement>('#author')!;
+        const subtitle = document.querySelector<HTMLElement>('#subtitle')!;
+        const playerButton = document.querySelector<HTMLElement>('#play')!;
+        [author, subtitle].forEach(element => setLayoutBox(element, 300, 40));
+        const xRule = builtinSiteRulePack.rules.find(rule => rule.id === 'x')!;
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://x.com/someone/status/123'),
+            adapters: compileSiteRulePack({version: 1, rules: [xRule]})});
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(subtitle.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        expect(runtime.realCore.shouldStayOriginal(author)).toBe(true);
+        const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+        const icon = playerButton.firstElementChild!;
+        icon.remove();
+        observer.emitRegistered([{type: 'childList', target: playerButton, addedNodes: [], removedNodes: [icon]} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.realCore.shouldStayOriginal(author)).toBe(true);
+        playerButton.setAttribute('data-unrelated-fixture', 'changed');
+        observer.emitRegistered([{type: 'attributes', target: playerButton, attributeName: 'data-unrelated-fixture', oldValue: null,
+            addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flatMap(([sources]) => [...sources])).not.toContain('Author name must stay original');
+        expect(author.textContent).toBe('Author name must stay original');
+        expect(author.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(subtitle.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+    });
+
+    describe('X video label protection transitions in a full-page session', () => {
+        function fixture(kind: 'gif' | 'author', protectedInitially: boolean) {
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            runtime.realTextExtraction = true;
+            runtime.realSourceSnapshots = true;
+            const author = `<span><span><div class="x-avatar"><img id="avatar" ${protectedInitially ? 'alt="@author"' : ''}></div></span>
+                <div><span><div id="owner" class="text-white line-clamp-1">A video author name</div></span></div></span>`;
+            const gif = `<div id="image-parent">${protectedInitially ? '<img id="thumbnail" src="https://pbs.twimg.com/tweet_video_thumb/test">' : ''}</div>
+                <div id="owner" class="bg-black-80 text-on-color text-subtext3 font-bold">GIF</div>`;
+            document.body.innerHTML = `<main><article><div id="player">
+                <video id="video" src="https://video.twimg.com/tweet_video/test.mp4"></video>
+                <div id="overlay" data-slot="xds-context-menu-trigger">${kind === 'gif' ? gif : author}</div>
+                </div><p id="neighbor">A nearby article paragraph remains translatable.</p></article></main>`;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+            [owner, neighbor].forEach(element => setLayoutBox(element, 300, 40));
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://x.com/someone/status/123'),
+                adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined))});
+            return {owner, neighbor};
+        }
+
+        it.each(['gif', 'author'] as const)('restores a translated %s when the missing identity arrives', async kind => {
+            const {owner, neighbor} = fixture(kind, false);
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            if (kind === 'gif') {
+                const video = document.querySelector<HTMLElement>('#video')!;
+                video.setAttribute('poster', 'https://pbs.twimg.com/tweet_video_thumb/test');
+                observer.emitRegistered([{type: 'attributes', target: video, attributeName: 'poster', oldValue: null,
+                    addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            } else {
+                const avatar = document.querySelector<HTMLElement>('#avatar')!;
+                avatar.setAttribute('alt', '@author');
+                observer.emitRegistered([{type: 'attributes', target: avatar, attributeName: 'alt', oldValue: null,
+                    addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            }
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(true);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(neighbor.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+
+        it.each(['gif', 'author'] as const)('restores and rediscovers %s as the direct video is inserted and removed', async kind => {
+            const {owner} = fixture(kind, true);
+            const video = document.querySelector<HTMLElement>('#video')!, player = video.parentElement!;
+            video.remove();
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            player.prepend(video);
+            observer.emitRegistered([{type: 'childList', target: player, addedNodes: [video], removedNodes: []} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(true);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            video.remove();
+            observer.emitRegistered([{type: 'childList', target: player, addedNodes: [], removedNodes: [video]} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(false);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+
+        it.each(['gif', 'author'] as const)('restores a translated %s after an identity sibling is inserted', async kind => {
+            const {owner} = fixture(kind, false);
+            const parent = document.querySelector<HTMLElement>(kind === 'gif' ? '#image-parent' : '.x-avatar')!;
+            parent.replaceChildren();
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            const image = document.createElement('img');
+            if (kind === 'gif') image.setAttribute('src', 'https://pbs.twimg.com/tweet_video_thumb/test');
+            else image.setAttribute('alt', '@author');
+            parent.append(image);
+            observer.emitRegistered([{type: 'childList', target: parent, addedNodes: [image], removedNodes: []} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(true);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(getTranslationState(owner)).toBeUndefined();
+        });
+
+        it('restores and rediscovers a GIF label after native text changes', async () => {
+            const {owner} = fixture('gif', true);
+            const text = owner.firstChild as Text;
+            text.data = 'LIVE';
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            text.data = 'GIF';
+            observer.emitRegistered([{type: 'characterData', target: text, oldValue: 'LIVE', addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(true);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            text.data = 'LIVE';
+            observer.emitRegistered([{type: 'characterData', target: text, oldValue: 'GIF', addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(false);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+
+        it.each(['gif', 'author'] as const)('rediscovers the now-unprotected %s after its sibling identity child is removed', async kind => {
+            const {owner} = fixture(kind, true);
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(true);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            const identity = document.querySelector<HTMLElement>(kind === 'gif' ? '#thumbnail' : '#avatar')!;
+            const parent = identity.parentElement!;
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            identity.remove();
+            observer.emitRegistered([{type: 'childList', target: parent, addedNodes: [], removedNodes: [identity]} as unknown as MutationRecord]);
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(owner)).toBe(false);
+            expect(owner.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        });
+
+        it('coalesces same-overlay identity removals and discovers each newly eligible label once', async () => {
+            const {owner: author, neighbor} = fixture('author', true);
+            const overlay = document.querySelector<HTMLElement>('#overlay')!;
+            const media = document.createElement('div');
+            media.innerHTML = '<div id="image-parent"><img id="thumbnail" src="https://pbs.twimg.com/tweet_video_thumb/test"></div>' +
+                '<div id="gif" class="bg-black-80 text-on-color text-subtext3 font-bold">GIF</div>';
+            overlay.appendChild(media);
+            const gif = media.querySelector<HTMLElement>('#gif')!;
+            setLayoutBox(gif, 300, 40);
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.realCore!.shouldStayOriginal(author)).toBe(true);
+            expect(runtime.realCore!.shouldStayOriginal(gif)).toBe(true);
+            const discover = vi.spyOn(runtime.realCore!, 'discoverSteps');
+            const before = runtime.requests.mock.calls.flatMap(([sources]) => [...sources]);
+            const avatar = document.querySelector<HTMLElement>('#avatar')!;
+            const thumbnail = document.querySelector<HTMLElement>('#thumbnail')!;
+            const avatarParent = avatar.parentElement!, imageParent = thumbnail.parentElement!;
+            const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+            avatar.remove(); thumbnail.remove();
+            observer.emitRegistered([
+                {type: 'childList', target: avatarParent, addedNodes: [], removedNodes: [avatar]},
+                {type: 'childList', target: imageParent, addedNodes: [], removedNodes: [thumbnail]},
+            ] as unknown as MutationRecord[]);
+            await finishScheduledWork();
+            const after = runtime.requests.mock.calls.flatMap(([sources]) => [...sources]).slice(before.length);
+            expect(discover.mock.calls.filter(([root]) => root === overlay)).toHaveLength(1);
+            expect(after.filter(source => source === 'A video author name')).toHaveLength(1);
+            expect(after.filter(source => source === 'GIF')).toHaveLength(1);
+            expect(author.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(gif.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(neighbor.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        });
+    });
 
     it(
         'ordinary class does not inspect all owners synchronously; timer removes excluded owner',
@@ -2223,6 +2426,264 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledOnce();
         expect(runtime.requests).toHaveBeenCalledWith(['New route paragraph.']);
         expect(singleTranslationText(newTarget)).toBe('译:New route paragraph.');
+    });
+
+    it.each(['old', 'replacement', 'new-request'] as const)('%s owner 的恢复或新请求只撤销相应重挂令牌', async which => {
+        document.body.innerHTML = '<p id="first">First original paragraph.</p><p id="second">Second original paragraph.</p><p id="replacement">Replacement.</p>';
+        const first = document.querySelector<HTMLElement>('#first')!;
+        const second = document.querySelector<HTMLElement>('#second')!;
+        const replacement = document.querySelector<HTMLElement>('#replacement')!;
+        [first, second, replacement].forEach(element => setLayoutBox(element, 300, 40));
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        const attempts: Array<{cancel: ReturnType<typeof vi.fn>}> = [];
+        const spy = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((candidate, _x, _y, _current, onCancel) => {
+            const cancel = vi.fn(() => onCancel?.());
+            attempts.push({cancel});
+            return {cancel, ownsOwner: element => element === candidate.element || (candidate.element === first && element === replacement),
+                waitForReplacement: async () => true, finish: () => null};
+        });
+        try {
+            runtime.pointCandidate = {element: first, kind: 'content', reason: 'first', scope: 'content'};
+            runtime.candidates = [runtime.pointCandidate];
+            handleTranslation(20, 20, {inputSource: 'mouse-shortcut'});
+            await waitForRequestCount(1);
+            runtime.pointCandidate = {element: second, kind: 'content', reason: 'second', scope: 'content'};
+            runtime.candidates = [runtime.pointCandidate];
+            handleTranslation(20, 20, {inputSource: 'mouse-shortcut'});
+            await waitForRequestCount(2);
+            expect(attempts).toHaveLength(2);
+            if (which === 'old') first.remove();
+            if (which === 'new-request') {
+                runtime.pointCandidate = {element: replacement, kind: 'content', reason: 'replacement', scope: 'content'};
+                runtime.candidates = [runtime.pointCandidate];
+                handleTranslation(20, 20);
+                await waitForRequestCount(3);
+            } else restoreTranslationOwner(which === 'old' ? first : replacement);
+            expect(attempts[0]!.cancel).toHaveBeenCalledOnce();
+            expect(attempts[1]!.cancel).not.toHaveBeenCalled();
+            pending.resolve(['译文']);
+            await finishScheduledWork();
+        } finally { spy.mockRestore(); }
+    });
+
+    it.each(['changed', 'removed', 'context-only', 'cancelled'] as const)('重挂时个人校订 %s：新 owner 重查，取消不重试', async action => {
+        runtime.config.display = 1;
+        runtime.config.personalCorrectionsEnabled = true;
+        runtime.realSourceSnapshots = true;
+        replaceGlobal('location', {href: 'https://x.com/user/status/123'});
+        replaceGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => setTimeout(() => callback(0), 0));
+        replaceGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+        document.body.innerHTML = '<main><h2>Context heading</h2><article><p id="old">The original sentence stays the same.</p></article></main>';
+        const old = document.querySelector<HTMLElement>('#old')!;
+        setLayoutBox(old, 300, 40);
+        const replacement = old.cloneNode(true) as HTMLElement;
+        const candidate = {element: old, kind: 'content' as const, reason: 'post', scope: 'content' as const};
+        const replacementCandidate = {...candidate, element: replacement};
+        runtime.pointCandidate = candidate; runtime.candidates = [candidate];
+        const pending = deferred<Awaited<ReturnType<typeof personalCorrections.lookup>>>();
+        const previous = {exact: {id: 'old-correction', revision: 1, translation: '旧校订'}};
+        const updated = {exact: {id: 'new-correction', revision: 2, translation: '新校订'}};
+        const lookup = vi.spyOn(personalCorrections, 'lookup')
+            .mockResolvedValueOnce(previous as never)
+            .mockReturnValueOnce(pending.promise)
+            .mockResolvedValue((action === 'changed' ? updated : action === 'context-only' ? previous : {}) as never);
+        const track = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((_candidate, _x, _y, _current, onCancel) => ({
+            cancel: () => onCancel?.(), ownsOwner: element => element === old || element === replacement, waitForReplacement: async () => true,
+            finish: stale => stale ? replacementCandidate : null,
+        }));
+        try {
+            handleTranslation(20, 20, {inputSource: 'mouse-shortcut'});
+            for (let count = 0; count < 30 && lookup.mock.calls.length < 2; count++) await vi.advanceTimersByTimeAsync(1);
+            expect(lookup).toHaveBeenCalledTimes(2);
+            old.replaceWith(replacement); setLayoutBox(replacement, 300, 40);
+            runtime.pointCandidate = replacementCandidate; runtime.candidates = [replacementCandidate];
+            if (action === 'cancelled') restoreTranslationOwner(old);
+            pending.resolve((action === 'changed' ? updated : action === 'removed' ? {} : previous) as never);
+            await finishScheduledWork();
+            if (action === 'cancelled') {
+                expect(lookup).toHaveBeenCalledTimes(2);
+                expect(replacement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            } else {
+                expect(lookup.mock.calls.length).toBeGreaterThanOrEqual(3);
+                expect(lookup.mock.calls[2]![0].context).toBe('Context heading');
+                expect(replacement.querySelector('.fluent-read-bilingual-content')?.textContent)
+                    .toBe(action === 'changed' ? '新校订' : action === 'context-only' ? '旧校订' : '译:The original sentence stays the same.');
+            }
+        } finally {track.mockRestore(); lookup.mockRestore();}
+    });
+
+    it.each(['accept', 'abort-rejection', 'other-owner', 'reason', 'scope', 'nodes', 'visualRange', 'manualChunk', 'sourceLine', 'applicationShellPolicyId', 'existing-state'] as const)(
+        '布局脱离后有界等待并复核重挂候选：%s', async variant => {
+            runtime.config.display = 1;
+            document.body.innerHTML = '<article><p id="old">Original pending paragraph.</p></article>';
+            const old = document.querySelector<HTMLElement>('#old')!;
+            const replacement = old.cloneNode(true) as HTMLElement;
+            setLayoutBox(old, 300, 40); setLayoutBox(replacement, 300, 40);
+            const candidate = {element: old, kind: 'content' as const, reason: 'post', scope: 'content' as const};
+            const replacementCandidate = {...candidate, element: replacement};
+            const pending = deferred<string[]>(); runtime.requests.mockImplementationOnce(() => pending.promise);
+            const finish = vi.fn((stale: boolean) => stale ? replacementCandidate : null);
+            const cancelFrame = vi.fn();
+            replaceGlobal('requestAnimationFrame', () => 37);
+            replaceGlobal('cancelAnimationFrame', cancelFrame);
+            const track = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((_candidate, _x, _y, _current, onCancel) => ({
+                cancel: () => onCancel?.(), ownsOwner: element => element === old || element === replacement, waitForReplacement: async () => true, finish,
+            }));
+            try {
+                runtime.pointCandidate = candidate; runtime.candidates = [candidate];
+                handleTranslation(20, 20, {inputSource: 'mouse-shortcut'});
+                await waitForRequestCount(1);
+                const state = getTranslationState(old)!;
+                old.replaceWith(replacement);
+                state.layoutDetachedDiscard = true;
+                state.controller.abort();
+                const changed: Record<string, unknown> = {element: replacement, kind: 'content', reason: 'post', scope: 'content'};
+                let other: HTMLElement | undefined;
+                if (variant === 'other-owner') {
+                    other = document.createElement('p'); other.textContent = 'Another paragraph.';
+                    replacement.parentElement!.appendChild(other); setLayoutBox(other, 300, 40);
+                    changed.element = other;
+                }
+                if (variant === 'reason') changed.reason = 'other';
+                if (variant === 'scope') changed.scope = undefined;
+                if (variant === 'nodes') changed.nodes = [replacement.firstChild];
+                if (variant === 'visualRange' || variant === 'manualChunk') changed[variant] = {};
+                if (variant === 'sourceLine' || variant === 'applicationShellPolicyId') changed[variant] = 'different';
+                runtime.pointCandidate = changed as typeof candidate; runtime.candidates = [runtime.pointCandidate];
+                if (variant === 'existing-state') beginTranslation(replacement, 'bilingual');
+                if (variant === 'abort-rejection') pending.reject(new Error('aborted'));
+                else pending.resolve(['迟到旧译文']);
+                await vi.advanceTimersByTimeAsync(50);
+                expect(finish).not.toHaveBeenCalled();
+                await vi.advanceTimersByTimeAsync(60);
+                expect(cancelFrame).toHaveBeenCalledWith(37);
+                expect(finish).toHaveBeenCalledWith(true);
+                await finishScheduledWork();
+                expect(runtime.pointCalls.at(-1)).toEqual([20, 20, 'content']);
+                if (variant === 'accept' || variant === 'abort-rejection') expect(replacement.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+                else {
+                    expect(runtime.requests).toHaveBeenCalledTimes(1);
+                    expect(replacement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+                    if (other) expect(other.querySelector('.fluent-read-bilingual-content')).toBeNull();
+                }
+            } finally { track.mockRestore(); }
+        },
+    );
+
+    it.each(['replacement', 'restore', 'reconnected'] as const)(
+        '校订复验挂起时布局中止：%s 不等待旧校订或误用旧 owner', async action => {
+            runtime.config.display = 1;
+            replaceGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => setTimeout(() => callback(0), 0));
+            replaceGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+            document.body.innerHTML = '<article><p id="old">A pending correction must not pin a replaced paragraph.</p></article>';
+            const old = document.querySelector<HTMLElement>('#old')!;
+            const replacement = old.cloneNode(true) as HTMLElement;
+            setLayoutBox(old, 300, 40); setLayoutBox(replacement, 300, 40);
+            const candidate = {element: old, kind: 'content' as const, reason: 'post', scope: 'content' as const};
+            const replacementCandidate = {...candidate, element: replacement};
+            runtime.pointCandidate = candidate; runtime.candidates = [candidate];
+            const pendingCheck = deferred<boolean>();
+            const guard = vi.spyOn(personalCorrectionRuntime, 'personalCorrectionIsCurrent')
+                .mockImplementationOnce(() => pendingCheck.promise).mockResolvedValue(true);
+            const finish = vi.fn((stale: boolean) => stale ? replacementCandidate : null);
+            const track = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((_candidate, _x, _y, _current, onCancel) => ({
+                cancel: () => onCancel?.(), ownsOwner: element => element === old || element === replacement,
+                waitForReplacement: async () => true, finish,
+            }));
+            try {
+                handleTranslation(20, 20, {inputSource: 'mouse-shortcut'});
+                for (let i = 0; i < 30 && guard.mock.calls.length === 0; i++) await vi.advanceTimersByTimeAsync(1);
+                expect(guard).toHaveBeenCalledOnce();
+                const oldState = getTranslationState(old)!;
+                old.replaceWith(replacement);
+                runtime.pointCandidate = replacementCandidate; runtime.candidates = [replacementCandidate];
+                if (action === 'restore') restoreTranslationOwner(old);
+                if (action === 'reconnected') replacement.replaceWith(old);
+                if (action !== 'restore') {oldState.layoutDetachedDiscard = true; oldState.controller.abort();}
+                await finishScheduledWork();
+                if (action === 'replacement') {
+                    expect(finish).toHaveBeenCalledWith(true);
+                    expect(replacement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                    expect(guard).toHaveBeenCalledTimes(2);
+                } else {
+                    expect(replacement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+                    expect(old.querySelector('.fluent-read-bilingual-content')).toBeNull();
+                    expect(guard).toHaveBeenCalledOnce();
+                    if (action === 'reconnected') expect(finish).toHaveBeenCalledWith(false);
+                    else expect(finish).not.toHaveBeenCalled();
+                }
+                pendingCheck.reject(new Error('obsolete correction check'));
+                await finishScheduledWork();
+                expect(replacement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(action === 'replacement' ? 1 : 0);
+            } finally { pendingCheck.resolve(true); guard.mockRestore(); track.mockRestore(); }
+        },
+    );
+
+    it('普通 abort 后 owner 脱离不视为布局清理，不进入重挂重试', async () => {
+        document.body.innerHTML = '<p>Cancelled source paragraph.</p>';
+        const old = document.querySelector<HTMLElement>('p')!; setLayoutBox(old, 300, 40);
+        const candidate = {element: old, kind: 'content' as const, reason: 'post', scope: 'content' as const};
+        runtime.pointCandidate = candidate; runtime.candidates = [candidate];
+        const pending = deferred<string[]>(); runtime.requests.mockImplementationOnce(() => pending.promise);
+        const finish = vi.fn(() => null);
+        const track = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((_candidate, _x, _y, _current, onCancel) => ({
+            cancel: () => onCancel?.(), ownsOwner: element => element === old, waitForReplacement: async () => true, finish,
+        }));
+        try {
+            handleTranslation(20, 20, {inputSource: 'mouse-shortcut'}); await waitForRequestCount(1);
+            getTranslationState(old)!.controller.abort(); old.remove(); pending.resolve(['迟到译文']);
+            await finishScheduledWork();
+            expect(finish).toHaveBeenCalledWith(false);
+            expect(runtime.requests).toHaveBeenCalledOnce();
+        } finally {track.mockRestore();}
+    });
+
+    it.each(['replaced', 'cancelled'] as const)('旧请求先结束时保持重挂令牌直至替换或取消：%s', async action => {
+        runtime.config.display = 1;
+        replaceGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => setTimeout(() => callback(0), 0));
+        replaceGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+        document.body.innerHTML = '<article><p id="old">Original pending paragraph.</p></article>';
+        const old = document.querySelector<HTMLElement>('#old')!;
+        const replacement = old.cloneNode(true) as HTMLElement;
+        setLayoutBox(old, 300, 40); setLayoutBox(replacement, 300, 40);
+        const candidate = {element: old, kind: 'content' as const, reason: 'post', scope: 'content' as const};
+        const replacementCandidate = {...candidate, element: replacement};
+        runtime.pointCandidate = candidate; runtime.candidates = [candidate];
+        const request = deferred<string[]>(), waiting = deferred<boolean>();
+        runtime.requests.mockImplementationOnce(() => request.promise);
+        const waitForReplacement = vi.fn(() => waiting.promise);
+        const finish = vi.fn((stale: boolean) => stale ? replacementCandidate : null);
+        const cancel = vi.fn(() => waiting.resolve(false));
+        const track = vi.spyOn(hoverRemountRecovery, 'trackXHoverRemount').mockImplementation((_candidate, _x, _y, _current, onCancel) => ({
+            cancel: () => {cancel(); onCancel?.();}, ownsOwner: element => element === old || element === replacement,
+            waitForReplacement, finish,
+        }));
+        try {
+            handleTranslation(20, 20, {inputSource: 'mouse-shortcut'}); await waitForRequestCount(1);
+            const state = getTranslationState(old)!;
+            old.replaceWith(replacement); state.layoutDetachedDiscard = true; state.controller.abort();
+            runtime.pointCandidate = replacementCandidate; runtime.candidates = [replacementCandidate];
+            request.resolve(['迟到旧译文']);
+            await vi.advanceTimersByTimeAsync(10);
+            expect(waitForReplacement).toHaveBeenCalledOnce();
+            expect(runtime.requests).toHaveBeenCalledOnce();
+            if (action === 'cancelled') restoreTranslationOwner(replacement);
+            else waiting.resolve(true);
+            await finishScheduledWork();
+            if (action === 'cancelled') {
+                expect(cancel).toHaveBeenCalled();
+                expect(finish).not.toHaveBeenCalled();
+                expect(runtime.requests).toHaveBeenCalledOnce();
+                expect(replacement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            } else {
+                expect(finish).toHaveBeenCalledWith(true);
+                // 同源请求可由当前会话复用，关键行为是最终新 owner 真正显示译文。
+                expect(runtime.requests.mock.calls.length).toBeGreaterThanOrEqual(1);
+                expect(runtime.requests.mock.calls.length).toBeLessThanOrEqual(2);
+                expect(replacement.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+            }
+        } finally {track.mockRestore();}
     });
 
     it.each(['hidden', 'disabled', 'session-reset', 'generation-invalidated'])(
