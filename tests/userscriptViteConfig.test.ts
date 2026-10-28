@@ -463,6 +463,8 @@ describe('userscript bundled library notices', () => {
         } finally {rmSync(fixture, {recursive: true, force: true});}
     });
 
+    // Real standalone Vite configuration compresses large catalogs in workers. Give
+    // those tests time to finish cleanup before another case changes the environment.
     it('standalone shares only complete canonical MIT terms across real bundled dependencies and nested notices', async () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '1');
         vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '0');
@@ -501,7 +503,7 @@ describe('userscript bundled library notices', () => {
             expect(Buffer.byteLength(completeNotices) - Buffer.byteLength(result)).toBeGreaterThan(5_000);
             expect(standaloneNotices(packages.map(item => item.moduleId).reverse())).toBe(result);
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('standalone preserves copyright, sources, surrounding clauses, different terms and non-MIT notices', async () => {
         const fixture = mkdtempSync(resolve(tmpdir(), 'fluentread-shared-mit-notices-'));
@@ -542,7 +544,7 @@ describe('userscript bundled library notices', () => {
             writeFileSync(resolve(ids[0], '../LICENSE'), 'Copyright (c) Owner\n*/\nUntrusted code');
             expect(() => standaloneNotices([ids[0]])).toThrow('Unsafe bundled library license comment: mit-0');
         } finally {rmSync(fixture, {recursive: true, force: true});vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 });
 
 describe('standalone settings compression compatibility', () => {
@@ -675,7 +677,7 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
             }
             expect(JSON.stringify(data)).toBe(before);
         } finally {vi.doUnmock('node:vm');vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 });
 
 describe('userscript browser shim injection', () => {
@@ -757,7 +759,7 @@ describe('userscript browser shim injection', () => {
                 expect(metadataIcon).not.toBe(runtimeIcon);
             }
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
     it.each<readonly [string, Record<string, string>, Record<string, string>]>([
         ['zh-CN', extensionChinese, zhCNMessages],
         ...Object.entries(extensionBundles).map(([language, bundle]) => [language, bundle.messages, userscriptMessages(bundle.messages)] as const),
@@ -920,7 +922,7 @@ describe('userscript browser shim injection', () => {
                 expect(current.zhCNMessages).toEqual(zhCNMessages);
             }
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('updates every changed Chinese message when Greasy Fork uses its pinned old data', async () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
@@ -948,7 +950,7 @@ describe('userscript browser shim injection', () => {
             expect(Object.keys(result).some(key => result[key] !== data.zhCNMessages[key])).toBe(true);
             expect(JSON.stringify(data)).toBe(before);
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('embeds the English bundle without the extension document and full-options statistics keys and preserves every other field', () => {
         const defines = (userscriptConfig as {define: Record<string, string>}).define;
@@ -1008,7 +1010,7 @@ describe('userscript browser shim injection', () => {
                 expect(source instanceof Promise).toBe(standalone && !greasy);
                 expect(await source).toContain('zhCNMessages');
             } finally {vi.unstubAllEnvs(); vi.resetModules();}
-        },
+        }, 30_000,
     );
 
     it('applies the same absent-page boundary to standalone and preserves every remaining message', async () => {
@@ -1040,7 +1042,7 @@ describe('userscript browser shim injection', () => {
             }
             expect(defines.__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__).toBe((userscriptConfig as {define: Record<string, string>}).define.__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__);
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('rejects the standalone Chinese catalog load if its isolated compression fails', async () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '1');
@@ -1057,7 +1059,7 @@ describe('userscript browser shim injection', () => {
             expect(worker).toHaveBeenCalledOnce();
             worker.mockRestore();
         } finally {vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.resetModules();}
-    });
+    }, 30_000);
 
     it('initializes shared keys through the actual standalone loader dependency graph without provider prewarming', async () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '1');
@@ -1107,7 +1109,7 @@ describe('userscript browser shim injection', () => {
             expect(api.hasUiLanguageBundle('fr-FR')).toBe(false);
             expect(request).not.toHaveBeenCalled();
         } finally {rmSync(fixture, {recursive: true, force: true});vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     // Two modes each compress three catalogs using multiple gzip configurations.
     it('standard and standalone site catalogs preserve the same decoded rules', async () => {
@@ -1156,7 +1158,7 @@ describe('userscript browser shim injection', () => {
             expect(worker).toHaveBeenCalledOnce();
             worker.mockRestore();
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('keeps the compact catalog gzip when the worker candidate is larger', async () => {
         try {
@@ -1176,7 +1178,7 @@ describe('userscript browser shim injection', () => {
                 expect(gunzipSync(bytes)).toEqual(input);
             } finally {worker.mockRestore();}
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 
     it('keeps all site rule JSON data intact when embedding compressed offline catalogs', async () => {
         const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {
@@ -1653,7 +1655,7 @@ describe('userscript locked franc pure-data encoding', () => {
             vi.unstubAllEnvs();
             vi.resetModules();
         }
-    });
+    }, 30_000);
 
     it.each([
         ['new-version', {name: 'franc-min', version: '6.3.0'}],
@@ -1924,7 +1926,7 @@ describe('standalone locked public and private suffix pure-data encoding', () =>
             vi.unstubAllEnvs();
             vi.resetModules();
         }
-    });
+    }, 30_000);
 
     it.each([
         ['new-version', {name: 'tldts', version: '7.4.11'}],
@@ -1971,7 +1973,7 @@ describe('standalone locked public and private suffix pure-data encoding', () =>
             vi.unstubAllEnvs();
             vi.resetModules();
         }
-    });
+    }, 30_000);
 
 
     it('restores all seven locked exports without TextDecoder or a manager decoder global', () => {
@@ -2263,7 +2265,7 @@ describe('standalone About images at explicit use boundaries', () => {
             rmSync(fixture, {recursive: true, force: true});
             vi.unstubAllEnvs();vi.resetModules();
         }
-    });
+    }, 30_000);
 });
 
 describe('standalone service brand paths at actual icon use', () => {
@@ -2453,7 +2455,7 @@ describe('standalone service brand paths at actual icon use', () => {
             expect(realm.controlledHostData).toBe(hostData);
             expect(readFileSync(resolve(root, 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8')).toContain('Copyright (c) 2023 LobeHub');
         } finally {rmSync(fixture, {recursive: true, force: true});vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 });
 
 // 只替换调用者和共享编排的测试端口；两个生产 wrapper、HTTP 实现及锁定 SDK 均由真实 Vite 解析、编译和执行。
@@ -2719,7 +2721,7 @@ describe('userscript appearance registry data owner', () => {
             runInNewContext(chunk.code,realm,{timeout:5000});expect(realm.appearanceOwner).toBeDefined();complete(realm.appearanceOwner!);expect(decode).toHaveBeenCalledTimes(enabled?2:0);
             expect(readFileSync(resolve(root,'public/third-party-notices/lobe-icons-MIT.txt'),'utf8')).toContain('Copyright (c) 2023 LobeHub');
         }finally{rmSync(directory,{recursive:true,force:true});vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 });
 
 describe('standalone immutable glossary and UI catalogs', () => {
@@ -2832,5 +2834,5 @@ describe('userscript bundled CSS encoding', () => {
             expect(gunzipSync(bytes).toString('utf8')).toBe(css);
             expect(bundle).not.toHaveProperty('fixture.css');
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 30_000);
 });
