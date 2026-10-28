@@ -254,7 +254,12 @@ export class MaterialRepository {
 function normalizeImportedMaterial(value: MaterialRecord, now: number): MaterialRecord & {aliases: string[]} {
     if (!value || typeof value !== 'object' || !Array.isArray(value.references) || value.references.length > 1000) throw new MaterialError('invalid-input', '材料记录无效');
     const normalized = normalizeMaterialSource(value.source);
-    const title = materialText(value.title, 240);
+    let title = materialText(value.title, 240);
+    // 无标题采集会使用完整规范主机名，后续来源可能已改动；恢复时保留此类
+    // 可由采集产生的长标题，其他导入标题仍遵循 240 字的显式编辑限制。
+    if (typeof value.title === 'string' && value.title.length > 240 && value.title.length <= 8192 * 16 + 16) {
+        try {if (new URL(`https://${value.title}`).hostname === value.title) title = value.title;} catch {/* 非规范主机名按普通标题处理。 */}
+    }
     if (!title) throw new MaterialError('invalid-input', '材料标题无效');
     const timestamp = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.min(value, now) : now;
     const aliases: string[] = [];
