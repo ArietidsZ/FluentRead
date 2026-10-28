@@ -84,8 +84,8 @@ describe('material identities and locators', () => {
         let sessionKindReads = 0;
         const session = {
             get kind() {return ++sessionKindReads === 1 ? 'session' as const : 'note' as const;},
-            id:'s', get note() {throw Error('private note read');},
-            get updatedAt() {throw Error('private timestamp read');}, createdAt:0,
+            id:'s', get note(): string {throw Error('private note read');},
+            get updatedAt(): number {throw Error('private timestamp read');}, createdAt:0,
         };
         expect(normalizeMaterialReference(session, 10)).toEqual({kind:'session',id:'s',createdAt:0});
         expect(sessionKindReads).toBe(1);
