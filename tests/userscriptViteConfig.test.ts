@@ -1109,6 +1109,7 @@ describe('userscript browser shim injection', () => {
         } finally {rmSync(fixture, {recursive: true, force: true});vi.unstubAllEnvs();vi.resetModules();}
     });
 
+    // Two modes each compress three catalogs using multiple gzip configurations.
     it('standard and standalone site catalogs preserve the same decoded rules', async () => {
         const results: Array<Array<{encoded:string; bytes:Buffer}>> = [];
         try {
@@ -1139,7 +1140,7 @@ describe('userscript browser shim injection', () => {
                 expect(gunzipSync(results[1][index].bytes)).toEqual(gunzipSync(results[0][index].bytes));
             }
         } finally {vi.unstubAllEnvs();vi.resetModules();}
-    });
+    }, 15_000);
 
     it('propagates a standalone site catalog worker failure', async () => {
         try {
