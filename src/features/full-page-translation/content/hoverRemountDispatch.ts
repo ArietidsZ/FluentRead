@@ -71,7 +71,7 @@ export function createHoverRemountDispatch(ports: HoverRemountDispatchPorts) {
                 resolved.nodes?.length || resolved.visualRange || resolved.manualChunk || resolved.sourceLine !== candidate.sourceLine ||
                 resolved.allowTopLevelApplicationShell !== candidate.allowTopLevelApplicationShell ||
                 resolved.applicationShellPolicyId !== candidate.applicationShellPolicyId || hasState) return;
-            void ports.translate(resolved, snapshot, false);
+            await ports.translate(resolved, snapshot, false);
         }).catch(error => {recovery?.cancel(); ports.warn(error);});
     };
     const scheduler = new HoverTranslationScheduler({

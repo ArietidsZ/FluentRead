@@ -1157,6 +1157,41 @@ describe("全文翻译可见性锚点", () => {
         expect(subtitle.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
     });
 
+    it('keeps a dynamically inserted Microsoft Learn code language label original', async () => {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.realTextExtraction = true;
+        runtime.realSourceSnapshots = true;
+        document.body.innerHTML = '<main><article id="article"><p id="intro">An introduction to the sample request.</p></article></main>';
+        const article = document.querySelector<HTMLElement>('#article')!;
+        const intro = document.querySelector<HTMLElement>('#intro')!;
+        setLayoutBox(intro, 300, 40);
+        runtime.realCore = new TranslationCandidateCore({
+            url: new URL('https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate'),
+            adapters: composeSiteAdapters(builtinSiteRulePack, normalizeSiteAdaptationSettings(undefined)),
+        });
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(intro.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        const header = document.createElement('div');
+        header.setAttribute('data-code-block-header', '');
+        header.innerHTML = '<span id="language" class="code-block-header-language">JSON</span><span id="caption">Readable code example.</span>';
+        article.append(header);
+        const language = header.querySelector<HTMLElement>('#language')!;
+        const caption = header.querySelector<HTMLElement>('#caption')!;
+        [header, language, caption].forEach(element => setLayoutBox(element, 300, 40));
+        const observer = TestMutationObserver.instances.find(instance => instance.observed.has(document.documentElement))!;
+        observer.emitRegistered([{type: 'childList', target: article, addedNodes: [header], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.realCore!.shouldStayOriginal(language)).toBe(true);
+        expect(language.textContent).toBe('JSON');
+        expect(language.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(runtime.requests.mock.calls.flatMap(([items]) => [...items]).some(item => item.includes('JSON'))).toBe(false);
+        expect(runtime.requests.mock.calls.flatMap(([items]) => [...items])).toContain('Readable code example.');
+        expect(header.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+    });
+
     describe('Microsoft Learn parameter table protection transitions in a full-page session', () => {
         function fixture() {
             replaceGlobal('performance', {now: () => Date.now()});

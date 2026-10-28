@@ -117,6 +117,16 @@ describe('hover remount dispatch', () => {
         expect(h.ports.warn).toHaveBeenCalledWith(error);
     });
 
+    it('reports a rejected retry after the replacement has been accepted', async () => {
+        vi.useFakeTimers(); const h = setup(); const error = new Error('retry failed');
+        h.ports.translate.mockRejectedValueOnce(error);
+        await h.launch(); h.setPoint(h.replacement); h.finishRequest({status: 'stale', detachedHoverAttempt: true});
+        await vi.advanceTimersByTimeAsync(0);
+        expect(h.ports.translate).toHaveBeenCalledTimes(2);
+        expect(h.ports.warn).toHaveBeenCalledOnce();
+        expect(h.ports.warn).toHaveBeenCalledWith(error);
+    });
+
     it('caps simultaneous tracked owners without preventing normal translation', async () => {
         vi.useFakeTimers(); const h = setup();
         h.ports.translate.mockReset().mockImplementation(() => new Promise(() => {}));

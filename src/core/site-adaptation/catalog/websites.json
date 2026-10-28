@@ -667,7 +667,10 @@
         "/auth/*"
       ]
     },
-    "profile": "documentation"
+    "profile": "documentation",
+    "exclude": [
+      "main [data-code-block-header] > span.code-block-header-language"
+    ]
   },
   {
     "id": "microsoft-learn-translator-v3-parameters",
