@@ -631,6 +631,7 @@
       "tests/mangaBubbles.test.ts",
       "tests/mangaCanvas.test.ts",
       "tests/mangaCompositor.test.ts",
+      "tests/mangaDetectionFailure.test.ts",
       "tests/mangaEntry.test.ts",
       "tests/mangaEntryComponentLifecycle.test.ts",
       "tests/mangaImageSegments.test.ts",
