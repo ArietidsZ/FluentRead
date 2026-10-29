@@ -14,7 +14,8 @@ function fixture(html: string) {
     const {document, window} = parseHTML(`<html><head></head><body>${html}</body></html>`);
     const observers: Array<{callback: MutationCallback; roots: Node[]; active: boolean}> = [];
     const priorities = new WeakMap<object, Map<string, string>>();
-    const prototype = Object.getPrototypeOf(document.body.style) as CSSStyleDeclaration;
+    const prototype = Object.getPrototypeOf(document.body.style) as Pick<CSSStyleDeclaration,
+        'getPropertyValue' | 'setProperty' | 'removeProperty' | 'getPropertyPriority'>;
     if (!prototype.getPropertyPriority) {
         Object.defineProperty(prototype, 'getPropertyPriority', {configurable: true, value() {return '';}});
         patchedPriorityPrototypes.add(prototype);
