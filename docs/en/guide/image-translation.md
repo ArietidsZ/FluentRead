@@ -51,6 +51,7 @@ Small or decorative text, names, tilted lettering, and background repairs can be
 
 - **No icon:** avatars, icons, emoji, video previews, and small images are usually skipped. Use the context menu or open a clear original. A viewer or menu covering an image temporarily hides its controls.
 - **Incorrect recognition:** check the source language and use a clear original. Complex tables, decorative fonts, and vertical text outside Japanese are harder to recognize. Check names, numbers, and units.
+- **Recognition fails:** retry as prompted. Failed manga pages retain their originals; switch to originals and back to retry.
 - **Translation fails:** retry as prompted or change the image translation service. After an extension update or reload, refresh the webpage first.
 - **A local model fails:** use **Adjust local model** to check resources and supported languages, or **Change image translation service**. Return to the image and retry after making changes. Text is not automatically sent to an online service instead.
 
