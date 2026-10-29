@@ -950,9 +950,11 @@ node scripts/testing/run-translation-mutation-test.cjs \
   --artifacts-dir /private/tmp/fluentread-translation-mutation
 ```
 
-该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。表单内的具名 submit 与用户输入框属于非候选控件，按完整 `outerHTML` 比对翻译前后与恢复原文，确保布局租约不在同层控件上留下属性残留。此类断言要求证据截图保持非侵入：Playwright 默认的 `caret: 'hide'` 会给每个 `input`/`textarea`/`[contenteditable]` 写入 `caret-color` 再以空值清除，在宿主控件上留下空 `style` 属性，因此浏览器回归截图统一使用 `caret: 'initial'`。
+该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。表单内的具名 submit 与用户输入框属于非候选控件，按完整 `outerHTML` 比对翻译前后与恢复原文，确保布局租约不在同层控件上留下属性残留。此类断言要求证据截图保持非侵入：已核对的本地 Playwright 实现默认以 `caret: 'hide'` 给每个 `input`/`textarea`/`[contenteditable]` 写入 `caret-color` 再以空值清除，在原无样式的宿主控件上留下空 `style` 属性，因此浏览器回归截图使用 `caret: 'initial'`。真实站点脚本导出 `captureEvidence` 供证据脚本复用，Reddit 专项的成功与失败截图遵循同一参数；严格 DOM、源节点身份、恢复和原始运行时诊断门禁保持不变。
 
 ### Reddit 多翻译器共存与搜索结果
+
+普通 `shreddit-comment` 的 `slot="comment"` 和 `*-comment-rtjson-content` 正文同时发现段落、列表、引用、六级标题和表格单元格；全文与悬浮共享这些明确的正文边界。列表、引用和单元格及其内嵌的普通 `div` 允许内部独立正文拥有各自的译文，子块前后的直接文字也分别保留，避免多个段落被拼接、遗漏或重复翻译。评论作者、正文外的近似标记、代码、编辑器和操作按钮继续保留原文。`translationCore.test.ts` 与 `translationSnapshotProtection.test.ts` 核对完整候选、混合文本、段落边界、链接和源节点身份、重复翻译恢复，以及正文标记失效和动态新增。标题与表格是 [Reddit 官方格式指南](https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide) 支持的正文格式；原创结构夹具不等同于当前实站验收。
 
 页面 HTML 曾同时包含外部译文的 font 容器与 FluentRead 双语 wrapper。旧快照把前者作为受保护原文复制，净化后丢失其标记，形成第三份译文。`translationCore.test.ts` 覆盖该结构的候选边界、快照省略与普通术语/代码保留。
 
@@ -1549,6 +1551,7 @@ pnpm test:pdf-selection -- \
   --extension-dir .output/chrome-mv3 \
   --playwright-root <Node包目录> \
   --focus-safe-helper <浏览器测试技能>/scripts/focus-safe-browser.cjs \
+  --runtime-diagnostics-helper <浏览器测试技能>/scripts/runtime-diagnostics.cjs \
   --arxiv-pdf <已下载的1706.03762.pdf> \
   --live-arxiv \
   --artifacts-dir /private/tmp/fluentread-pdf-selection

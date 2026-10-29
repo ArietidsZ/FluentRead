@@ -1,5 +1,5 @@
 import {describe,expect,it,vi} from 'vitest';
-import {layoutMangaTranslationText,MANGA_TEXT_FONT} from '@/src/features/image-translation/services/mangaTypography';
+import {createMangaTranslationSearch,layoutMangaTranslationText,MANGA_TEXT_FONT} from '@/src/features/image-translation/services/mangaTypography';
 import {drawMangaTranslations,sampleMangaBackgrounds} from '@/src/features/image-translation/services/mangaRendering';
 import type {MangaAlphaProtection} from '@/src/features/image-translation/services/mangaAlphaProtection';
 const measure = (text: string,size: number) => Array.from(text).length * size;
@@ -48,6 +48,94 @@ describe('透明图案与完整译文共同排版',()=>{
     });
 });
 describe('漫画专用完整排版',()=>{
+    it.each(['東京𠀀HELLO（文字）','𠀀HELLO(文字)','𠀀HELLO[文字]','𠀀HELLO“文字”',
+        '𠀀!HELLO','ｶﾞ?WORLD','𠀀,HELLO','𠀀.HELLO','𠀀)HELLO','𠀀]HELLO','𠀀!?HELLO'])
+    ('混排 %s 的标点不落在错误的行首或行尾',text=>{
+        const segmenter=new Intl.Segmenter(undefined,{granularity:'grapheme'});
+        const textMeasure=(value:string,size:number)=>Array.from(segmenter.segment(value)).length*size;
+        for(const width of [2,3,4,5,6,7]) {
+            const layout=layoutMangaTranslationText(text,width,100,textMeasure,1);
+            expect(layout.lines.join('')).toBe(text);
+            expect(layout.lines.slice(0,-1).every(line=>!/[（【「『《〈“‘(\[]$/u.test(line))).toBe(true);
+            expect(layout.lines.slice(1).every(line=>!/^[，。！？、；：）】」』》〉”’….,!?;)\]]/u.test(line))).toBe(true);
+            const search=createMangaTranslationSearch(text,textMeasure,1);
+            expect(search.finish(search.prepare(width,100))).toEqual(layout);
+        }
+    });
+    it.each(['𠀀3.14','𠀀example.com','𠀀https://example.com/x','𠀀HELLO-WORLD'])
+    ('可容纳时混排完整保留拉丁词 %s',text=>{
+        const measure=(value:string,size:number)=>Array.from(value).length*size;
+        const word=Array.from(text).slice(1).join('');
+        expect(layoutMangaTranslationText(text,word.length,100,measure,1).lines).toEqual(['𠀀',word]);
+    });
+    it.each(['𠀀HELLO（\u0301文字）','𠀀HELLO（\uFE0F文字）','𠀀HELLO（🏽文字）','𠀀HELLO（\u200d文字）','𠀀HELLO\u0600（文字）'])
+    ('含组合标记的开括号 %s 与后文共同换行',text=>{
+        const segmenter=new Intl.Segmenter(undefined,{granularity:'grapheme'});
+        const measure=(value:string,size:number)=>Array.from(segmenter.segment(value)).length*size;
+        for(const width of [2,3,4,5,6,7]){
+            const layout=layoutMangaTranslationText(text,width,100,measure,1);
+            expect(layout.lines.join('')).toBe(text);
+            for(const line of layout.lines.slice(0,-1)) {
+                const graphemes=Array.from(segmenter.segment(line),item=>item.segment);
+                expect(graphemes.at(-1)).not.toMatch(/[（【「『《〈“‘(\[]/u);
+            }
+        }
+    });
+    it.each(['𠀀!\u0301HELLO','𠀀\u0600!HELLO','𠀀\u0d4e!HELLO'])
+    ('带组合标记或前置字符的闭标点 %s 不在行首',text=>{
+        const segmenter=new Intl.Segmenter(undefined,{granularity:'grapheme'});
+        const measure=(value:string,size:number)=>Array.from(segmenter.segment(value)).length*size;
+        for(const width of [2,3,4,5,6,7]){
+            const layout=layoutMangaTranslationText(text,width,100,measure,1);
+            expect(layout.lines.join('')).toBe(text);
+            for(const line of layout.lines.slice(1)){
+                const first=segmenter.segment(line)[Symbol.iterator]().next().value?.segment;
+                expect(first).not.toMatch(/[，。！？、；：）】」』》〉”’….,!?;:)\]]/u);
+            }
+        }
+    });
+    it('开括号后的普通或全角空格被归一化并随下一字换行',()=>{
+        const measure=(value:string,size:number)=>Array.from(value).length*size;
+        for(const text of ['A（ 文字）','A（　文字）']){
+            const layout=layoutMangaTranslationText(text,3,100,measure,1);
+            expect(layout.lines.join('')).toBe('A（ 文字）');
+            expect(layout.lines.slice(0,-1).every(line=>!/[（【「『《〈“‘(\[]\s*$/u.test(line))).toBe(true);
+        }
+    });
+    it('段首闭括号及段尾开括号在没有相邻文字时仍完整保留',()=>{
+        const measure=(value:string,size:number)=>Array.from(value).length*size;
+        for(const text of [')HELLO','HELLO（','A（\n文字']){
+            const layout=layoutMangaTranslationText(text,3,100,measure,1);
+            expect(layout.lines.join('')).toBe(text.replace('\n',''));
+        }
+    });
+    it('扩展东亚文字与英文相邻时保持完整英文词',()=>{
+        const graphemeMeasure=(text:string,size:number)=>Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)).length*size;
+        for(const eastAsian of ['𠀀','𠀀\u{E0100}','𛀁','𛄠','ｶﾞ']) {
+            const layout=layoutMangaTranslationText(`${eastAsian}HELLO`,5,2.5,graphemeMeasure,1);
+            expect(layout.lines).toEqual([eastAsian,'HELLO']);
+            const search=createMangaTranslationSearch(`${eastAsian}HELLO`,graphemeMeasure,1);
+            expect(search.finish(search.prepare(5,2.5))?.lines).toEqual(layout.lines);
+        }
+    });
+    it.each(['かﾞ','ｶﾞﾞ','漢🏽','㊗️🏽','\u0600𠀀','\u0d4e𠀀','각','👩‍㊗️'])
+    ('组合字素 %s 跨词界时不被换行拆散',cluster=>{
+        const graphemeMeasure=(text:string,size:number)=>Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)).length*size;
+        const text=`${cluster}HELLO`,layout=layoutMangaTranslationText(text,1,20,graphemeMeasure,1);
+        expect(layout.lines[0]).toBe(cluster);expect(layout.lines.join('')).toBe(text);
+    });
+    it('组合字素邻接文本与显式换行时仍保留完整译文',()=>{
+        const graphemeMeasure=(text:string,size:number)=>Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)).length*size;
+        const text='x👩‍㊗️HELLO\n「𠀀HELLO」';
+        const layout=layoutMangaTranslationText(text,2,20,graphemeMeasure,1);
+        expect(layout.lines.join('')).toBe(text.replace('\n',''));
+        expect(layout.lines.filter(line=>line.includes('👩‍㊗️'))).toHaveLength(1);
+        expect(layout.lines.every(line=>!line.startsWith('\u200d'))).toBe(true);
+    });
+    it('前置字符紧邻空格时，空白归一化仍保留前置字符与后文',()=>{
+        const text='𠀀\u0600 HELLO';
+        expect(layoutMangaTranslationText(text,100,10,measure,1).lines).toEqual([text]);
+    });
     it('单行按实际字形上下界适配，行距不再重复挤掉识别框高度',()=>{
         const layout=layoutMangaTranslationText('你好',100,10,measure,10,(_text,size)=>({ascent:size*.7,descent:size*.2}));
         expect(layout).toEqual({lines:['你好'],fontSize:10,lineHeight:12,ink:{height:9,baselines:[7]}});
@@ -106,7 +194,21 @@ describe('漫画专用完整排版',()=>{
     it('缺少字素分段器时仍按 Unicode 码点保留长词',async()=>{
         vi.resetModules();
         vi.stubGlobal('Intl',new Proxy(Intl,{get:(target,key)=>key==='Segmenter'?undefined:Reflect.get(target,key)}));
-        try {const {layoutMangaTranslationText: fallback}=await import('@/src/features/image-translation/services/mangaTypography');expect(fallback('abc😊def',20,100,measure,10).lines.join('')).toBe('abc😊def');}
+        try {const {layoutMangaTranslationText: fallback,createMangaTranslationSearch: fallbackSearch}=await import('@/src/features/image-translation/services/mangaTypography');
+            expect(fallback('abc😊def',20,100,measure,10).lines.join('')).toBe('abc😊def');
+            // 精确对照主线：缺少分段器时继续沿用原来的分词、标点绑定与码点回退。
+            for(const [text,width,height,expected] of [
+                ['𠀀HELLO',5,2.5,['𠀀HE','LLO']], ['𠀀!HELLO',5,100,['𠀀!HE','LLO']],
+                ['𠀀HELLO（文字）',7,100,['𠀀HELL','O（文字）']], ['𠀀！？HELLO',6,100,['𠀀！？H','ELLO']],
+                ['𠀀!école',6,100,['𠀀!éc','ole']], ['𠀀HELLOé（文字）',8,100,['𠀀HELLO','é（文字）']],
+                ['𠀀!\u0301HELLO',3,100,['𠀀!\u0301','HEL','LO']], ['𠀀\u0600!HELLO',5,100,['𠀀\u0600!HE','LLO']],
+                ['A\n\nB',10,100,['A','','B']],
+            ] as const){
+                const layout=fallback(text,width,height,measure,1);
+                expect(layout.lines).toEqual(expected);
+                const search=fallbackSearch(text,measure,1);
+                expect(search.finish(search.prepare(width,height))).toEqual(layout);
+            }}
         finally {vi.unstubAllGlobals();vi.resetModules();}
     });
     it('英文单词、混排空格、长单词和显式空行均保留',()=>{

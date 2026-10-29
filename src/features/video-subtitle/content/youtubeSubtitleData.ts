@@ -4,6 +4,8 @@
  * 主要内容：定义 caption track 与 cue 模型，从页面脚本提取平衡 JSON，选择目标轨道、构造 json3 URL，校验 XML/json3 时间字段，按事件边界及有限撇号/引用规则合并词流并收敛增量前缀，生成可重复导出的时间轴和安全文件名。
  * 模块边界：模块不监听网络、不修改播放器 DOM也不调用翻译；runtime 消费生成的 cues，youtubeTimedTextBridge 只负责捕获响应，函数可在离线 fixture 中独立验证。
  */
+import {decodeTextareaHtml} from '@/src/shared/text/htmlEntities';
+
 export interface YoutubeCaptionTrack {
   baseUrl: string;
   languageCode: string;
@@ -163,9 +165,7 @@ export function buildYoutubeTimedTextUrl(track: YoutubeCaptionTrack): string {
 
 function decodeHtmlEntities(value: string): string {
   if (typeof document !== 'undefined') {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = value;
-    return textarea.value;
+    return decodeTextareaHtml(value);
   }
   return value
     .replace(/&amp;/g, '&')

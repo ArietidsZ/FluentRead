@@ -27,6 +27,7 @@ export interface HoverTranslationGestureConstants {
 export interface HoverTranslationInvocation {
     delayMs?: number;
     continuous?: boolean;
+    inputSource?: 'mouse-shortcut';
 }
 
 export interface HoverTranslationContentDependencies {
@@ -139,6 +140,11 @@ export function mountHoverTranslationContentFeature(
     let lastHoverX: number | undefined;
     let lastHoverY: number | undefined;
     let hasHoverWork = false;
+    // 固定热键激活时的位置；mouseover 可以先于 mousemove 更新当前坐标。
+    let gestureStartKnown = false;
+    let gestureObservedMovement = false;
+    let gestureStartX = 0;
+    let gestureStartY = 0;
     const isMac = /Mac|iPod|iPhone|iPad/.test(runtimeNavigator.platform);
     const noteExternalHostGesture = (event: Event) => {
         if (!signal.aborted && event.isTrusted) deps.noteBilingualHostGesture();
@@ -177,6 +183,8 @@ export function mountHoverTranslationContentFeature(
         screen.hasSlideTranslation = false;
         screen.gestureHotkey = '';
         screen.gestureSharedWithSelection = false;
+        gestureStartKnown = false;
+        gestureObservedMovement = false;
         mouseHotkeysPressed.clear();
         mouseHotkeyByCode.clear();
     };
@@ -256,7 +264,10 @@ export function mountHoverTranslationContentFeature(
         if (rootDocument.hidden) invalidatePointerGesture();
     }, { signal });
     rootDocument.addEventListener('mouseover', event => {
-        if (!signal.aborted && event.isTrusted) rememberMousePosition(event);
+        if (signal.aborted || !event.isTrusted) return;
+        if (screen.hotkeyPressed && gestureStartKnown
+            && (event.clientX !== gestureStartX || event.clientY !== gestureStartY)) gestureObservedMovement = true;
+        rememberMousePosition(event);
     }, { signal });
     rootDocument.addEventListener('mouseout', event => {
         if (event.isTrusted && event.relatedTarget === null) invalidatePointerGesture();
@@ -298,9 +309,17 @@ export function mountHoverTranslationContentFeature(
         }
 
         // 步骤 1：记录当前可信按键集合，只有与配置完全一致时才进入悬浮候选态。
+        const wasShortcutComplete = matchesPressed(getConfiguredMouseShortcut().parts);
         addPressedKey(event, mouseHotkeysPressed, mouseHotkeyByCode, isMac);
         if (matchesPressed(getConfiguredMouseShortcut().parts) && !screen.otherKeyPressed) {
             if (!screen.hotkeyPressed) screen.gestureSharedWithSelection = matchesSelectionShortcut;
+            // 部分松键再按回时，完整组合重新生效，但旧滑动态仍保持至所有键松开。
+            if (!wasShortcutComplete) {
+                gestureStartKnown = screen.pointerKnown;
+                gestureObservedMovement = false;
+                gestureStartX = screen.mouseX;
+                gestureStartY = screen.mouseY;
+            }
             screen.hotkeyPressed = true;
             screen.otherKeyPressed = false;
             screen.gestureHotkey = getConfiguredMouseShortcut().identity;
@@ -353,7 +372,7 @@ export function mountHoverTranslationContentFeature(
                 event.preventDefault();
                 // 共享归属绑定手势开始；释放修饰键后仍须让 Document 清理划词/全文按键状态。
                 if (!screen.gestureSharedWithSelection) event.stopPropagation();
-                invokeTranslation(screen.mouseX, screen.mouseY);
+                invokeTranslation(screen.mouseX, screen.mouseY, {inputSource: 'mouse-shortcut'});
             }
         }
 
@@ -400,6 +419,9 @@ export function mountHoverTranslationContentFeature(
         // 额外按键已取消的手势保持作废，释放组合键的一部分也不能再启动新任务。
         // hasSlideTranslation 仍保留至完整释放，避免把连续移动的结尾误当成单次切换。
         if (screen.hotkeyPressed && !screen.otherKeyPressed && matchesPressed(getConfiguredMouseShortcut().parts)) {
+            // 相同坐标不构成滑动；未知初始位置的首个可信移动仍保留原有行为。
+            if (!screen.hasSlideTranslation && !gestureObservedMovement && gestureStartKnown
+                && event.clientX === gestureStartX && event.clientY === gestureStartY) return;
             screen.hasSlideTranslation = true;
             // 连续移动与延迟是两个独立维度。0ms 只是立即响应，不能退化成
             // “再次命中已译句子就恢复原文”的单次切换手势。

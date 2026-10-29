@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {patchExtensionVendorSource} from '../testing/extension-csp-build';
 
 // 原始 vendor 仍保留在 public/。只修正已逐入口复现的固定版本发布副本；升级必须重新审查。
 const OCR_CORE_SHA256 = '9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7';
@@ -64,6 +65,7 @@ export function packageTesseractWasm(root: string, sourcePath: string): {glue: s
 export function packageTesseractWorker(root: string, sourcePath: string): string {
     let source = fs.readFileSync(sourcePath, 'utf8');
     requirePinnedSource(source, OCR_WORKER_SHA256, 'tesseract.js 6.0.1 worker');
+    source = patchExtensionVendorSource('tesseract-worker', source);
     // 让 dispatch 的 Promise 错误出口观察到异步 Core 工厂失败，保留 worker/job 身份。
     source = replaceOnce(source,
         'c=t.sent,r.progress({workerId:n,status:f,progress:0}),c({TesseractProgress:function(t){p.progress({workerId:n,jobId:i,status:"recognizing text",progress:Math.max(0,(t-30)/70)})}}).then((function(t){l=t,r.progress({workerId:n,status:f,progress:1}),r.resolve({loaded:!0})})),t.next=12;break;case 11:',
@@ -111,7 +113,9 @@ export function instrumentWasmDiagnostics(source: string, runtime: 'onnx' | 'tes
 
 export function packageWasmDiagnostics(root: string, sourcePath: string, fileName: string, runtime: 'onnx' | 'tesseract'): string {
     const adapter = fs.readFileSync(path.resolve(root, 'scripts/wasm/diagnostics.js'), 'utf8');
-    const source = fs.readFileSync(sourcePath, 'utf8');
+    const original = fs.readFileSync(sourcePath, 'utf8');
+    const source = runtime === 'onnx' && fileName === 'ort-wasm-simd-threaded.asyncify.mjs'
+        ? patchExtensionVendorSource('onnx-asyncify', original) : original;
     const output = path.resolve(root, '.wxt/packaged-wasm', fileName);
     fs.mkdirSync(path.dirname(output), {recursive: true});
     fs.writeFileSync(output, instrumentWasmDiagnostics(source, runtime, adapter));
