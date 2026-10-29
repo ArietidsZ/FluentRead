@@ -14,6 +14,7 @@ import {
     getTranslationOverflowGenerationIdentity,
     getTranslationOwnersForRemovedNode,
     getTranslationState,
+    inlineCodeReplaySourceIsCurrent,
     isTranslationApplicationShellPolicyCurrent,
     hasBilingualArtifactHostWriteBudget,
     inheritBilingualArtifactRepairBudget,
@@ -414,6 +415,12 @@ function tryTransferBilingualOwner(
         discardTranslation(replacementOwner, attempt.state);
         return 'rejected';
     }
+    // 普通结构签名会折叠空白。整句代码协议还依赖本地捕获的精确文字；
+    // 旧代码与新代码仅空白不同也不能复用旧句译文。
+    if (!inlineCodeReplaySourceIsCurrent(replacementOwner, previousState)) {
+        discardTranslation(replacementOwner, attempt.state);
+        return 'rejected';
+    }
     if (!markTranslationComplete(replacementOwner, attempt.state, attempt.generation)) {
         discardTranslation(replacementOwner, attempt.state);
         return 'rejected';
@@ -442,6 +449,15 @@ function tryTransferBilingualOwner(
     }
     return {finish: () => {
         if (!preparation.reconcileLayout(replacementOwner)) {
+            content.remove();
+            discardTranslation(replacementOwner, attempt.state);
+            return 'rejected';
+        }
+        // 同批工件写入和布局协调之间宿主仍可能同步修改新来源；只忽略本次
+        // 实际将要登记的工件，再次核验后才能继承旧译文与 replay。
+        if (!inlineCodeReplaySourceIsCurrent(replacementOwner, {
+            ...previousState, bilingualContent: content, spinner: undefined,
+        })) {
             content.remove();
             discardTranslation(replacementOwner, attempt.state);
             return 'rejected';

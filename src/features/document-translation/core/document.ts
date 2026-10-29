@@ -5,6 +5,7 @@
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
+import {decodeTextareaHtml} from '@/src/shared/text/htmlEntities';
 // 归一规则与服务候选验证共用，避免导出与免费线路接受不同的编号标签写法。
 import {normalizeDocumentInlineMarkers} from '@/src/core/translation/public';
 export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
@@ -787,9 +788,7 @@ const HTML_ENTITY_FALLBACKS: Record<string, string> = {
 function decodeHtmlEntities(value: string): string {
     if (!value.includes('&')) return value;
     if (typeof globalThis.document !== 'undefined') {
-        const textarea = globalThis.document.createElement('textarea');
-        textarea.innerHTML = value;
-        return textarea.value;
+        return decodeTextareaHtml(value);
     }
 
     return value.replace(/&(?:#x([0-9a-f]+)|#([0-9]+)|([a-z][a-z0-9]+));/giu, (entity, hex, decimal, name) => {

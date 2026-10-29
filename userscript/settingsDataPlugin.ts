@@ -1,13 +1,13 @@
 /**
  * @file userscript/settingsDataPlugin.ts
  * 文件职责：在 userscript 构建时无损压缩固定设置数据，完整设置版再压缩学习、语言、词库、导航和同步字段等静态目录。
- * 主要内容：只从指定 const 的字面量 AST 读取 JSON 类型，拒绝计算、重复键和特殊原型键；以既有 ASCII85 保存完整 gzip 字节；AI 超时目录只接受已登记的中文 const 引用，分别压缩两份字面量并在还原聚合表时接回同一中文对象；原地替换初始化值，同步还原所有文本、类型和顺序；皮肤与字体注册表通过同一插件校验两个具名导出数组，保留文件注释、既有 Map 与函数。
+ * 主要内容：只从指定 const 的字面量 AST 读取 JSON 类型，拒绝计算、重复键和特殊原型键；以既有 ASCII85 或 standalone 的 Base91 保存完整 gzip 字节；AI 超时目录只接受已登记的中文 const 引用，分别压缩两份字面量并在还原聚合表时接回同一中文对象；原地替换初始化值，同步还原所有文本、类型和顺序；皮肤与字体注册表通过同一插件校验两个具名导出数组，保留文件注释、既有 Map 与函数。
  * 模块边界：不执行源模块、不压缩可执行逻辑，不改远程语言资源；标准版只压缩完整消费的样式与界面注册表，避免目录表示阻止原有裁剪；沿用 pako，消费函数保持原实现，Greasy Fork 保留可读数据。
  */
 import {resolve} from 'node:path';
 import {gunzipSync} from 'node:zlib';
 import {gzipUserscriptBuildData} from './buildGzip';
-import {encodeUserscriptData} from './buildDataEncoding';
+import {encodeUserscriptDataCompact, encodeUserscriptData} from './buildDataEncoding';
 import ts from 'typescript';
 import {normalizePath, type Plugin} from 'vite';
 
@@ -118,10 +118,11 @@ export function createUserscriptSettingsDataPlugin(root: string, enabled: boolea
                     } else data = literal(initializer, !target.appearance);
                     if (target.appearance && (!Array.isArray(data) || !data.length)) throw unsupported();
                     const json = JSON.stringify(data);
-                    const compressed = gzipUserscriptBuildData(Buffer.from(json));
+                    const compressed = gzipUserscriptBuildData(Buffer.from(json), undefined, fullOptions);
                     if (target.appearance && JSON.stringify(JSON.parse(gunzipSync(compressed).toString('utf8'))) !== json) throw unsupported();
                     // 和原字面量一样，未被消费的表不应触发还原；整个闭包只还原固定数据，无外部写入。
-                    const decoded = `JSON.parse(__fluentreadInflateSettingsData(__fluentreadDecodeSettingsData(${JSON.stringify(encodeUserscriptData(compressed))})))`;
+                    const encoded = fullOptions ? encodeUserscriptDataCompact(compressed) : encodeUserscriptData(compressed);
+                    const decoded = `JSON.parse(__fluentreadInflateSettingsData(__fluentreadDecodeSettingsData(${JSON.stringify(encoded)})))`;
                     const value = shared
                         ? `/* @__PURE__ */ (() => {const data = ${decoded}; data[${JSON.stringify(shared.key)}] = ${shared.reference}; return data;})()`
                         : `/* @__PURE__ */ (() => ${decoded})()`;

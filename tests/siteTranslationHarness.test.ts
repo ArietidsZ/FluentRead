@@ -2025,10 +2025,145 @@ describe('site translation coverage contract', () => {
     } finally {vi.unstubAllGlobals();}
   });
 
+  function steamTopicHoverFixture(mode = 'transparent') {
+    const {document} = parseHTML('<html><body><div id="AppHubContent"><div class="forum_topics">' +
+      '<div id="topic" class="forum_topic" role="button" data-gidforumtopic="123456">' +
+      '<a id="steam-overlay" class="forum_topic_overlay" href="https://steamcommunity.com/app/570/discussions/0/123456/">\n\t</a>' +
+      '<div id="steam-title" class="forum_topic_name"><span class="forum_topic_label">Pinned:</span> A readable discussion title</div></div>' +
+      '<div id="other-topic" class="forum_topic" role="button" data-gidforumtopic="654321">' +
+      '<a id="other-overlay" class="forum_topic_overlay" href="https://steamcommunity.com/app/570/discussions/0/654321/"> </a>' +
+      '<div class="forum_topic_name">Another discussion title</div></div></div></div>' +
+      '<div id="steam-dialog" role="dialog">Sign in</div><div id="steam-mask"></div></body></html>');
+    const row = document.querySelector('#topic')!;
+    const title = document.querySelector('#steam-title')!;
+    const overlay = document.querySelector('#steam-overlay')!;
+    const dialog = document.querySelector('#steam-dialog')!;
+    const mask = document.querySelector('#steam-mask')!;
+    if (mode === 'overlay-text') overlay.textContent = 'Click here';
+    if (mode === 'overlay-child') overlay.innerHTML = '<span></span>';
+    if (mode === 'overlay-comment') overlay.append(document.createComment('not text'));
+    if (mode === 'wrong-topic') overlay.setAttribute('href', 'https://steamcommunity.com/app/570/discussions/0/654321/');
+    if (mode === 'wrong-app') overlay.setAttribute('href', 'https://steamcommunity.com/app/571/discussions/0/123456/');
+    if (mode === 'external-href') overlay.setAttribute('href', 'https://example.com/app/570/discussions/0/123456/');
+    if (mode === 'query-href') overlay.setAttribute('href', '/app/570/discussions/0/123456/?foo=bar');
+    if (mode === 'hash-href') overlay.setAttribute('href', '/app/570/discussions/0/123456/#comment');
+    if (mode === 'javascript-href') overlay.setAttribute('href', 'javascript:alert(1)');
+    if (mode === 'missing-id') row.removeAttribute('data-gidforumtopic');
+    if (mode === 'invalid-id') row.setAttribute('data-gidforumtopic', 'not-a-number');
+    if (mode === 'duplicate-overlay') row.prepend(overlay.cloneNode(true));
+    if (mode === 'nested-title') title.innerHTML = '<span>A readable discussion title</span>';
+    if (mode === 'dialog-ancestor') document.querySelector('#AppHubContent')!.setAttribute('role', 'dialog');
+    if (mode === 'editor-row') row.setAttribute('contenteditable', 'true');
+    if (mode === 'modal-row') row.setAttribute('aria-modal', 'true');
+    if (mode === 'wrong-row-role') row.setAttribute('role', 'dialog');
+    if (mode === 'hidden-row') row.setAttribute('hidden', '');
+    if (mode === 'hidden-overlay') overlay.setAttribute('aria-hidden', 'true');
+    if (mode === 'inert-overlay') overlay.setAttribute('inert', '');
+    if (mode === 'owned-overlay') overlay.setAttribute('data-fr-translation-owned', 'true');
+    const candidate = mode === 'cross-row' ? document.querySelector('#other-overlay')! : overlay;
+    let covered = mode === 'dialog';
+    const stack = () => covered ? [dialog, candidate, title, row] : mode === 'intervening-mask' ? [candidate, mask, title, row] :
+      mode === 'missing-title' ? [candidate, row] : [candidate, title, row];
+    Object.defineProperty(document, 'createRange', {value: () => ({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => [{left: 20, right: 220, top: 140, bottom: 160, width: 200, height: 20}],
+    })});
+    Object.defineProperty(document, 'elementFromPoint', {value: () => stack()[0]});
+    Object.defineProperty(document, 'elementsFromPoint', {value: stack});
+    vi.stubGlobal('document', document);
+    vi.stubGlobal('window', {innerWidth: 1280, innerHeight: 900});
+    vi.stubGlobal('innerWidth', 1280);
+    vi.stubGlobal('innerHeight', 900);
+    vi.stubGlobal('location', new URL(mode === 'other-host' ? 'https://example.com/app/570/discussions/' :
+      mode === 'other-app' ? 'https://steamcommunity.com/app/571/discussions/' :
+        mode === 'thread-path' ? 'https://steamcommunity.com/app/570/discussions/0/123456/' :
+          mode === 'page-query' ? 'https://steamcommunity.com/app/570/discussions/?p=2' :
+            'https://steamcommunity.com/app/570/discussions/'));
+    vi.stubGlobal('getComputedStyle', (element: Element, pseudo?: string) => pseudo ? {
+      content: (mode === 'overlay-pseudo' && element === overlay || mode === 'title-pseudo' && element === title ||
+        mode === 'row-pseudo' && element === row) ? '"x"' : 'none',
+    } : {
+      display: mode === 'display-none' && element === overlay ? 'none' : 'block',
+      visibility: mode === 'invisible' && element === overlay ? 'hidden' : 'visible',
+      opacity: mode === 'opacity' && element === overlay ? '0.5' : '1',
+      pointerEvents: mode === 'pointer-events-none' && element === overlay ? 'none' : 'auto',
+      position: mode === 'non-absolute' && element === overlay ? 'relative' : 'absolute',
+      backgroundColor: mode === 'opaque' && element === overlay ? 'rgb(255, 255, 255)' : 'rgba(0, 0, 0, 0)',
+      backgroundImage: mode === 'background-image' && element === overlay ? 'url("cover.png")' : 'none',
+      boxShadow: mode === 'shadow' && element === overlay ? '0 0 4px black' : 'none',
+      filter: mode === 'filter' && element === overlay ? 'blur(1px)' : 'none',
+      backdropFilter: mode === 'backdrop' && element === overlay ? 'blur(1px)' : 'none',
+      borderTopWidth: mode === 'border' && element === overlay ? '1px' : '0px',
+      borderRightWidth: '0px', borderBottomWidth: '0px', borderLeftWidth: '0px',
+      outlineWidth: mode === 'outline' && element === overlay ? '1px' : '0px',
+    });
+    return {document, cover: () => {covered = true;}, changeDestination: () => {overlay.setAttribute('href', '/app/570/discussions/0/654321/');}};
+  }
+
+  it('accepts the observed Steam discussion title through its own empty overlay and waits for stability', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const {document} = steamTopicHoverFixture();
+    const html = document.body.innerHTML;
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn()}, keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);}, waitForFunction: vi.fn(),
+    };
+    try {
+      expect(findHoverTextPointInPage({selector: '#steam-title', index: 0})).toMatchObject({
+        x: 90, y: 150, text: ' A readable discussion title',
+        hitPolicy: 'steam-community-topic-overlay:["https://steamcommunity.com/app/570/discussions/0/123456/","123456"]',
+      });
+      await toggleHover(page, hoverScrollTarget(), {selector: '#steam-title', index: 0}, 1, 500);
+      expect(Date.now()).toBeGreaterThanOrEqual(200);
+      expect(page.keyboard.down.mock.calls).toEqual([['Control']]);
+      expect(page.keyboard.up.mock.calls).toEqual([['Control']]);
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
+  it.each(['overlay-text', 'overlay-child', 'overlay-comment', 'wrong-topic', 'wrong-app', 'external-href', 'query-href',
+    'hash-href', 'javascript-href', 'missing-id', 'invalid-id', 'duplicate-overlay', 'nested-title', 'dialog-ancestor',
+    'editor-row', 'modal-row', 'wrong-row-role', 'hidden-row', 'hidden-overlay', 'inert-overlay', 'owned-overlay',
+    'cross-row', 'dialog', 'intervening-mask', 'missing-title', 'other-host', 'other-app', 'thread-path', 'page-query',
+    'display-none', 'invisible', 'opacity', 'pointer-events-none', 'non-absolute', 'opaque', 'background-image',
+    'shadow', 'filter', 'backdrop', 'border', 'outline', 'overlay-pseudo', 'title-pseudo', 'row-pseudo'])
+  ('rejects the Steam topic overlay exception for %s', mode => {
+    const {document} = steamTopicHoverFixture(mode);
+    const html = document.body.innerHTML;
+    try {
+      expect(findHoverTextPointInPage({selector: '#steam-title', index: 0})).toBeNull();
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals();}
+  });
+
+  it.each(['cover', 'changeDestination'] as const)
+  ('rechecks Steam topic overlay after pointer movement and sends no hotkey for %s', async action => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const fixture = steamTopicHoverFixture();
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn(async () => {fixture[action]();})}, keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);},
+    };
+    try {
+      await expect(toggleHover(page, hoverScrollTarget(),
+        {selector: '#steam-title', index: 0}, 1, 300)).rejects.toThrow('悬浮原文没有稳定且可命中的位置');
+      expect(page.mouse.move).toHaveBeenCalledOnce();
+      expect(page.keyboard.down).not.toHaveBeenCalled();
+      expect(page.keyboard.up).not.toHaveBeenCalled();
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
   function googleNewsHoverFixture(mode = 'transparent') {
+    // 双层内容壳来自 wave32 保存的实际 Google News 首页卡片，非自由祖先匹配。
+    const nested = mode.startsWith('nested-card');
+    const headline = '<a id="headline" href="./read/fixture-story?hl=en-US" target="_blank">A readable headline from the current card</a>';
+    const content = nested ? `<div id="content-shell" class="B6pJDd"><div id="headline-parent" class="IL9Cne"><div class="MCAGUe">Fixture publisher</div>${headline}</div></div>` :
+      `<div>Fixture publisher</div>${headline}<time>2 hours ago</time>`;
     const {document} = parseHTML('<html><body><main><section>' +
-      '<div id="card"><div id="stretch"><a id="news-overlay" href="./read/fixture-story?hl=en-US" target="_blank" aria-hidden="true" tabindex="-1"></a></div>' +
-      '<div>Fixture publisher</div><a id="headline" href="./read/fixture-story?hl=en-US" target="_blank">A readable headline from the current card</a><time>2 hours ago</time></div>' +
+      '<div id="card" class="m5k28"><div id="stretch" class="XlKvRb"><a id="news-overlay" class="WwrzSb" href="./read/fixture-story?hl=en-US" target="_blank" aria-hidden="true" tabindex="-1"></a></div>' +
+      content + (nested ? '<figure class="K0q4G" role="presentation" aria-hidden="true"></figure>' : '') + '</div>' +
       '<div><div id="other-stretch"><a id="other-news-overlay" href="./read/fixture-story?hl=en-US" target="_blank" aria-hidden="true" tabindex="-1"></a></div><a href="./read/fixture-story?hl=en-US" target="_blank">A different card</a></div>' +
       '</section></main><div id="news-dialog" role="dialog">Sign in</div><div id="other-mask"></div></body></html>');
     const target = document.querySelector('#headline')!;
@@ -2059,6 +2194,26 @@ describe('site translation coverage contract', () => {
     if (mode === 'inert-overlay') overlay.setAttribute('inert', '');
     if (mode === 'owned-overlay') overlay.setAttribute('data-fr-translation-owned', 'true');
     if (mode === 'not-first-wrapper') card.prepend(document.createElement('span'));
+    if (mode === 'nested-card-extra-title') {
+      const extra = document.createElement('a');
+      extra.setAttribute('href', './read/another-story'); extra.textContent = 'Another title'; card.append(extra);
+    }
+    if (mode === 'nested-card-extra-shell-child') document.querySelector('#content-shell')!.append(document.createElement('div'));
+    if (mode === 'nested-card-title-not-last') target.parentElement!.append(document.createElement('span'));
+    if (mode === 'nested-card-intervening-sibling') wrapper.after(document.createElement('div'));
+    if (mode === 'nested-card-cross-card') document.querySelector('#other-news-overlay')!.parentElement!.replaceWith(wrapper);
+    if (mode === 'nested-card-different-href') overlay.setAttribute('href', './read/another-story');
+    if (mode === 'nested-card-dialog') card.setAttribute('role', 'dialog');
+    if (mode === 'nested-card-button') wrapper.setAttribute('role', 'button');
+    if (mode === 'nested-card-parent-button') target.parentElement!.setAttribute('role', 'button');
+    if (mode === 'nested-card-hidden') card.setAttribute('aria-hidden', 'true');
+    if (mode === 'nested-card-too-deep') {
+      let owner = card;
+      for (let index = 0; index < 130; index += 1) {
+        const parent = document.createElement('div');
+        owner.replaceWith(parent); parent.appendChild(owner); owner = parent;
+      }
+    }
     const candidateOverlay = mode === 'cross-card' ? document.querySelector('#other-news-overlay')! : overlay;
     const stack = () => covered ? [dialog, overlay, wrapper, target] :
       mode === 'intervening-mask' ? [candidateOverlay, mask, wrapper, target] :
@@ -2081,11 +2236,24 @@ describe('site translation coverage contract', () => {
       mode === 'other-subdomain' ? 'https://www.news.google.com/home' :
         mode === 'search-path' ? 'https://news.google.com/search' :
           mode === 'article-path' ? 'https://news.google.com/read/fixture-story' : 'https://news.google.com/home?hl=en-US'));
-    vi.stubGlobal('getComputedStyle', (element: Element, pseudo?: string) => pseudo ? {
-      content: mode === 'overlay-pseudo' && element === overlay || mode === 'wrapper-pseudo' && element === wrapper ||
+    vi.stubGlobal('getComputedStyle', (element: Element, pseudo?: string) => {
+      if (mode === 'nested-card-style-unavailable' && element.localName === 'section') throw new Error('style unavailable');
+      if (mode === 'nested-card-style-missing' && element.localName === 'section') return null;
+      if (mode === 'nested-card-target-style-unavailable' && element === target && !pseudo) throw new Error('style unavailable');
+      return pseudo ? {
+      content: mode === 'nested-card-shell-pseudo' && element.id === 'content-shell' ||
+        mode === 'nested-card-parent-pseudo' && element.id === 'headline-parent' ||
+        mode === 'overlay-pseudo' && element === overlay || mode === 'wrapper-pseudo' && element === wrapper ||
         mode === 'headline-pseudo' && element === target || mode === 'card-pseudo' && element === card ? '""' : 'none',
     } : {
-      display: 'block', visibility: 'visible', opacity: '1',
+      display: mode === 'nested-card-section-display-none' && element.localName === 'section' ? 'none' : 'block',
+      visibility: mode === 'nested-card-section-visibility-hidden' && element.localName === 'section' ? 'hidden' : 'visible',
+      opacity: mode === 'nested-card-shell-transparent' && element.id === 'content-shell' ||
+        mode === 'nested-card-parent-transparent' && element.id === 'headline-parent' ||
+        mode === 'nested-card-target-transparent' && element === target ||
+        mode === 'nested-card-card-transparent' && element === card ||
+        mode === 'nested-card-section-transparent' && element.localName === 'section' ? '0' :
+          mode === 'nested-card-section-opacity-invalid' && element.localName === 'section' ? 'invalid' : '1',
       position: mode === 'static-overlay' && element === overlay || mode === 'static-wrapper' && element === wrapper ? 'static' : 'absolute',
       left: mode === 'offset-overlay' && element === overlay ? '1px' : '0px', right: '0px', top: '0px', bottom: '0px',
       backgroundColor: mode === 'opaque-overlay' && element === overlay || mode === 'opaque-wrapper' && element === wrapper ? 'rgb(255, 255, 255)' : 'rgba(0, 0, 0, 0)',
@@ -2096,6 +2264,7 @@ describe('site translation coverage contract', () => {
       borderTopWidth: mode === 'border' && element === overlay ? '1px' : '0px',
       borderRightWidth: '0px', borderBottomWidth: '0px', borderLeftWidth: '0px',
       outlineWidth: mode === 'outline' && element === wrapper ? '1px' : '0px',
+      };
     });
     return {document, cover: () => {covered = true;}, changeDestination: () => {overlay.setAttribute('href', './read/changed-after-pointer');}};
   }
@@ -2128,6 +2297,63 @@ describe('site translation coverage contract', () => {
       expect(page.keyboard.down.mock.calls).toEqual([['Control']]);
       expect(page.keyboard.up.mock.calls).toEqual([['Control']]);
       expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
+  it('accepts the observed nested Google News card without clicking its overlay', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const {document} = googleNewsHoverFixture('nested-card');
+    const html = document.body.innerHTML;
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn(), click: vi.fn()}, keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);}, waitForFunction: vi.fn(),
+    };
+    try {
+      expect(findHoverTextPointInPage({selector: '#headline', index: 0})).toMatchObject({
+        hitPolicy: 'google-news-stretched-link:["./read/fixture-story?hl=en-US","_blank"]',
+      });
+      await toggleHover(page, hoverScrollTarget(), {selector: '#headline', index: 0}, 1, 500);
+      expect(Date.now()).toBeGreaterThanOrEqual(200);
+      expect(page.mouse.click).not.toHaveBeenCalled();
+      expect(page.keyboard.down.mock.calls).toEqual([['Control']]);
+      expect(page.keyboard.up.mock.calls).toEqual([['Control']]);
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
+  });
+
+  it.each(['nested-card-extra-title', 'nested-card-extra-shell-child', 'nested-card-title-not-last',
+    'nested-card-intervening-sibling', 'nested-card-cross-card', 'nested-card-different-href',
+    'nested-card-dialog', 'nested-card-button', 'nested-card-parent-button', 'nested-card-hidden',
+    'nested-card-shell-transparent', 'nested-card-parent-transparent', 'nested-card-target-transparent',
+    'nested-card-card-transparent', 'nested-card-section-transparent', 'nested-card-section-display-none',
+    'nested-card-section-visibility-hidden', 'nested-card-section-opacity-invalid', 'nested-card-style-unavailable',
+    'nested-card-style-missing', 'nested-card-target-style-unavailable', 'nested-card-too-deep', 'nested-card-shell-pseudo',
+    'nested-card-parent-pseudo'])('rejects an unsafe nested Google News card: %s', mode => {
+    const {document} = googleNewsHoverFixture(mode);
+    const html = document.body.innerHTML;
+    try {
+      expect(findHoverTextPointInPage({selector: '#headline', index: 0})).toBeNull();
+      expect(document.body.innerHTML).toBe(html);
+    } finally {vi.unstubAllGlobals();}
+  });
+
+  it.each(['cover', 'changeDestination'] as const)
+  ('rechecks the nested Google News card after pointer movement for %s', async action => {
+    vi.useFakeTimers(); vi.setSystemTime(0);
+    const fixture = googleNewsHoverFixture('nested-card');
+    const page = {
+      evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+      mouse: {move: vi.fn(async () => {fixture[action]();}), click: vi.fn()},
+      keyboard: {down: vi.fn(), up: vi.fn()},
+      waitForTimeout: async (ms: number) => {vi.advanceTimersByTime(ms);},
+    };
+    try {
+      await expect(toggleHover(page, hoverScrollTarget(),
+        {selector: '#headline', index: 0}, 1, 300)).rejects.toThrow('悬浮原文没有稳定且可命中的位置');
+      expect(page.mouse.click).not.toHaveBeenCalled();
+      expect(page.keyboard.down).not.toHaveBeenCalled();
+      expect(page.keyboard.up).not.toHaveBeenCalled();
     } finally {vi.unstubAllGlobals(); vi.useRealTimers();}
   });
 

@@ -30,8 +30,6 @@ import {getPageTranslationContext, resetPageTranslationContextCache} from '@/src
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;
 const originalWindow = globalThis.window;
-const {document: markdownDocument} = parseHTML('<html><head></head><body></body></html>');
-const createElement = markdownDocument.createElement.bind(markdownDocument);
 
 function deferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -47,9 +45,6 @@ function installFixturePage(name: string) {
     const html = readFileSync(new URL(`./fixtures/page-context/${name}.html`, import.meta.url), 'utf8');
     const {document: liveDocument} = parseHTML(html);
     const {document: snapshot} = parseHTML('<!doctype html><html><head></head><body></body></html>');
-    // LinkeDOM retains the outer <html> when assigned to html.innerHTML; resolve the
-    // parsed body instead of its synthetic empty direct-child body fallback.
-    Object.defineProperty(snapshot, 'body', {get: () => snapshot.querySelector('body')});
     Object.defineProperty(liveDocument, 'implementation', {
         configurable: true,
         value: {createHTMLDocument: () => snapshot},
@@ -203,7 +198,7 @@ afterEach(() => {
 describe('Defuddle page snapshot adapter', () => {
     it('uses the window location and safely captures an empty fallback without any location or mutable attributes', async () => {
         const clone = {textContent: '', querySelectorAll: (selector: string) => selector === '*' ? [{}, {attributes: []}] : []};
-        Object.defineProperty(globalThis, 'document', {value: {title: '', body: {cloneNode: () => clone}, querySelector: () => null}, configurable: true});
+        Object.defineProperty(globalThis, 'document', {value: {title: '', body: {closest: () => null, cloneNode: () => clone}, querySelector: () => null}, configurable: true});
         Object.defineProperty(globalThis, 'location', {value: undefined, configurable: true});
         Object.defineProperty(globalThis, 'window', {value: {location: {href: 'https://example.com/window-location'}}, configurable: true});
         expect(await getPageTranslationContext()).toBe('');
@@ -282,6 +277,75 @@ describe('Defuddle page snapshot adapter', () => {
         expect(detachedDocument.querySelector('a')?.hasAttribute('title')).toBe(false);
     });
 
+    it('通过节点复制保留正文结构，无需读取或重新解析宿主 outerHTML', async () => {
+        const {liveDocument, snapshot} = installFixturePage('inline-emphasis');
+        const source = liveDocument.documentElement;
+        const paragraph = liveDocument.querySelector('p')!;
+        const namespaceNode = liveDocument.createElement('reading-context');
+        namespaceNode.textContent = 'Namespaced article detail';
+        paragraph.appendChild(namespaceNode);
+        const importNode = vi.spyOn(snapshot, 'importNode');
+        const serialize = vi.spyOn(source, 'outerHTML', 'get');
+        parse.mockImplementation((documentSnapshot: Document) => ({content: `<p>${documentSnapshot.body.textContent}</p>`}));
+
+        const context = await getPageTranslationContext();
+
+        expect(context).toContain('Namespaced article detail');
+        expect(serialize).not.toHaveBeenCalled();
+        expect(importNode.mock.calls[0]?.[0] === source).toBe(true);
+        expect(importNode.mock.calls[0]?.[1]).toBe(true);
+        const clonedParagraph = snapshot.querySelector('p')!;
+        expect(clonedParagraph).not.toBe(paragraph);
+        expect(clonedParagraph.ownerDocument).toBe(snapshot);
+        expect(snapshot.querySelector('reading-context')?.namespaceURI).toBe(paragraph.namespaceURI);
+        expect(paragraph.querySelector('reading-context')).toBe(namespaceNode);
+    });
+
+    it.each([
+        ['editable body', '<html><body contenteditable="true"><p>PRIVATE_ROOT_DRAFT</p></body></html>'],
+        ['hidden ancestor', '<html hidden><body><p>PRIVATE_ROOT_DRAFT</p></body></html>'],
+        ['aria-hidden body', '<html><body aria-hidden="true"><p>PRIVATE_ROOT_DRAFT</p></body></html>'],
+        ['excluded ancestor', '<html data-notranslate><body><p>PRIVATE_ROOT_DRAFT</p></body></html>'],
+    ])('never extracts excluded %s in the body-clone fallback', async (_label, html) => {
+        const {document} = parseHTML(html);
+        Object.defineProperty(document, 'implementation', {configurable: true, value: undefined});
+        Object.defineProperty(globalThis, 'document', {value: document, configurable: true});
+        Object.defineProperty(globalThis, 'location', {value: {href: 'https://example.com/private-root'}, configurable: true});
+        expect(await getPageTranslationContext()).not.toContain('PRIVATE_ROOT_DRAFT');
+        expect(document.body.textContent).toContain('PRIVATE_ROOT_DRAFT');
+    });
+
+    it('fails closed when the fallback body cannot check its ancestors', async () => {
+        const clone = {textContent: 'PRIVATE_UNCHECKED_BODY', querySelectorAll: () => []};
+        const cloneNode = vi.fn(() => clone);
+        Object.defineProperty(globalThis, 'document', {value: {title: '', body: {cloneNode}, querySelector: () => null}, configurable: true});
+        Object.defineProperty(globalThis, 'location', {value: {href: 'https://example.com/no-closest'}, configurable: true});
+        expect(await getPageTranslationContext()).not.toContain('PRIVATE_UNCHECKED_BODY');
+        expect(cloneNode).not.toHaveBeenCalled();
+    });
+
+    it('does not include sensitive attributes of a non-excluded fallback root', async () => {
+        const {document} = parseHTML('<html><body title="PRIVATE_ROOT_TITLE" data-secret="PRIVATE_ROOT_DATA"><main>VISIBLE_BODY</main></body></html>');
+        Object.defineProperty(document, 'implementation', {configurable: true, value: undefined});
+        Object.defineProperty(globalThis, 'document', {value: document, configurable: true});
+        Object.defineProperty(globalThis, 'location', {value: {href: 'https://example.com/root-attributes'}, configurable: true});
+        const context = await getPageTranslationContext();
+        expect(context).toContain('VISIBLE_BODY');expect(context).not.toContain('PRIVATE_ROOT_TITLE');expect(context).not.toContain('PRIVATE_ROOT_DATA');
+    });
+
+    it('does not use a cloned body if sanitization fails', async () => {
+        const {document} = parseHTML('<html><body><form>PRIVATE_FAILED_SANITIZE</form></body></html>');
+        Object.defineProperty(document, 'implementation', {configurable: true, value: undefined});
+        const clone = document.body.cloneNode(true) as HTMLElement;
+        vi.spyOn(clone, 'querySelectorAll').mockImplementation(() => {throw new Error('controlled sanitize failure');});
+        vi.spyOn(document.body, 'cloneNode').mockReturnValue(clone);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        Object.defineProperty(globalThis, 'document', {value: document, configurable: true});
+        Object.defineProperty(globalThis, 'location', {value: {href: 'https://example.com/sanitization-failure'}, configurable: true});
+        expect(await getPageTranslationContext()).not.toContain('PRIVATE_FAILED_SANITIZE');
+        expect(warn).toHaveBeenCalled();expect(document.body.textContent).toContain('PRIVATE_FAILED_SANITIZE');
+    });
+
     it('在 body clone fallback 路径执行同一敏感节点清洗', async () => {
         const {document: liveDocument} = parseHTML(`<html><body><main>
           <p>Fallback visible article</p>
@@ -336,11 +400,7 @@ describe('Defuddle page snapshot adapter', () => {
     });
 
     it('uses an isolated full-document snapshot and caches metadata by URL', async () => {
-        const snapshot = {
-            documentElement: { innerHTML: '' },
-            querySelectorAll: () => [],
-            createElement,
-        };
+        const {document: snapshot} = parseHTML('<html><head></head><body></body></html>');
         parse.mockReturnValue({ content: '<h1>Readable article</h1><p>A useful paragraph.</p>' });
 
         Object.defineProperty(globalThis, 'location', {
@@ -350,7 +410,7 @@ describe('Defuddle page snapshot adapter', () => {
         Object.defineProperty(globalThis, 'document', {
             value: {
                 title: 'Original article title',
-                documentElement: { outerHTML: '<html><body><article>Article</article></body></html>' },
+                documentElement: parseHTML('<html><body><article>Article</article></body></html>').document.documentElement,
                 implementation: { createHTMLDocument: vi.fn(() => snapshot) },
                 body: { cloneNode: vi.fn() },
                 querySelector: () => null,
@@ -370,15 +430,11 @@ describe('Defuddle page snapshot adapter', () => {
             url: 'https://example.com/article',
             useAsync: false,
         });
-        expect(snapshot.documentElement.innerHTML).toContain('<html>');
+        expect(snapshot.documentElement.outerHTML).toBe('<html><body><article>Article</article></body></html>');
     });
 
     it('coalesces concurrent full-page snapshot extraction for the same URL', async () => {
-        const snapshot = {
-            documentElement: { innerHTML: '' },
-            querySelectorAll: () => [],
-            createElement,
-        };
+        const {document: snapshot} = parseHTML('<html><head></head><body></body></html>');
         parse.mockReturnValue({ content: '<p>Shared readable article context.</p>' });
         Object.defineProperty(globalThis, 'location', {
             value: { href: 'https://example.com/concurrent' },
@@ -387,7 +443,7 @@ describe('Defuddle page snapshot adapter', () => {
         Object.defineProperty(globalThis, 'document', {
             value: {
                 title: 'Concurrent article',
-                documentElement: { outerHTML: '<html><body><article>Article</article></body></html>' },
+                documentElement: parseHTML('<html><body><article>Article</article></body></html>').document.documentElement,
                 implementation: { createHTMLDocument: vi.fn(() => snapshot) },
                 body: { cloneNode: vi.fn() },
                 querySelector: () => null,
@@ -511,12 +567,9 @@ describe('Defuddle page snapshot adapter', () => {
         const firstAResult = deferred<{content: string}>();
         const bResult = deferred<{content: string}>();
         const secondAResult = deferred<{content: string}>();
-        const makeSnapshot = (result: Promise<{content: string}>) => ({
-            documentElement: { innerHTML: '' },
-            querySelectorAll: () => [],
-            createElement,
-            result,
-        });
+        const makeSnapshot = (result: Promise<{content: string}>) => Object.assign(
+            parseHTML('<html><head></head><body></body></html>').document, {result},
+        );
         const firstASnapshot = makeSnapshot(firstAResult.promise);
         const bSnapshot = makeSnapshot(bResult.promise);
         const secondASnapshot = makeSnapshot(secondAResult.promise);
@@ -527,7 +580,7 @@ describe('Defuddle page snapshot adapter', () => {
             Object.defineProperty(globalThis, 'document', {
                 value: {
                     title,
-                    documentElement: {outerHTML: `<html><body>${body}</body></html>`},
+                    documentElement: parseHTML(`<html><body>${body}</body></html>`).document.documentElement,
                     implementation: {createHTMLDocument: vi.fn(() => snapshot)},
                     body: {cloneNode: vi.fn()},
                     querySelector: () => null,
@@ -564,12 +617,9 @@ describe('Defuddle page snapshot adapter', () => {
     it('route invalidation prevents an old A request from being reused after A-B-A without a B extraction', async () => {
         const oldAResult = deferred<{content: string}>();
         const newAResult = deferred<{content: string}>();
-        const makeSnapshot = (result: Promise<{content: string}>) => ({
-            documentElement: {innerHTML: ''},
-            querySelectorAll: () => [],
-            createElement,
-            result,
-        });
+        const makeSnapshot = (result: Promise<{content: string}>) => Object.assign(
+            parseHTML('<html><head></head><body></body></html>').document, {result},
+        );
         const oldASnapshot = makeSnapshot(oldAResult.promise);
         const newASnapshot = makeSnapshot(newAResult.promise);
         parse.mockImplementation((snapshot: {result: Promise<{content: string}>}) => snapshot.result);
@@ -578,7 +628,7 @@ describe('Defuddle page snapshot adapter', () => {
             Object.defineProperty(globalThis, 'document', {
                 value: {
                     title,
-                    documentElement: {outerHTML: `<html><body>${title}</body></html>`},
+                    documentElement: parseHTML(`<html><body>${title}</body></html>`).document.documentElement,
                     implementation: {createHTMLDocument: vi.fn(() => snapshot)},
                     body: {cloneNode: vi.fn()},
                     querySelector: () => null,
@@ -611,7 +661,7 @@ describe('Defuddle page snapshot adapter', () => {
         const failure = new Error('controlled extractor import failure');
         vi.doMock('defuddle', () => {throw failure;});
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        Object.defineProperty(globalThis, 'document', {value: {title: '', body: {cloneNode: () => ({textContent: 'Safe fallback', querySelectorAll: () => []})}, querySelector: () => null}, configurable: true});
+        Object.defineProperty(globalThis, 'document', {value: {title: '', body: {closest: () => null, cloneNode: () => ({textContent: 'Safe fallback', querySelectorAll: () => []})}, querySelector: () => null}, configurable: true});
         Object.defineProperty(globalThis, 'location', {value: {href: 'https://example.com/retry-import'}, configurable: true});
         try {
             const isolated = await import('@/src/services/translation/context/browser');

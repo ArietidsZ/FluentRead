@@ -231,6 +231,17 @@ describe('共享翻译客户端', () => {
             .resolves.toBe(validateTranslationSlots === true ? '' : origin);
         expect(mocks.sendMessage).toHaveBeenCalledOnce();
     });
+    it('行内代码协议显式透传且空响应不能伪装成原文', async () => {
+        const source = 'A structural inline-code packet';
+        mocks.sendMessage.mockResolvedValueOnce('');
+        await expect(translateText(source, '', {skipLanguageDetection: true, enableAIContext: false,
+            validateInlineCodeTranslation: true})).resolves.toBe('');
+        expect(mocks.sendMessage.mock.calls[0]![0]).toMatchObject({origin: source, validateInlineCodeTranslation: true,
+            enableAIContext: false});
+        mocks.sendMessage.mockClear();
+        await translateText(source, '', {skipLanguageDetection: true, validateInlineCodeTranslation: false});
+        expect(mocks.sendMessage.mock.calls[0]![0]).not.toHaveProperty('validateInlineCodeTranslation');
+    });
     it.each(['', ' \t', '\u200b'])('真实 client/handler/broker 的损坏整包 %j 逐槽回退，不以来源包替代', async raw => {
         const first = 'The software reads the document and translates the language on this page.';
         const second = 'The second paragraph explains the settings for the computer network.';

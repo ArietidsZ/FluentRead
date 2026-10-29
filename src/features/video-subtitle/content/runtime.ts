@@ -111,6 +111,7 @@ import {getCaptionPlatform} from './platforms';
 import {mountPlatformCaptions} from './platformRuntime';
 import {YoutubeHumanCaptions} from './youtubeHumanCaptions';
 import {readVideoCaptionText} from './subtitleTransport';
+import {TimedTextTrackCache} from './timedTextTrackCache';
 import {createVideoSubtitleDownloads} from './downloads';
 import {confirmVideoSubtitleExport} from './exportPrompt';
 import {createSubtitleLayoutObserver} from './subtitleLayoutObserver';
@@ -155,7 +156,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   let stableCaptionOverlay: HTMLElement | null = null;
   let stableCaptionStartedAt: number | undefined;
   let subtitleOffsetMs = normalizeVideoSubtitleOffsetMs(config.videoSubtitleOffsetMs);
-  const capturedSubtitleTracks = new Map<string, { url: string; cues: VideoSubtitleCue[] }>();
+  const capturedSubtitleTracks = new TimedTextTrackCache(() => pretranslationTrackKey);
   const humanCaptions = new YoutubeHumanCaptions((input, init) => fetch(input, init), () => {
     if (destroyed) return;
     resetTranslationState();
@@ -969,7 +970,6 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (humanCaptions.ownsUrl(validated.url)) return;
     const key = getTimedTextCacheKey(validated.url);
     const entry = validated;
-    capturedSubtitleTracks.delete(key);
     capturedSubtitleTracks.set(key, entry);
     if (canTranslateVideo()) {
       setPretranslationTrack(key, entry);
@@ -991,7 +991,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     cancelTranslations: () => videoTranslator.cancelPending(),
     contextKey: () => `${getVideoPageKey()}:${observedMediaEpoch}`,
     confirm: (menu, preview, bilingual, signal) => confirmVideoSubtitleExport(menu, preview, bilingual, signal, videoUi), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt, refreshButtons: updatePlayerUiState,
-    remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.delete(key); capturedSubtitleTracks.set(key, entry);
+    remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.set(key, entry);
       if (canTranslateVideo()) setPretranslationTrack(key, entry); },
   });
 
