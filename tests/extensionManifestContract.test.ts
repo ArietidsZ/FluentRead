@@ -1297,6 +1297,8 @@ describe('extension manifest capability contract', () => {
             },
         });
         expect(chrome.browser_specific_settings).toBeUndefined();
+        // 不为消除 Android 最低版本提示而未经设备验收就声明移动端支持。
+        expect(firefox.browser_specific_settings?.gecko_android).toBeUndefined();
     });
 
     it('固定发布包英文名称，并为 Firefox 保留共享 OCR 资产', () => {

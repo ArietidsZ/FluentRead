@@ -371,6 +371,7 @@ export async function translateText(origin: string, context: string = document.t
             enableNativeBatch,
             useCache,
             ...(options.validateTranslationSlots === true ? {validateTranslationSlots: true} : {}),
+            ...(options.validateInlineCodeTranslation === true ? {validateInlineCodeTranslation: true} : {}),
             serviceOverride: selectedService,
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
@@ -391,7 +392,7 @@ export async function translateText(origin: string, context: string = document.t
         const result = unwrapTranslationResponse<string>(response);
 
         // 普通请求沿用空结果原文回退；槽包必须保留 raw，避免伪造可成功解析的来源包。
-        if (!result && options.validateTranslationSlots !== true) {
+        if (!result && options.validateTranslationSlots !== true && options.validateInlineCodeTranslation !== true) {
           return origin;
         }
 
@@ -651,6 +652,8 @@ export interface TranslateOptions {
   documentBatch?: boolean;
   /** 仅全文内部的单条槽协议；保留供应商的 string 请求形状，在后台逐槽校验。 */
   validateTranslationSlots?: boolean;
+  /** 行内代码的单条标记协议，后台验证后才能缓存。 */
+  validateInlineCodeTranslation?: boolean;
   /** DOM 尝试恢复后，取消重试等待并忽略迟到的 runtime 响应。 */
   signal?: AbortSignal;
   /** 一次 DOM 尝试取消时，用于拒绝尚未开始任务的队列作用域。 */

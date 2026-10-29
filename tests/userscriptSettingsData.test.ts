@@ -5,7 +5,7 @@ import {inflateWithPako} from '@/userscript/pakoBundled';
 import {decodeUserscriptData} from '@/userscript/dataEncoding';
 import {gzipUserscriptBuildData} from '@/userscript/buildGzip';
 import ts from 'typescript';
-import {describe, expect, it, vi} from 'vitest';
+import {beforeAll, describe, expect, it, vi} from 'vitest';
 import {createUserscriptSettingsDataPlugin} from '@/userscript/settingsDataPlugin';
 
 const root = process.cwd();
@@ -19,7 +19,7 @@ const tables = [
     ['src/core/config/interfaceAppearance.ts', 'interfaceFontOptions'],
     ['src/core/config/interfaceAppearance.ts', 'popupModuleOptions'],
     ['src/core/config/interfaceAppearance.ts', 'popupQuickFeatureOptions'],
-    ['src/features/full-page-translation/ui/translationIndicators.ts', 'icon'],
+    ['src/features/full-page-translation/ui/translationIndicators.ts', 'iconPaths'],
     ['src/providers/translation/aliyun-translation.ts', 'aliyunErrorHints'],
     ['src/core/i18n/language.ts', 'localizedUiLanguageLabels'],
     ['src/features/reading-assistant/sentenceAnalysis.ts', 'ROLES'],
@@ -32,8 +32,8 @@ const tables = [
     ['src/ui/translationLoadingIndicator.ts', 'HOST_IMPORTANT_STYLES'],
 ] as const;
 
-function transform(code: string, id = resolve(root, tables[0][0]), enabled = true) {
-    const plugin = createUserscriptSettingsDataPlugin(root, enabled);
+function transform(code: string, id = resolve(root, tables[0][0]), enabled = true, fullOptions = true) {
+    const plugin = createUserscriptSettingsDataPlugin(root, enabled, fullOptions);
     const run = plugin.transform as (code: string, id: string) => {code: string} | null;
     return run(code, id);
 }
@@ -64,8 +64,8 @@ describe('standalone static settings data representation', () => {
         const after = value(initializer(transformed, name));
         expect(JSON.stringify(after)).toBe(JSON.stringify(before));
         const encoded = JSON.parse(initializer(transformed, name).match(/__fluentreadDecodeSettingsData\(("[^"]+")\)/u)![1]) as string;
-        expect(encoded.startsWith('~85:')).toBe(true);
-        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before))));
+        expect(encoded.startsWith('~91:')).toBe(true);
+        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before)), undefined, true));
         expect(initializer(transformed, name)).not.toContain('eval');
         // Every other byte of the owning source stays in place; functions and declarations remain executable code.
         let restored = transformed;
@@ -76,22 +76,32 @@ describe('standalone static settings data representation', () => {
             .replace(/import \{decodeUserscriptData as __fluentreadDecodeSettingsData\} from '@\/userscript\/dataEncoding';\n/u, '')).toBe(source);
     });
 
-    it.each([
+    describe.each([
         ['ordinary', '0', '0', false],
         ['standalone', '1', '0', true],
         ['greasy-fork', '0', '1', false],
         ['standalone-and-greasy', '1', '1', false],
-    ] as const)('preserves full language labels through the actual %s Vite configuration', async (_label, standalone, greasy, enabled) => {
-        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', standalone);
-        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', greasy);
-        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
-        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
-        try {
-            vi.resetModules();
-            const {default: configuration} = await import('@/userscript/vite.config');
-            const config = configuration as {plugins: Array<{name?: string; transform?: unknown}>};
-            const plugin = config.plugins.find(item => item.name === 'standalone-settings-data')!;
-            const run = plugin.transform as (code: string, id: string) => {code: string} | null;
+    ] as const)('actual %s Vite configuration', (_label, standalone, greasy, enabled) => {
+        let run: (code: string, id: string) => {code: string} | null;
+        // Real Vite configuration loading is setup, not the table round-trip operation.
+        // Match the bounded setup budget used by upstream Vite integration tests.
+        beforeAll(async () => {
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', standalone);
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', greasy);
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+            vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+            try {
+                vi.resetModules();
+                const {default: configuration} = await import('@/userscript/vite.config');
+                const config = configuration as {plugins: Array<{name?: string; transform?: unknown}>};
+                const plugin = config.plugins.find(item => item.name === 'standalone-settings-data')!;
+                run = plugin.transform as typeof run;
+            } finally {
+                vi.unstubAllEnvs();
+                vi.resetModules();
+            }
+        }, 30_000);
+        it('preserves full language labels', () => {
             const path = resolve(root, 'src/core/config/catalog.ts');
             const original = readFileSync(path, 'utf8');
             const result = run(original, path);
@@ -99,10 +109,19 @@ describe('standalone static settings data representation', () => {
             else for (const name of ['multilingualTargetLanguageLabels', 'englishTargetLanguageLabels']) {
                 expect(JSON.stringify(value(initializer(result!.code, name)))).toBe(JSON.stringify(value(initializer(original, name))));
             }
-        } finally {
-            vi.unstubAllEnvs();
-            vi.resetModules();
-        }
+        });
+    });
+
+    it('keeps the standard build style table in Base85 with identical gzip bytes and values', () => {
+        const [path, name] = tables[2];
+        const source = readFileSync(resolve(root, path), 'utf8');
+        const transformed = transform(source, resolve(root, path), true, false)!.code;
+        const before = value(initializer(source, name));
+        const after = value(initializer(transformed, name));
+        const encoded = JSON.parse(initializer(transformed, name).match(/__fluentreadDecodeSettingsData\(("[^"]+")\)/u)![1]) as string;
+        expect(encoded.startsWith('~85:')).toBe(true);
+        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before))));
+        expect(JSON.stringify(after)).toBe(JSON.stringify(before));
     });
 
     it('keeps all six translated prompt catalogs and their actual placeholders after synchronous decode', () => {

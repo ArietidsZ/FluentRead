@@ -9,6 +9,11 @@ overrides:
   react: 18.3.1
   react-dom: 18.3.1
 
+patchedDependencies:
+  ppu-paddle-ocr@6.6.0:
+    hash: uyhf5xrse2irby66xw7xu3mrw4
+    path: patches/ppu-paddle-ocr@6.6.0.patch
+
 importers:
 
   .:
@@ -73,6 +78,9 @@ importers:
       element-plus:
         specifier: ^2.9.3
         version: 2.9.3(vue@3.5.13(typescript@5.7.3))
+      entities:
+        specifier: 4.5.0
+        version: 4.5.0
       franc-min:
         specifier: ^6.2.0
         version: 6.2.0
@@ -105,7 +113,7 @@ importers:
         version: 3.29.4
       ppu-paddle-ocr:
         specifier: 6.6.0
-        version: 6.6.0(onnxruntime-node@1.24.3)(onnxruntime-web@1.23.2)
+        version: 6.6.0(patch_hash=uyhf5xrse2irby66xw7xu3mrw4)(onnxruntime-node@1.24.3)(onnxruntime-web@1.23.2)
       saxes:
         specifier: 6.0.0
         version: 6.0.0
@@ -131,6 +139,9 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
     devDependencies:
+      '@gfx/zopfli':
+        specifier: 1.0.15
+        version: 1.0.15
       '@storybook/addon-essentials':
         specifier: 8.6.18
         version: 8.6.18(@types/react@18.3.31)(storybook@8.6.18)
@@ -735,6 +746,10 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@gfx/zopfli@1.0.15':
+    resolution: {integrity: sha512-7mBgpi7UD82fsff5ThQKet0uBTl4BYerQuc+/qA1ELTwWEiIedRTcD3JgiUu9wwZ2kytW8JOb165rSdAt8PfcQ==}
+    engines: {node: '>= 8'}
 
   '@huggingface/jinja@0.5.10':
     resolution: {integrity: sha512-SgS1D1bglQ94ceD4ZCL6eayUDy9uV1xuyk61OjgSxU5GJh7upqZCKII0JoTYMc6wWsg3JUgaPRX0ElQzXPk3Cw==}
@@ -4749,6 +4764,10 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
+  '@gfx/zopfli@1.0.15':
+    dependencies:
+      base64-js: 1.5.1
+
   '@huggingface/jinja@0.5.10': {}
 
   '@huggingface/tokenizers@0.1.3': {}
@@ -7386,7 +7405,7 @@ snapshots:
       '@napi-rs/canvas': 1.0.10
       '@techstark/opencv-js': 5.0.0-release.1
 
-  ppu-paddle-ocr@6.6.0(onnxruntime-node@1.24.3)(onnxruntime-web@1.23.2):
+  ppu-paddle-ocr@6.6.0(patch_hash=uyhf5xrse2irby66xw7xu3mrw4)(onnxruntime-node@1.24.3)(onnxruntime-web@1.23.2):
     dependencies:
       ppu-ocv: 4.0.0
     optionalDependencies:
