@@ -1,4 +1,64 @@
 {
+  "microsoft-learn-translator-v3": {
+    "url": "https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate",
+    "hoverSelector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+    "hoverTargets": [
+      {
+        "name": "primary",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "index": 0
+      },
+      {
+        "name": "http-error-response-paragraph",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "sourceIncludes": [
+          "If an error occurs, the request returns a JSON error response.",
+          "The error code is a 6-digit number"
+        ]
+      }
+    ],
+    "requiredSelectors": [
+      "main#main h1#azure-translator-in-foundry-tools-30-translate",
+      "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p"
+    ],
+    "coverageRules": [
+      {
+        "name": "translator-title",
+        "selector": "main#main h1#azure-translator-in-foundry-tools-30-translate",
+        "kind": "heading",
+        "minInitial": 1
+      },
+      {
+        "name": "translator-prose",
+        "selector": "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p",
+        "kind": "content",
+        "minInitial": 3
+      }
+    ],
+    "forbiddenSelectors": [
+      "main#main pre",
+      "main#main code",
+      "nav#affixed-left-container",
+      "nav#side-doc-outline"
+    ],
+    "interactionSelectors": [
+      "main#main > div.reading-width > div > div.content:has(> pre.inner-focus) > p > a[href=\"../status-response-codes\"]",
+      "#article-header-breadcrumbs nav a[href]",
+      "nav#affixed-left-container a[href]",
+      "nav#side-doc-outline a[href]"
+    ],
+    "modes": [
+      "hover",
+      "full"
+    ],
+    "tier": "required",
+    "fullPageScope": "finite-page",
+    "skipUnscopedH1Coverage": true,
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation",
+    "notes": "Microsoft Learn Translator v3 reference: cover the separate document title and prose container while protecting code and navigation. Controlled-provider runs verify DOM compatibility, not translation quality."
+  },
   "bambu-dual-nozzles": {
     "url": "https://wiki.bambulab.com/en/software/bambu-studio/manual/dual-nozzles-slicing-filament-grouping",
     "hoverSelector": ".contents p",
@@ -983,8 +1043,24 @@
     "url": "https://www.youtube.com/results?search_query=machine+translation&hl=en",
     "fullPageScope": "initial-corpus",
     "hoverSelector": "ytd-video-renderer h3",
+    "hoverTargets": [
+      {
+        "name": "video-title",
+        "selector": "ytd-video-renderer h3",
+        "index": 0
+      },
+      {
+        "name": "video-description-snippet",
+        "selector": "ytd-video-renderer .metadata-snippet-text",
+        "index": 0,
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      }
+    ],
     "requiredSelectors": [
-      "ytd-video-renderer h3"
+      "ytd-video-renderer h3",
+      "ytd-video-renderer .metadata-snippet-text"
     ],
     "coverageRules": [
       {
@@ -992,6 +1068,14 @@
         "selector": "ytd-video-renderer h3",
         "kind": "heading",
         "minInitial": 2
+      },
+      {
+        "name": "video-description-snippets",
+        "selector": "ytd-video-renderer .metadata-snippet-text",
+        "kind": "content",
+        "minInitial": 2,
+        "minSeen": 2,
+        "trackDynamic": false
       }
     ],
     "forbiddenSelectors": [
@@ -1013,7 +1097,7 @@
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation",
-    "notes": "YouTube 搜索视频标题可读，频道名、播放量和发布时间保持原文；不代表首页、登录态或视频字幕验收。"
+    "notes": "YouTube 搜索视频标题与普通卡片简介分别验证悬浮，全文覆盖初始可翻译正文集合；频道名、播放量和发布时间保持原文。时间导航摘录尚需独立验证；不代表首页、登录态或视频字幕验收。"
   },
   "bing-search-results": {
     "url": "https://www.bing.com/search?q=machine+translation&setlang=en-us",
@@ -2041,6 +2125,7 @@
       "main article span + span > a.x-link[href^=\"/\"]:not([href^=\"//\"]) > span.text-secondary.line-clamp-1:not([dir=\"auto\"] *)",
       "main article a[data-base-ui-tooltip-trigger][href*=\"/status/\"]",
       "main article [data-engagement-action]",
+      "main article div:has(> [data-engagement-action=\"reply\"]):has(> [data-engagement-action=\"retweet\"]):has(> [data-engagement-action=\"like\"])",
       ":is(main article button[data-slot=\"xds-menu-trigger\"], main article [role=\"button\"][data-base-ui-click-trigger], main article button.cursor-pointer.bg-transparent):not(main article div.aspect-video:has(> video) button[data-slot=\"xds-menu-trigger\"]:has(svg[data-icon=\"icon-settings-stroke\"]))",
       "nav",
       "main article div.aspect-video:has(> video) button[data-slot=\"xds-menu-trigger\"]:has(svg[data-icon=\"icon-settings-stroke\"])"
@@ -2050,6 +2135,7 @@
       "main article span + span > a.x-link[href^=\"/\"]:not([href^=\"//\"]) > span.text-secondary.line-clamp-1:not([dir=\"auto\"] *)",
       "main article a[data-base-ui-tooltip-trigger][href*=\"/status/\"]",
       "main article [data-engagement-action]",
+      "main article div:has(> [data-engagement-action=\"reply\"]):has(> [data-engagement-action=\"retweet\"]):has(> [data-engagement-action=\"like\"])",
       ":is(main article button[data-slot=\"xds-menu-trigger\"], main article [role=\"button\"][data-base-ui-click-trigger], main article button.cursor-pointer.bg-transparent):not(main article div.aspect-video:has(> video) button[data-slot=\"xds-menu-trigger\"]:has(svg[data-icon=\"icon-settings-stroke\"]))",
       "nav"
     ],

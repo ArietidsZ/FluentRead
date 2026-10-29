@@ -55,6 +55,7 @@ import {getCompositeTranslationProvider, isCompositeTranslationProviderId} from 
 import {createCompositeTranslationRoutingState} from './compositeRouting';
 import {resolveCloudRegion, services} from '@/src/core/config/catalog';
 import {resolveTranslationRequestModel} from '@/src/core/config/requestModel';
+import {isValidInlineCodeSource, isValidInlineCodeTranslation} from '@/src/core/translation/inlineCodeMarkers';
 import {getServiceApiKeys} from '@/src/core/config/apiKeys';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {supportsVisionTransport} from '@/src/core/config/vision';
@@ -279,6 +280,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         message: TranslationSingleRequestMessage,
         result: string,
     ): boolean {
+        if (message.validateInlineCodeTranslation === true) {
+            return isValidInlineCodeTranslation(message.origin, result, execution.targetLanguage)
+                && isCacheableResult(message.origin, result, execution);
+        }
         if (message.validateTranslationSlots !== true) {
             return isCacheableResult(message.origin, result, execution);
         }
@@ -1223,7 +1228,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.origin,
             context,
             pageContext,
-            message.validateTranslationSlots === true ? 'slot-protocol' : 'single',
+            message.validateInlineCodeTranslation === true ? 'inline-code-v1'
+                : message.validateTranslationSlots === true ? 'slot-protocol' : 'single',
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
@@ -1565,6 +1571,17 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     async function translateWithCache(message: TranslationRequestMessage): Promise<string | string[]> {
+        // 此标志可经公开 runtime 协议进入后台；即使调用方绕过 parser，缓存边界也必须拒绝不兼容形态。
+        if (message.validateInlineCodeTranslation !== undefined && typeof message.validateInlineCodeTranslation !== 'boolean') {
+            throw new TypeError('翻译请求字段 validateInlineCodeTranslation 必须是布尔值');
+        }
+        if (message.validateInlineCodeTranslation === true && (
+            typeof message.origin !== 'string' || !isValidInlineCodeSource(message.origin) ||
+            message.validateTranslationSlots === true || message.aiMultiSegment === true || message.documentBatch === true ||
+            message.enableAIContext !== false || Boolean(message.context) || Boolean(message.pageContext) ||
+            Boolean(message.discourseContext) || (message.glossaryContext !== undefined && message.glossaryContext !== 'page') ||
+            Boolean(getTranslationImageInput(message)) || (getTranslationGlossaryContext(message)?.context ?? 'page') !== 'page'
+        )) throw new TypeError('行内代码翻译请求格式无效');
         // 空请求没有 provider 语义，也不应被配置水合阻塞或计入统计。
         if (Array.isArray(message.origin) && message.origin.length === 0) return [];
         if (Array.isArray(message.origin) && Array.from(message.origin).every(origin =>

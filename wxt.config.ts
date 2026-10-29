@@ -15,6 +15,8 @@ import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGL
 import {createDeepLXRuntimeBuildPlugin} from './scripts/testing/deeplx-runtime-build';
 import {FREE_PROVIDER_ORIGINS} from './src/core/config/freeProviderOrigins';
 import {createReadingDictionaryAliases} from './scripts/testing/reading-annotation-build';
+import {extensionCspBuildPlugin} from './scripts/testing/extension-csp-build';
+import {defuddleEntityBuildPlugin} from './scripts/testing/defuddle-entity-build';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -167,7 +169,9 @@ export function createExtensionManifest(
         browser_specific_settings: {
             gecko: {
                 id: '{3096bd53-3bda-4556-b076-ebf47442a5c1}',
-                // data_collection_permissions requires Firefox 140 or later.
+                // 桌面内置同意机制从 Firefox 140 起支持，保留 ESR 140。
+                // Android 从 142 起支持；未经实机验收不通过 gecko_android 声明 Android 支持。
+                // 因而 AMO 可能提示 Android 最低版本告警，提交说明中应解释这一兼容范围。
                 strict_min_version: '140.0',
                 // Firefox taxonomy counts any transmission outside the add-on/browser.
                 // FluentRead sends page/image/subtitle text, user-supplied provider credentials,
@@ -277,7 +281,7 @@ export default defineConfig({
         return {
             // 固定版本的本地分词算法通过缓存适配器读取纯数据，不采用供应商自带的网络加载器。
             resolve: {alias: createReadingDictionaryAliases(__dirname)},
-            plugins: [createDeepLXRuntimeBuildPlugin(__dirname), vue(), sharedOnnxBuildPlugin(), wllamaExtensionWorker(), tesseractSdkBuildPlugin(), escapeExtensionNoncharacters()],
+            plugins: [createDeepLXRuntimeBuildPlugin(__dirname), extensionCspBuildPlugin(), defuddleEntityBuildPlugin(), vue(), sharedOnnxBuildPlugin(), wllamaExtensionWorker(), tesseractSdkBuildPlugin(), escapeExtensionNoncharacters()],
             // WXT 默认在每个开发脚本中内联源码与 sourcemap；需要源码调试时显式开启。
             build: env.command === 'serve' ? {sourcemap: process.env.FLUENTREAD_DEV_SOURCEMAPS === '1' ? 'inline' : false} : undefined,
             define: {

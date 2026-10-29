@@ -235,20 +235,15 @@ describe('YouTube 字幕轨道数据', () => {
       Object.defineProperty(globalThis, 'document', {
         configurable: true,
         value: {
-          createElement: () => {
-            const textarea = {value: ''};
-            Object.defineProperty(textarea, 'innerHTML', {
-              set: (value: string) => {
-                textarea.value = value.replace(/&amp;/g, '&');
-              },
-            });
-            return textarea;
-          },
+          createElement: () => {throw new Error('subtitle decoding must not create DOM');},
         },
       });
       expect(parseYoutubeTimedTextResponse(JSON.stringify({
         events: [{tStartMs: 0, dDurationMs: 100, segs: [{utf8: 'A &amp; B'}]}],
       }))).toEqual([{startMs: 0, durationMs: 100, text: 'A & B'}]);
+      expect(parseYoutubeTimedTextResponse(JSON.stringify({
+        events: [{tStartMs: 0, dDurationMs: 100, segs: [{utf8: '&NotEqualTilde; &amp;lt;'}]}],
+      }))).toEqual([{startMs: 0, durationMs: 100, text: '≂̸ &lt;'}]);
     } finally {
       if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
       else Reflect.deleteProperty(globalThis, 'document');

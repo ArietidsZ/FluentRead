@@ -64,6 +64,33 @@ function committed(mode: 'bilingual' | 'single' = 'bilingual', overrides: Partia
 }
 
 describe('已提交网页译文显示切换', () => {
+    it('整句行内代码重放贯通双语与单语，代码或原始空白变化时拒绝旧译文', () => {
+        vi.stubGlobal('getComputedStyle', () => ({display: 'inline', visibility: 'visible', contentVisibility: 'visible',
+            opacity: '1', whiteSpace: 'normal', fontFamily: 'Arial', position: 'static', overflow: 'visible',
+            width: '20px', height: '20px', clip: 'auto', clipPath: 'none',
+            getPropertyValue: () => '', getPropertyPriority: () => ''}));
+        const fixture = committed('bilingual', {
+            inlineCodeTexts: ['fetch()', 'parse()'], inlineCodeClasses: ['notranslate', null], inlineCodeSourceTexts: ['Use ', ' before ', ' now.'],
+        }, 'Use <code class="notranslate">fetch()</code> before <code>parse()</code> now.');
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(true);
+        expect(syncTranslationDisplayMode(fixture.owner, fixture.state, 0)).toBe(true);
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(true);
+        expect(syncTranslationDisplayMode(fixture.owner, fixture.state, 1)).toBe(true);
+        const code = Array.from(fixture.owner.children).find(child => child.localName === 'code')!;
+        code.removeAttribute('class');
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(false);
+        expect(refreshTranslationDisplayMode(fixture.owner, fixture.state)).toBe(false);
+        code.setAttribute('class', 'notranslate');
+        code.textContent = 'changed()';
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(false);
+        expect(refreshTranslationDisplayMode(fixture.owner, fixture.state)).toBe(false);
+        expect(syncTranslationDisplayMode(fixture.owner, fixture.state, 0)).toBe(false);
+        code.textContent = 'fetch()';
+        fixture.nodes[0]!.data = 'Use';
+        expect(statefulSourceAndTextSlotsAreCurrent(fixture.owner, fixture.state)).toBe(false);
+        expect(refreshTranslationDisplayMode(fixture.owner, fixture.state)).toBe(false);
+    });
+
     function corrected(baseline = true) {
         const fixture = committed('bilingual', {}, 'The team is ready.');
         const heading = document.createElement('h2'); heading.textContent = 'Team';

@@ -24,6 +24,25 @@ Zotero、Obsidian、油猴版本目前独立维护。根版本标签表示整组
 
 此流程发布 GitHub 下载附件。Chrome Web Store、Edge Add-ons、Firefox AMO、Greasy Fork 和 Apple App Store 的账号认证、审核与分发需要各自接入。Greasy Fork 专用源码要求提交过且一致的固定依赖资源；保持现有保护，本流程发布标准版和 standalone 安装脚本，不自动改写托管资源。Zotero 的 `updates.json` 也不会在此流程中自动启用。
 
+## Firefox AMO 告警检查
+
+先运行 `pnpm build:firefox`，再按根目录 README 的命令安装 Mozilla 官方 `addons-linter` 并执行 `pnpm lint:firefox:amo`。校验脚本可指定目录或最终 ZIP，保存完整 JSON，不屏蔽规则；校验错误或校验器失败会使命令失败，警告仍保留在报告中。构建与源码 ZIP 的复现步骤也在 README，源码包应与提交的安装包来自同一次打包。[Mozilla 本地校验说明](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/)、[源码提交要求](https://extensionworkshop.com/documentation/publish/source-code-submission/)
+
+2026-10-27 的告警修复保留了桌面 Firefox 140（含 ESR 140），没有提高最低版本或未经验收声明 Android 支持。内置数据同意功能在桌面 140、Android 142 起提供，因此这组清单会保留 Android 最低版本提示；向审核者说明桌面兼容范围。后续支持 Android 时应先完成设备验证，再明确声明兼容版本。[Mozilla 内置数据同意机制](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)、[Android 兼容性验证](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/)
+
+依赖适配由 `scripts/testing/extension-csp-build.ts`、`scripts/testing/defuddle-entity-build.ts` 和 `scripts/wasm/package-diagnostics.ts` 在构建中执行：完整源码 SHA-256 不符即停止，不直接修改上游包；WASM 二进制不变。全局回退改用 `globalThis`，ZIP 不再编译历史字符串回调，PDF 使用已有解释器，ONNX 使用静态调用闭包，Defuddle 的实体解码改用共享纯文本解码器。升级依赖时必须重新审查固定输入与语义测试，不应通过忽略校验规则维持通过。
+
+剩余告警需结合本次 ZIP 的实际报告逐项审阅：
+
+| 来源 | 需说明的输入与边界 |
+| --- | --- |
+| Vue 静态模板 | 来自编译的包内模板；产品没有启用 `v-html` 或组件原始 HTML 选项 |
+| Defuddle | 操作独立、已清洗的页面快照；不把解析节点插回宿主页面 |
+| 上下文 Markdown 解析 | 输入经过上下文隐私清洗，在独立节点中解析后转换为文本/Markdown |
+| ONNX 与 PDF 的动态导入 | 模型运行时和 PDF Worker 地址由包内资源配置提供；模型下载内容作为数据使用 |
+
+验证通过表示本地校验器没有错误，不代表 Mozilla 已签名、审核批准，也不代表完成所有 Firefox/Android 真机功能验收。
+
 ## 发版步骤
 
 1. 在正常 PR 中更新根 `package.json.version`，按需更新独立组件版本，合入 `main`。

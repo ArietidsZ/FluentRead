@@ -7,18 +7,21 @@
 import {
     buildWholeBlockTranslationSource,
     collectLiveTranslationTextSlots,
+    createInlineCodePacket,
     createTranslationSourceSnapshot,
     getCurrentTranslationCore,
     getTranslatableControlValueAttribute,
     normalizeTranslationText,
 } from '@/src/core/translation/public';
-import type {TranslationScope, TranslationTextProtectionOptions} from '@/src/core/translation/public';
+import type {InlineCodePacket, TranslationScope, TranslationTextProtectionOptions} from '@/src/core/translation/public';
 import {hasDistinctTargetTranslation as hasDistinctTranslation} from '@/src/core/translation/targetResult';
+import {isClearlyWrongLanguageResponse, isUnchangedTranslationResponse} from '@/src/core/translation/resultValidation';
 import type {TranslationQueueSession} from '@/src/services/translation/queue';
 import {copyFullPageTranslationConfigSnapshot} from './translationConfigSnapshot';
 import {isPersonalCorrectionEnabled, lookupPersonalCorrection, type PersonalCorrectionSnapshot} from './personalCorrections';
 import {
     translateTextSlots,
+    tryTranslateInlineCodeSentence,
     type FullPageTranslationConfigSnapshot,
     type FullPageTranslationSessionCache,
 } from './translationRequest';
@@ -171,6 +174,8 @@ export type TranslationResult = (LiveTextTranslationResult | ControlValueTransla
     kind: 'snapshot';
     sources: readonly string[];
     translations: readonly string[];
+    inlineCodePacket?: InlineCodePacket;
+    staleInlineCode?: true;
 }) & {personalCorrection?: PersonalCorrectionSnapshot};
 
 /** 统一冻结候选范围；异步期间其他会话的范围变化不能改变本次请求的文本槽。 */
@@ -185,6 +190,7 @@ export async function createTranslationRequest(
     protectionOptions?: TranslationTextProtectionOptions,
     forceFailedRequest = false,
     scope?: TranslationScope,
+    getIgnoredArtifact?: () => Element | undefined,
 ): Promise<TranslationResult> {
     snapshot = copyFullPageTranslationConfigSnapshot(snapshot);
     const controlValueAttribute = getTranslatableControlValueAttribute(node);
@@ -201,6 +207,7 @@ export async function createTranslationRequest(
     const origins = parts.map((part) => part.source);
     if (origins.length === 0) return {kind: 'snapshot', sources: [], translations: []};
     let source: string | null = null;
+    let inlineCodePacket: InlineCodePacket | null = null;
     if (origins.length > 1 || (import.meta.env.BROWSER !== 'userscript' && isPersonalCorrectionEnabled())) {
         const core = getCurrentTranslationCore(scope);
         const skeleton = createTranslationSourceSnapshot(node, core.shouldStayOriginal, undefined,
@@ -208,6 +215,11 @@ export async function createTranslationRequest(
         source = skeleton.slots.length === origins.length && skeleton.slots.every((slot, index) => slot.source === origins[index])
             ? origins.length === 1 && !skeleton.clone.firstElementChild ? origins[0]!
                 : buildWholeBlockTranslationSource(skeleton, {preserveNewlines: preservesSourceNewlines(node)}) : null;
+        if (!source && skeleton.slots.length === origins.length && skeleton.slots.every((slot, index) => slot.source === origins[index])) {
+            inlineCodePacket = createInlineCodePacket(node, skeleton, core.shouldStayOriginal, {
+                targetLanguage: snapshot.targetLanguage, protectionOptions, getIgnoredArtifact,
+            });
+        }
     }
     const personalCorrection = import.meta.env.BROWSER !== 'userscript' && source
         ? await lookupPersonalCorrection(node, source, snapshot.sourceLanguage, snapshot.targetLanguage, signal) : undefined;
@@ -219,6 +231,17 @@ export async function createTranslationRequest(
         const wholeBlock = await translateSnapshotAsWholeBlock(node, origins, source, snapshot, signal, queueSession,
             fullPageSession, forceFailedRequest);
         if (wholeBlock) return finish(wholeBlock);
+    }
+    if (inlineCodePacket) {
+        const translated = await tryTranslateInlineCodeSentence(inlineCodePacket.source,
+            inlineCodePacket.decode, snapshot, signal, queueSession, inlineCodePacket.isCurrent);
+        if (!inlineCodePacket.isCurrent()) return {kind: 'snapshot', sources: origins, translations: [], staleInlineCode: true};
+        if (translated?.length === origins.length &&
+            !isUnchangedTranslationResponse(origins.join(' '), translated.join(' ')) &&
+            !isClearlyWrongLanguageResponse(origins.join(' '), translated.join(' '), snapshot.targetLanguage) &&
+            translated.some((text, index) => hasDistinctTranslation(origins[index]!, text, snapshot.targetLanguage))) {
+            return {kind: 'snapshot', sources: origins, translations: translated, inlineCodePacket};
+        }
     }
     const translations = await translateTextSlots(origins, snapshot, signal, queueSession,
         fullPageSession, forceFailedRequest,
