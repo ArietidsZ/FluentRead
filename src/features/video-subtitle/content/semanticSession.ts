@@ -24,9 +24,9 @@ export class VideoSemanticSession {
     this.controller = controller;
     let rejectAbort!: (error: unknown) => void;
     const aborted = new Promise<never>((_, reject) => { rejectAbort = reject; });
-    const abort = () => rejectAbort(new DOMException('Segmentation cancelled or expired', 'AbortError'));
+    const abort = () => rejectAbort(controller.signal.reason);
     controller.signal.addEventListener('abort', abort, {once: true});
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(new DOMException('Segmentation deadline exceeded', 'TimeoutError')), this.timeoutMs);
     try {
       const response = await Promise.race([this.transport(document, controller.signal), aborted]);
       if (controller.signal.aborted || this.controller !== controller || revision !== this.currentRevision()) {

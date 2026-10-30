@@ -225,7 +225,7 @@
         <SettingsItem label="优先使用人工字幕" description="YouTube、Udemy、Disney+ 有目标语言人工字幕时优先使用；不可用时继续翻译原字幕" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoPreferHumanSubtitles" class="settings-toggle" aria-label="优先使用人工字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
-        <SettingsItem v-if="browserCapabilities.extensionDom" :label="t('video.learning.segmentationTitle')" :description="t('video.learning.segmentationDescription')">
+        <SettingsItem v-if="browserCapabilities.extensionDom" id="video-semantic-segmentation" data-settings-anchor="video-semantic-segmentation" :data-settings-anchor-label="t('video.learning.segmentationTitle')" :label="t('video.learning.segmentationTitle')" :description="t('video.learning.segmentationDescription')">
           <el-switch v-model="config.videoSemanticSegmentationEnabled" :aria-label="t('video.learning.segmentationTitle')" />
         </SettingsItem>
         <SettingsItem v-if="browserCapabilities.extensionDom && config.videoSemanticSegmentationEnabled" :label="t('video.learning.segmentationService')" :description="t('video.learning.segmentationServiceDescription')">

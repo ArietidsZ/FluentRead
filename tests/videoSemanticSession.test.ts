@@ -33,7 +33,7 @@ describe('semantic session ownership', () => {
     vi.useFakeTimers();
     try {
       const session = new VideoSemanticSession(() => new Promise(() => {}), () => 'v1', 10);
-      const result = session.request(cues); const failure = expect(result).rejects.toMatchObject({name: 'AbortError'});
+      const result = session.request(cues); const failure = expect(result).rejects.toMatchObject({name: 'TimeoutError'});
       await vi.advanceTimersByTimeAsync(10); await failure; expect(vi.getTimerCount()).toBe(0); session.cancel();
     } finally {vi.useRealTimers();}
   });

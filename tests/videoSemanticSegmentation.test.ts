@@ -113,3 +113,28 @@ it('keeps confirmed neighboring sentences and explicitly model-confirmed starts 
   const modelDoc = createSemanticDocument([cue('one two three four.')]);
   expect(segmentSemanticDocument(modelDoc, ['b8', 'b19']).map(unit => unit.complete)).toEqual([true, true]);
 });
+
+
+it.each(['!!!', '???', '....', '?!?', '！？', '؟!', '।॥', '...。'])(
+  'keeps terminal punctuation run %s atomic for rule and AI candidates', marks => {
+    const first = `Ready${marks} `;
+    const doc = createSemanticDocument([cue(`${first}Next sentence.`)]);
+    expect(segmentSemanticDocument(doc).map(unit => unit.text)).toEqual([first, 'Next sentence.']);
+    for (let offset = 6; offset < 5 + marks.length; offset++) {
+      expect(doc.boundaries.some(point => point.offset === offset)).toBe(false);
+      expect(() => parseSemanticBoundaryResponse(doc, {boundaries: [`b${offset}`, doc.boundaries.at(-1)!.id]})).toThrow();
+    }
+    expect(segmentSemanticDocument(doc).map(unit => unit.text).join('')).toBe(doc.text);
+  });
+
+
+it.each(["This is the team's.", 'This is the team’s.', 'The store is H&M.'])(
+  'does not mistake a connected final letter for an initial: %s', first => {
+    const doc = createSemanticDocument([cue(`${first} Next sentence.`)]);
+    expect(segmentSemanticDocument(doc).map(unit => unit.text)).toEqual([`${first} `, 'Next sentence.']);
+  });
+it.each(['J. Smith spoke.', 'Dr. Smith spoke.', 'The U.S. team spoke.'])(
+  'preserves genuine initials and abbreviations: %s', first => {
+    const doc = createSemanticDocument([cue(`${first} Next sentence.`)]);
+    expect(segmentSemanticDocument(doc).map(unit => unit.text)).toEqual([`${first} `, 'Next sentence.']);
+  });

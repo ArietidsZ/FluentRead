@@ -51,7 +51,7 @@
   "video.learning.cueEnvelope": "La reproducción usa el intervalo del subtítulo original; no hay tiempos por palabra.",
   "video.learning.segment": "Segmentar este pasaje con IA",
   "video.learning.segmenting": "Buscando límites semánticos…",
-  "video.learning.segmentationFailed": "La segmentación con IA falló. Se conserva la división por reglas.",
+  "video.learning.segmentationFailed": "La segmentación con IA falló. Se conserva la segmentación actual. Puedes reintentarlo.",
   "video.learning.replaySource": "Repetir el pasaje original",
   "video.learning.loopSource": "Reproducir el pasaje en bucle",
   "video.learning.pauseSource": "Pausar al final del pasaje",
@@ -62,5 +62,14 @@
   "video.learning.segmentationServicePlaceholder": "Seleccionar un servicio de IA",
   "video.learning.segmentationModel": "ID del modelo de segmentación",
   "video.learning.segmentationModelDescription": "Usa las credenciales existentes de este servicio. Cada clic realiza un solo intento y puede generar cargos de uso.",
-  "video.learning.segmentationModelPlaceholder": "Introducir un ID de modelo"
+  "video.learning.segmentationModelPlaceholder": "Introducir un ID de modelo",
+  "video.learning.configureSegmentation": "Configurar la segmentación con IA",
+  "video.learning.resegment": "Volver a analizar este fragmento",
+  "video.learning.cancelSegmentation": "Cancelar análisis",
+  "video.learning.segmentationCancelled": "Análisis cancelado. Se conserva la segmentación actual.",
+  "video.learning.segmentationUnchanged": "Análisis completado. No hace falta cambiar los límites.",
+  "video.learning.segmentationUpdated": "Se actualizaron los límites de las frases.",
+  "video.learning.segmentationTimeout": "Se agotó el tiempo del análisis. Se conserva la segmentación actual. Puedes reintentarlo.",
+  "video.learning.segmentationPrivate": "La segmentación con IA no está disponible en ventanas privadas. La segmentación actual no cambia.",
+  "video.learning.segmentationPrivacyUnknown": "No se pudo confirmar el modo de privacidad de la ventana. La segmentación con IA no está disponible."
 }

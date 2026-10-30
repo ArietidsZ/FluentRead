@@ -13,7 +13,7 @@ vi.mock('@/src/services/harness/modelConfig', () => ({snapshotHarnessConfig: (co
 vi.mock('@/src/core/site-rules/domain', () => ({isExtensionDisabledOnSite: () => false}));
 import {createVideoSemanticRuntime} from '@/src/features/video-subtitle/background/semanticRuntime';
 const context = {sender: {id: 'ext', tab: {id: 1, incognito: false}, frameId: 0, documentId: 'document'}};
-const input = {type: 'fluentReadSegmentVideoSemantics', algorithmVersion: 1, requestId: 'runtime', cues: [{text: 'A sentence.', startMs: 0, durationMs: 1000}]};
+const input = {type: 'fluentReadSegmentVideoSemantics', algorithmVersion: 2, requestId: 'runtime', cues: [{text: 'A sentence.', startMs: 0, durationMs: 1000}]};
 beforeEach(() => {
   vi.clearAllMocks(); mocks.config.videoSemanticSegmentationEnabled = true;
   vi.stubGlobal('browser', {runtime: {id: 'ext'}, extension: {inIncognitoContext: false}, tabs: {onRemoved: {addListener: mocks.removed}, onUpdated: {addListener: mocks.updated}}});

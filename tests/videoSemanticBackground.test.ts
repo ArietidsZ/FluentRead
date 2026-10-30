@@ -1,7 +1,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {createVideoSemanticHandlers} from '@/src/features/video-subtitle/background/semanticSegmentation';
 const context = {sender: {id: 'extension', tab: {id: 1, incognito: false, url: 'https://www.youtube.com/watch?v=a'}, frameId: 0, documentId: 'doc', url: 'https://www.youtube.com/watch?v=a'}};
-const request = (requestId = 'one') => ({type: 'fluentReadSegmentVideoSemantics', algorithmVersion: 1, requestId, cues: [{text: 'Hello world.', startMs: 0, durationMs: 1000}]});
+const request = (requestId = 'one') => ({type: 'fluentReadSegmentVideoSemantics', algorithmVersion: 2, requestId, cues: [{text: 'Hello world.', startMs: 0, durationMs: 1000}]});
 const result = {boundaries: ['b12']};
 const deferred = () => {let resolve!: (value: unknown) => void; const promise = new Promise(resolve_ => {resolve = resolve_;}); return {promise, resolve};};
 function setup() {
@@ -62,7 +62,7 @@ describe('AI semantic background trust and lifecycle', () => {
     env.generate.mockResolvedValue({text: 'rewritten'}); expect(await env.run(request('two'))).toMatchObject({success: false});
   });
   it('rejects invalid source and request identifiers before model call', async () => {
-    for (const bad of [{...request(), algorithmVersion: 2}, {...request(), requestId: ''}, {...request(), cues: null}, {...request(), cues: [{text: 3}]}, {...request(), cues: []}]) {
+    for (const bad of [{...request(), algorithmVersion: 999}, {...request(), requestId: ''}, {...request(), cues: null}, {...request(), cues: [{text: 3}]}, {...request(), cues: []}]) {
       const env = setup(); await expect(env.run(bad as ReturnType<typeof request>)).rejects.toThrow(); expect(env.generate).not.toHaveBeenCalled();
     }
   });
@@ -78,4 +78,11 @@ it('bounds consumed and pre-cancelled identifiers and accepts URL-only sender id
   const handlers = createVideoSemanticHandlers({runtimeId: 'extension', privateContext: () => false,
     settings: () => ({enabled: true, revision: ''}), generate: async () => result});
   expect(await handlers[0].handle(request('minimal'), minimal)).toMatchObject({success: true});
+});
+
+
+it('rejects requests from the prior candidate algorithm before provider invocation', async () => {
+  const env = setup();
+  await expect(env.run({...request(), algorithmVersion: 1})).rejects.toThrow();
+  expect(env.generate).not.toHaveBeenCalled();
 });

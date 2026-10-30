@@ -6,7 +6,7 @@
  */
 import type {VideoSubtitleCue} from './content/youtubeSubtitleData';
 
-export const SEMANTIC_ALGORITHM_VERSION = 1;
+export const SEMANTIC_ALGORITHM_VERSION = 2;
 const graphemeSegmenter = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
 const wordSegmenter = new Intl.Segmenter(undefined, {granularity: 'word'});
 export const MAX_SEGMENTATION_CHARACTERS = 16_000;
@@ -20,7 +20,7 @@ export interface SemanticUnit {
 }
 
 const terminal = /[.!?。！？؟۔।॥]["'”’»」』）)\]]*$/u;
-const abbreviation = /(?:\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)|\b[A-Za-z])\.$/iu;
+const abbreviation = /(?:\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)|(?<!['’&])\b[A-Za-z])\.$/iu;
 
 /** Punctuation evidence for a source boundary, not a guarantee of grammatical completeness. */
 export function hasRuleSentenceEnd(text: string): boolean {
@@ -54,6 +54,8 @@ export function createSemanticDocument(cues: readonly VideoSubtitleCue[]): Seman
     const offset = part.index + part.segment.length;
     const previous = text.slice(Math.max(0, offset - 80), offset).trimEnd();
     const next = graphemes[i + 1]?.segment || '';
+    // Repeated/mixed terminal marks form one punctuation run, not standalone sentences.
+    if (/^[.!?。！？؟۔।॥]$/u.test(part.segment) && /^[.!?。！？؟۔।॥]$/u.test(next)) continue;
     while (protectedIndex < protectedSpans.length && protectedSpans[protectedIndex].end <= offset) protectedIndex++;
     if (protectedIndex < protectedSpans.length && protectedSpans[protectedIndex].start < offset
       && offset < protectedSpans[protectedIndex].end) continue;
