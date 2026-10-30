@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/semanticSegmentation.ts
  * 文件职责：为规则与 AI 断句提供同一份无损原文、候选边界和有界优化器。
- * 主要内容：保留 cue 原文映射，只允许字素边界；验证模型边界 ID，按全局代价选择语义分段。
+ * 主要内容：保留 cue 原文映射，只允许字素边界；验证模型边界 ID，按全局代价选择语义分段，完整性需同时具有局部起止边界证据。
  * 模块边界：不请求模型、不改写字幕、不生成子句时间；回放范围仅为覆盖原 cue 的包络。
  */
 import type {VideoSubtitleCue} from './content/youtubeSubtitleData';
@@ -21,6 +21,12 @@ export interface SemanticUnit {
 
 const terminal = /[.!?。！？؟۔।॥]["'”’»」』）)\]]*$/u;
 const abbreviation = /(?:\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e)|\b[A-Za-z])\.$/iu;
+
+/** Punctuation evidence for a source boundary, not a guarantee of grammatical completeness. */
+export function hasRuleSentenceEnd(text: string): boolean {
+  const tail = text.slice(-80).trimEnd();
+  return terminal.test(tail) && !abbreviation.test(tail);
+}
 
 /** 空白也属于源文字；cue 之间只有一个显式分隔换行，不压缩或清洗源文字。 */
 export function createSemanticDocument(cues: readonly VideoSubtitleCue[]): SemanticDocument {
@@ -52,7 +58,7 @@ export function createSemanticDocument(cues: readonly VideoSubtitleCue[]): Seman
     if (protectedIndex < protectedSpans.length && protectedSpans[protectedIndex].start < offset
       && offset < protectedSpans[protectedIndex].end) continue;
     // 词内不产生普通候选；CJK、标点和空白仍可提供句法候选。
-    const strong = terminal.test(previous) && !abbreviation.test(previous)
+    const strong = hasRuleSentenceEnd(previous)
       && !(/\.$/u.test(previous) && !/\s/u.test(part.segment) && /^[\p{L}\p{N}]/u.test(next));
     if (offset === text.length || wordEnds.has(offset) || /\s/u.test(part.segment) || strong
       || /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(part.segment)) {
@@ -122,7 +128,9 @@ export function segmentSemanticDocument(document: SemanticDocument, aiBoundaries
       const span = document.spans[index];
       if (span.end > start && span.end > span.start) spans.push(span);
     }
-    return {start, end, complete: accepted && end < document.text.length ? accepted.has(`b${end}`) : boundaryScores.get(end)! > 0,
+    const confirmedStart = start === 0 || (accepted ? accepted.has(`b${start}`) : boundaryScores.get(start)! > 0);
+    const confirmedEnd = accepted && end < document.text.length ? accepted.has(`b${end}`) : boundaryScores.get(end)! > 0;
+    return {start, end, complete: confirmedStart && confirmedEnd,
       text: document.text.slice(start, end), cueIndices: spans.map(span => span.cueIndex),
       playback: spans.length ? {precision: 'cue-envelope' as const, startMs: Math.min(...spans.map(span => span.startMs)),
         endMs: Math.max(...spans.map(span => span.endMs))} : null};

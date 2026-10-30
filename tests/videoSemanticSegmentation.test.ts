@@ -96,3 +96,20 @@ it('never offers AI a boundary inside a bare dotted domain or decimal', () => {
   const doc = createSemanticDocument([cue('example.com 3.14')]);
   expect(doc.boundaries.map(point => point.offset)).toEqual([12, 16]);
 });
+
+it.each(['rules', 'ai-tail-only'])('does not label the tail after a weak forced start complete in %s mode', mode => {
+  const doc = createSemanticDocument([cue('word '.repeat(120) + 'ends.')]);
+  const units = segmentSemanticDocument(doc, mode === 'rules' ? undefined : [doc.boundaries.at(-1)!.id]);
+  expect(units.length).toBeGreaterThan(1);
+  expect(units.every(unit => !unit.complete)).toBe(true);
+  expect(units.map(unit => unit.text).join('')).toBe(doc.text);
+  expect(units.every(unit => unit.cueIndices.length === 1 && unit.cueIndices[0] === 0 && unit.playback?.startMs === 0 && unit.playback.endMs === 1000)).toBe(true);
+});
+it('keeps confirmed neighboring sentences and explicitly model-confirmed starts complete', () => {
+  const doc = createSemanticDocument([cue('First sentence. ' + 'word '.repeat(120) + 'ends. Last sentence.')]);
+  const units = segmentSemanticDocument(doc);
+  expect(units.find(unit => unit.text.trim() === 'First sentence.')!.complete).toBe(true);
+  expect(units.find(unit => unit.text.trim() === 'Last sentence.')!.complete).toBe(true);
+  const modelDoc = createSemanticDocument([cue('one two three four.')]);
+  expect(segmentSemanticDocument(modelDoc, ['b8', 'b19']).map(unit => unit.complete)).toEqual([true, true]);
+});

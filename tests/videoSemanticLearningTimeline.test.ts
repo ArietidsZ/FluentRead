@@ -44,3 +44,21 @@ it('source whitespace and time changes invalidate semantic identity even at equa
   expect(a.id).not.toBe(b.id);
   expect(a.id).not.toBe(buildSemanticLearningTimeline([cue('one two.', 1)])[0].id);
 });
+
+it.each(['gap', 'limit'])('does not turn a continuation after a %s group into a complete sentence', boundary => {
+  const first = boundary === 'gap' ? cue('because we') : cue('word '.repeat(90));
+  const timeline = buildSemanticLearningTimeline([first, cue('needed more time.', 5000), cue('Next full sentence.', 6500)]);
+  expect(timeline.find(unit => unit.text === 'needed more time.')!.complete).toBe(false);
+  expect(timeline.find(unit => unit.text === 'Next full sentence.')!.complete).toBe(true);
+});
+it('uses actual source punctuation rather than a preceding length-limit flag for the next start', () => {
+  const timeline = buildSemanticLearningTimeline([cue('word '.repeat(90) + 'finished.'), cue('Next full sentence.', 2000)]);
+  expect(timeline.find(unit => unit.text === 'Next full sentence.')!.complete).toBe(true);
+});
+it('keeps start uncertainty on over-budget raw whitespace fallback and resolves later punctuation', () => {
+  const long = cue(' '.repeat(17000) + 'Ends here.', 5000);
+  expect(buildSemanticLearningTimeline([long])[0].complete).toBe(true);
+  const timeline = buildSemanticLearningTimeline([cue('because'), long, cue('Next full sentence.', 6500)]);
+  expect(timeline.find(unit => unit.text === long.text)!.complete).toBe(false);
+  expect(timeline.find(unit => unit.text === 'Next full sentence.')!.complete).toBe(true);
+});

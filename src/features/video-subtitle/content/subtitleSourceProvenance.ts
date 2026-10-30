@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/subtitleSourceProvenance.ts
  * 文件职责：为 JSON3 字幕保留有界、独立于可翻译 cue 的原始 segment 与来源关系。
- * 主要内容：记录原始 UTF-16 范围、未经语义验证的白名单字段、规范化转换及精确 cue 快照；超预算时仅退回原有 cues。
+ * 主要内容：记录原始 UTF-16 范围、未经语义验证的白名单字段、规范化转换及精确 cue 快照；用轻量转换树延迟生成最终来源集合，避免长增量前缀重复复制；超预算时仅退回原有 cues。
  * 模块边界：不把来源偏移解释成词级时间，不将原始范围映射到清洗后或翻译后的文字，不请求网络或模型。
  */
 import {sha256Hex} from '@/src/shared/function/sha256';
@@ -47,12 +47,53 @@ function fields<K extends string>(input: unknown, keys: readonly K[]): Readonly<
     }
     return Object.freeze(result);
 }
-const unique = <T>(values: readonly T[]): readonly T[] => Object.freeze([...new Set(values)]);
+type TraceNode = {event: number} | {
+    inputs: readonly TraceNode[];
+    operation: Transformation | 'duration-preserved';
+    winner?: TraceNode;
+};
+function collectEvents(root: TraceNode, mode: 'all' | 'text' | 'superseded'): number[] {
+    const events = new Set<number>();
+    const pending: Array<{node: TraceNode; mode: typeof mode}> = [{node: root, mode}];
+    while (pending.length) {
+        const task = pending.pop()!, node = task.node;
+        if ('event' in node) {if (task.mode !== 'superseded') events.add(node.event); continue;}
+        if (task.mode === 'superseded' && node.winner) {
+            // Inputs partition source events. Losing text can be emitted without rescanning the winner's growing set.
+            for (let index = node.inputs.length - 1; index >= 0; index--) {
+                if (node.inputs[index] !== node.winner) pending.push({node: node.inputs[index], mode: 'text'});
+            }
+        }
+        const inputs = task.mode === 'text' && node.winner ? [node.winner] : node.inputs;
+        // Existing superseded inputs precede the newly losing text, preserving the previous stable order.
+        for (let index = inputs.length - 1; index >= 0; index--) pending.push({node: inputs[index], mode: task.mode});
+    }
+    return [...events];
+}
+/** Keep transform nodes cheap; materialize source sets once per final cue, without recursive stack growth. */
+function materializeTrace(root: TraceNode): Lineage {
+    const contributors = collectEvents(root, 'all'), textEvents = collectEvents(root, 'text');
+    const transformations = new Set<Transformation>();
+    const pending: Array<[TraceNode, boolean]> = [[root, false]];
+    while (pending.length) {
+        const [node, visited] = pending.pop()!;
+        if ('event' in node) continue;
+        if (visited) {
+            if (node.operation !== 'duration-preserved') transformations.add(node.operation);
+        } else {
+            pending.push([node, true]);
+            for (let index = node.inputs.length - 1; index >= 0; index--) pending.push([node.inputs[index], false]);
+        }
+    }
+    return {contributors: Object.freeze(contributors), textEvents: Object.freeze(textEvents),
+        supersededEvents: Object.freeze(collectEvents(root, 'superseded')),
+        transformations: Object.freeze([...transformations])};
+}
 
 /** The legacy parser and finalizer remain the sole owners of cue transformation decisions. */
 export function parseYoutubeTimedTextDocument(source: string): {cues: VideoSubtitleCue[]; provenance?: SubtitleSourceProvenance} {
     let events: readonly SourceEvent[] | undefined;
-    const traces = new WeakMap<VideoSubtitleCue, Lineage>();
+    const traces = new WeakMap<VideoSubtitleCue, TraceNode>();
     const recorder: SubtitleCueRecorder = {
         begin(raw) {
             if (source.length > MAX_SOURCE_CHARS || raw.length > MAX_EVENTS) return;
@@ -75,25 +116,25 @@ export function parseYoutubeTimedTextDocument(source: string): {cues: VideoSubti
             events = Object.freeze(captured);
         },
         parsed(cue, eventIndex) {
-            if (events) traces.set(cue, {contributors: [eventIndex], textEvents: [eventIndex], supersededEvents: [], transformations: []});
+            if (events) traces.set(cue, {event: eventIndex});
         },
         derived(cue, inputs, operation, winner) {
             // Only finalized after every parsed cue has a trace, so all input owners are present.
-            const originals = inputs.map(input => traces.get(input)!);
-            const textEvents = winner ? traces.get(winner)!.textEvents : originals.flatMap(item => item.textEvents);
-            traces.set(cue, {
-                contributors: unique(originals.flatMap(item => item.contributors)), textEvents: unique(textEvents),
-                supersededEvents: unique([...originals.flatMap(item => item.supersededEvents),
-                    ...(winner ? originals.flatMap(item => item.textEvents).filter(index => !textEvents.includes(index)) : [])]),
-                transformations: unique([...originals.flatMap(item => item.transformations), ...(operation === 'duration-preserved' ? [] : [operation])]),
-            });
+            const nodes = inputs.map(input => traces.get(input)!);
+            // Legacy finalization can revisit unary word merges while another group still shrinks.
+            // Identity duration copies and repeated unary operations add no new provenance.
+            if (nodes.length === 1 && (operation === 'duration-preserved'
+                || !('event' in nodes[0]) && nodes[0].operation === operation)) {
+                traces.set(cue, nodes[0]); return;
+            }
+            traces.set(cue, {inputs: nodes, operation, ...(winner ? {winner: traces.get(winner)!} : {})});
         },
     };
     const parsed = parseYoutubeTimedTextResponse(source, recorder);
     // A JSON payload with no accepted cues can enter the existing XML fallback; it has no JSON3 lineage.
     if (!parsed.length || parsed.some(cue => !traces.has(cue))) return {cues: finalizeVideoSubtitleCues(parsed)};
     const cues = finalizeVideoSubtitleCues(parsed, recorder);
-    const lineage = cues.map(cue => Object.freeze({...traces.get(cue)!, snapshot: Object.freeze({...cue})}));
+    const lineage = cues.map(cue => Object.freeze({...materializeTrace(traces.get(cue)!), snapshot: Object.freeze({...cue})}));
     const provenance: SubtitleSourceProvenance = Object.freeze({version: 1, format: 'youtube-json3',
         sourceRevision: sha256Hex(source), offsetScope: 'raw-event-utf16-only', timingEvidence: 'unverified-source-metadata',
         events: events!, cues: Object.freeze(lineage)});

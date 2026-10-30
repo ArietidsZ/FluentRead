@@ -84,6 +84,28 @@ describe('bounded raw JSON3 provenance', () => {
             expect(document.provenance!.cues.every(item => item.contributors.length > 0 && new Set(item.contributors).size === item.contributors.length)).toBe(true);
         }
     });
+    it.each(['latest', 'first'])('handles the maximum prefix chain with the %s event winning', winner => {
+        const events = Array.from({length: 2048}, (_, index) => event(winner === 'first' && index === 0 ? 'hello world.' : 'hello'));
+        const document = parseYoutubeTimedTextDocument(source(events)), lineage = document.provenance!.cues[0];
+        expect(document.cues).toEqual(legacy(source(events)));
+        expect(lineage.contributors).toEqual(Array.from({length: 2048}, (_, index) => index));
+        expect(lineage.textEvents).toEqual([winner === 'first' ? 0 : 2047]);
+        expect(lineage.supersededEvents).toHaveLength(2047);
+        expect(lineage.transformations).toEqual(['prefix-collapse']);
+        expect(Object.isFrozen(lineage.contributors)).toBe(true);
+    });
+    it('preserves historical superseded order when a previously winning subtree loses later', () => {
+        const document = parseYoutubeTimedTextDocument(source([event('hello world.'), event('hello'), event('hello world.'), event('hello')]));
+        expect(document.provenance!.cues[0]).toMatchObject({contributors: [0, 1, 2, 3], textEvents: [2], supersededEvents: [1, 0, 3]});
+    });
+    it.each(['reported', 'inferred'])('coalesces repeated unary word merges with %s duration without losing operations', mode => {
+        const raw = source([event('a', 0, mode === 'reported' ? 1000 : 0), event('b', 100, 10000), event('c', 200, 1000),
+            event('d', 20000, 200), event('e', 20200, 200), event('f.', 20400, 200)]);
+        const document = parseYoutubeTimedTextDocument(raw);
+        expect(document.cues).toEqual(legacy(raw));
+        const first = document.provenance!.cues.find(item => item.snapshot.text === 'a')!;
+        expect(first.contributors).toEqual([0]); expect(first.transformations).toEqual(mode === 'reported' ? ['word-merge'] : ['duration-inferred', 'word-merge']);
+    });
     it('rejects every changed cue dimension and does not copy offsets into translations', () => {
         const document = parseYoutubeTimedTextDocument(source([event('original.')])), evidence = document.provenance!;
         expect(provenanceMatchesCues(evidence, [])).toBe(false);
