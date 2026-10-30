@@ -858,3 +858,39 @@ it('切换同一来源 cue 内语义句不重复跳回播放起点，显式重�
   expect(state.sentence.text).toBe('Second sentence!'); expect(video.currentTime).toBe(4);
   await state.replay(); expect(video.currentTime).toBe(0);
 });
+
+it('过期的回放组引用不会发出语义断句请求', async () => {
+  config.videoSemanticSegmentationEnabled = true; await mount();
+  state.sentence.playbackGroupId = 'retired-playback-group';
+  await state.segmentCurrentGroup();
+  expect(sendRuntimeMessage).not.toHaveBeenCalled();
+  expect(state.semanticBusy).toBe(false);
+});
+
+it.each(['unmount', 'revision'])('会话已返回但组件提交前 %s 时不接受结果', async mode => {
+  config.videoSemanticSegmentationEnabled = true; await mount();
+  sendRuntimeMessage.mockImplementation(async message => ({success: true, requestId: message.requestId, algorithmVersion: 1, result: {boundaries: ['b15']}}));
+  const original = state.semanticSession.request.bind(state.semanticSession);
+  vi.spyOn(state.semanticSession, 'request').mockImplementation(async (cues: any) => {
+    const units = await original(cues);
+    // 保留真实 transport、校验和会话；仅在两个异步 owner 之间制造卸载/来源更新。
+    if (mode === 'unmount') close();
+    else props.sourceUrl = 'https://www.youtube.com/watch?v=next-owner';
+    return units;
+  });
+  await state.segmentCurrentGroup(); await flush();
+  expect(state.semanticOverrides.size).toBe(0);
+});
+
+it('第101个片段结果淘汰最旧覆盖记录并保留当前结果', async () => {
+  config.videoSemanticSegmentationEnabled = true; await mount();
+  const entries = Array.from({length: 100}, (_, i) => [`previous-source-${i}`, []] as const);
+  state.semanticOverrides = new Map(entries);
+  sendRuntimeMessage.mockImplementation(async message => ({success: true, requestId: message.requestId, algorithmVersion: 1, result: {boundaries: ['b15']}}));
+  await state.segmentCurrentGroup(); await flush();
+  expect(state.semanticOverrides.size).toBe(100);
+  expect(state.semanticOverrides.has('previous-source-0')).toBe(false);
+  expect(state.semanticOverrides.has('previous-source-1')).toBe(true);
+  expect([...state.semanticOverrides.values()].at(-1)[0].text).toBe(first);
+  expect(state.sentence.text).toBe(first);
+});
