@@ -787,3 +787,74 @@ describe('视频句子通过真实公开客户端关联材料', () => {
     expect(materialTransport.sendMessage).not.toHaveBeenCalled(); expect(materialCaptures()).toEqual([]);
   });
 });
+
+describe('语义断句真实组件接线', () => {
+  it('默认无 AI 请求；规则句内切分保留相同回放包络及当前选择', async () => {
+    props.cues = [{text: 'First sentence. Second sentence!', startMs: 0, durationMs: 9000}];
+    await mount(); expect(state.sentences).toHaveLength(2);
+    expect(state.sentences.map((item: any) => [item.startMs, item.endMs])).toEqual([[0, 9000], [0, 9000]]);
+    expect(state.index).toBe(0); video.currentTime = 4; video.dispatchEvent(new Event('timeupdate')); await flush();
+    expect(state.index).toBe(0); await state.segmentCurrentGroup(); expect(sendRuntimeMessage).not.toHaveBeenCalled();
+  });
+  it('AI 改变 B 段边界后保留用户固定材料，不跳回正在播放的 A 段', async () => {
+    config.videoSemanticSegmentationEnabled = true;
+    props.cues = [{text: first, startMs: 0, durationMs: 1000}, {text: 'one two three four.', startMs: 2000, durationMs: 1000}];
+    sendRuntimeMessage.mockImplementation(async message => ({success: true, requestId: message.requestId, algorithmVersion: 1, result: {boundaries: ['b8', 'b19']}}));
+    await mount(); state.step(1); await flush(); video.currentTime = 0;
+    await state.segmentCurrentGroup(); await flush();
+    expect(state.pinned).toBe(true); expect(state.sentence.text).toBe('one two ');
+    expect(state.sentence.startMs).toBe(2000); expect(state.sentence.endMs).toBe(3000);
+    expect(video.currentTime).toBe(0);
+    expect(sendRuntimeMessage.mock.calls.filter(([message]) => message.type === 'fluentReadSegmentVideoSemantics')).toHaveLength(1);
+  });
+  it('错误模型边界保留规则结果并显示错误，不改写源字幕', async () => {
+    config.videoSemanticSegmentationEnabled = true; await mount();
+    const original = state.sentence.text;
+    sendRuntimeMessage.mockImplementation(async message => ({success: true, requestId: message.requestId, algorithmVersion: 1, result: {boundaries: ['b999']}}));
+    await state.segmentCurrentGroup(); await flush();
+    expect(state.sentence.text).toBe(original); expect(state.error).toBe('video.learning.segmentationFailed');
+    expect(props.cues[0].text).toBe(first);
+  });
+  it.each(['close', 'collapse', 'source', 'config'])('在 %s 时取消模型请求，迟到结果不进入界面', async mode => {
+    config.videoSemanticSegmentationEnabled = true; await mount();
+    const pending = deferred<unknown>(); let id = '';
+    sendRuntimeMessage.mockImplementation(message => {
+      if (message.type === 'fluentReadSegmentVideoSemantics') {id = message.requestId; return pending.promise;}
+      return Promise.resolve({success: true});
+    });
+    const request = state.segmentCurrentGroup(); await flush();
+    if (mode === 'close') close();
+    if (mode === 'collapse') state.expanded = false;
+    if (mode === 'source') props.sourceUrl = 'https://www.youtube.com/watch?v=changed';
+    if (mode === 'config') {config.videoSemanticSegmentationEnabled = false; subscription();}
+    await flush(); pending.resolve({success: true, requestId: id, algorithmVersion: 1, result: {boundaries: ['b15']}}); await request; await flush();
+    expect(sendRuntimeMessage.mock.calls.some(([message]) => message.type === 'fluentReadCancelVideoSemantics')).toBe(true);
+    expect(state.semanticOverrides.size).toBe(0);
+  });
+});
+
+it('显式点击经过真实客户端、后台边界校验和假模型，结果进入学习面板', async () => {
+  const {createVideoSemanticHandlers} = await import('@/src/features/video-subtitle/background/semanticSegmentation');
+  const generate = vi.fn(async (_document: {text: string}, _signal: AbortSignal) => ({boundaries: ['b8', 'b19']}));
+  const handlers = createVideoSemanticHandlers({runtimeId: 'ext', privateContext: () => false,
+    settings: () => ({enabled: true, revision: 'configured'}), generate});
+  const sender = {id: 'ext', tab: {id: 42, incognito: false}, frameId: 0, documentId: 'test-document'};
+  sendRuntimeMessage.mockImplementation(message => handlers.find(handler => handler.type === message.type)!.handle(message, {sender}));
+  config.videoSemanticSegmentationEnabled = true;
+  props.cues = [{text: 'one two three four.', startMs: 100, durationMs: 3000}];
+  const host = await mountRendered();
+  host.querySelector('[data-learning-action="segment"]')!.dispatchEvent(new document.defaultView!.Event('click'));
+  await flush(); await flush();
+  expect(generate).toHaveBeenCalledTimes(1); expect(generate.mock.calls[0][0].text).toBe('one two three four.');
+  expect(state.sentences.map((item: any) => item.text).join('')).toBe('one two three four.');
+  expect(host.querySelector('[data-learning-original]')?.textContent).toBe('one two ');
+  expect(host.querySelector('[data-learning-timing-precision]')?.textContent).toBe('video.learning.cueEnvelope');
+  expect(state.sentences.every((item: any) => item.startMs === 100 && item.endMs === 3100)).toBe(true);
+});
+
+it('切换同一来源 cue 内语义句不重复跳回播放起点，显式重播仍使用来源范围', async () => {
+  props.cues = [{text: 'First sentence. Second sentence!', startMs: 0, durationMs: 9000}];
+  await mount(); video.currentTime = 4; await step(1);
+  expect(state.sentence.text).toBe('Second sentence!'); expect(video.currentTime).toBe(4);
+  await state.replay(); expect(video.currentTime).toBe(0);
+});
