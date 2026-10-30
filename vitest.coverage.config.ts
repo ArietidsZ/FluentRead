@@ -19,6 +19,7 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'json', 'html'],
             include: [
+                'src/features/settings/ui/VideoSemanticSegmentationSettings.vue',
                 'src/features/video-subtitle/semanticSegmentation.ts',
                 'src/features/video-subtitle/content/semanticSession.ts',
                 'src/features/video-subtitle/content/semanticClient.ts',

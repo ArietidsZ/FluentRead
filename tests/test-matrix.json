@@ -786,6 +786,7 @@
       "tests/videoCaptionPlatformRuntime.test.ts",
       "tests/videoNativeFullscreen.test.ts",
       "tests/videoSentenceLearningAppearanceSettingsLifecycle.test.ts",
+      "tests/videoSemanticSettingsLifecycle.test.ts",
       "tests/videoSentenceLearningHost.test.ts",
       "tests/videoSentenceLearningPlacement.test.ts",
       "tests/videoSentenceLearningSession.test.ts",

@@ -225,17 +225,7 @@
         <SettingsItem label="优先使用人工字幕" description="YouTube、Udemy、Disney+ 有目标语言人工字幕时优先使用；不可用时继续翻译原字幕" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoPreferHumanSubtitles" class="settings-toggle" aria-label="优先使用人工字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
-        <SettingsItem v-if="browserCapabilities.extensionDom" id="video-semantic-segmentation" data-settings-anchor="video-semantic-segmentation" :data-settings-anchor-label="t('video.learning.segmentationTitle')" :label="t('video.learning.segmentationTitle')" :description="t('video.learning.segmentationDescription')">
-          <el-switch v-model="config.videoSemanticSegmentationEnabled" :aria-label="t('video.learning.segmentationTitle')" />
-        </SettingsItem>
-        <SettingsItem v-if="browserCapabilities.extensionDom && config.videoSemanticSegmentationEnabled" :label="t('video.learning.segmentationService')" :description="t('video.learning.segmentationServiceDescription')">
-          <el-select v-model="config.videoSemanticSegmentationService" :aria-label="t('video.learning.segmentationService')" :placeholder="t('video.learning.segmentationServicePlaceholder')" filterable>
-            <el-option v-for="item in semanticServiceOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </SettingsItem>
-        <SettingsItem v-if="browserCapabilities.extensionDom && config.videoSemanticSegmentationEnabled" :label="t('video.learning.segmentationModel')" :description="t('video.learning.segmentationModelDescription')">
-          <el-input v-model="config.videoSemanticSegmentationModel" :aria-label="t('video.learning.segmentationModel')" maxlength="200" :placeholder="t('video.learning.segmentationModelPlaceholder')" />
-        </SettingsItem>
+        <VideoSemanticSegmentationSettings v-if="browserCapabilities.extensionDom" :config="config" :services="availableServiceOptions" />
         <SettingsItem label="视频翻译服务" description="默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕" :disabled="!config.videoTranslationEnabled">
           <el-select v-model="config.videoService" :empty-values="[null, undefined]" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
             <el-option :label="t('featureServices.followDefault')" value="" />
@@ -562,7 +552,7 @@
 </template>
 
 <script lang="ts" setup>
-import {isHarnessService} from '@/src/core/config/harness';
+import VideoSemanticSegmentationSettings from '@/src/features/settings/ui/VideoSemanticSegmentationSettings.vue';
 import SettingsPanel from './components/SettingsPanel.vue';
 import ServiceRepairReturn from './services/ServiceRepairReturn.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
@@ -984,7 +974,6 @@ const selectedVideoServiceLabel = computed(() => {
 const configuredServiceIds = computed(() => availableServiceOptions.value
   .filter(item => !item.disabled && hasSavedServiceConfiguration(item.value, config.value))
   .map(item => item.value));
-const semanticServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled && isHarnessService(item.value, config.value.customOpenAIProviders)));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const videoGlossaryDescription = computed(() => {
   if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
