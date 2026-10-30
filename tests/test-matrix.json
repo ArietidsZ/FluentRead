@@ -280,6 +280,7 @@
       "tests/wordDictionaryEdge.test.ts",
       "tests/youtubeSubtitleData.test.ts",
       "tests/timedTextTrackCache.test.ts",
+      "tests/subtitleSourceProvenance.test.ts",
       "tests/xVideoSubtitleData.test.ts",
       "tests/xSubtitleLoader.test.ts",
       "tests/hlsAudio.test.ts",

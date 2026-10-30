@@ -681,6 +681,7 @@ export default defineConfig({
                 'src/features/video-subtitle/content/youtubeTimedTextBridgeCore.ts',
                 'src/features/video-subtitle/content/youtubeTimedTextMessage.ts',
                 'src/features/video-subtitle/content/timedTextTrackCache.ts',
+                'src/features/video-subtitle/content/subtitleSourceProvenance.ts',
                 'src/features/video-subtitle/content/serviceProfile.ts',
                 'src/features/video-subtitle/content/xVideoSubtitleData.ts',
                 'src/features/video-subtitle/content/xSubtitleLoader.ts',
