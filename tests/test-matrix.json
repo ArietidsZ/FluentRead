@@ -725,6 +725,7 @@
       "tests/readingWritingUiBehavior.test.ts",
       "tests/remoteSiteSettingsLifecycle.test.ts",
       "tests/resourceSafeRunner.test.ts",
+      "tests/typecheckPartitions.test.ts",
       "tests/sameTargetLanguageClient.test.ts",
       "tests/sameTargetLanguageSlots.test.ts",
       "tests/sectionTranslationPicker.test.ts",
