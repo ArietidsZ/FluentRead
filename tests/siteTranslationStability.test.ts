@@ -311,6 +311,15 @@ describe('live page controlled stability probe evidence', () => {
     expect(Object.keys(window).filter(name => name.startsWith('__fluentReadNativeComment_'))).toEqual([]);
   });
 
+  it('focus loss after collapse prevents later expansion and finally restore input', async () => {
+    let reads = 0;
+    const failure = Object.assign(new Error('focus lost'), {code: 'FOCUS_SAFETY_VIOLATION'});
+    await expect(runNativeCommentToggle({page: nativeCommentPage(), artifactsDir: output,
+      checkFocus: () => {if (++reads >= 3) throw failure;}})).rejects.toBe(failure);
+    expect(document.querySelector('.comtr')!.classList.contains('coll')).toBe(true);
+    expect(JSON.parse(readFileSync(join(output, 'native-comment-toggle.json'), 'utf8')).ok).toBe(false);
+  });
+
   it('rejects synthetic comment clicks and restores the native expansion before releasing its listener', async () => {
     await expect(runNativeCommentToggle({page: nativeCommentPage(false), artifactsDir: output})).rejects.toThrow('not a trusted click');
     const report = JSON.parse(readFileSync(join(output, 'native-comment-toggle.json'), 'utf8'));
@@ -466,14 +475,19 @@ describe('controlled provider attribution', () => {
     expect(encodeControlledTranslation('  \n')).toBe('  \n');
     expect(() => encodeControlledTranslation(null)).toThrow('requires a string');
   });
-  it('preserves inline slot delimiters, tags and literal entities through the real Microsoft escaping boundary', async () => {
+  it('preserves inline slot delimiters and literal entities through the real Microsoft escaping boundary', async () => {
     const {api} = await setup();
     try {
       const source = 'A readable paragraph with &amp; &copy; &#169; &#xA9; "quoted text" & symbols <g1>inside text</g1> ___FLUENTREAD_test_0_BEGIN___another readable slot___FLUENTREAD_test_0_END___.';
       const [translated] = await translateMicrosoftTextsWithTransport(fetch, [source], 'en', 'zh-Hans');
-      for (const token of ['&amp;', '&copy;', '&#169;', '&#xA9;', '<g1>', '</g1>', '___FLUENTREAD_test_0_BEGIN___', '___FLUENTREAD_test_0_END___']) {
+      for (const token of ['&amp;', '&copy;', '&#169;', '&#xA9;', '___FLUENTREAD_test_0_BEGIN___', '___FLUENTREAD_test_0_END___']) {
         expect(translated!.split(token)).toHaveLength(2);
       }
+      expect(translated).not.toContain('<g1>');
+      expect(translated).not.toContain('</g1>');
+      // The direct encoder still preserves structural tags; Microsoft receives
+      // escaped plain text and encodes the literal tag-name characters instead.
+      expect(encodeControlledTranslation('<g1>')).toBe('测试译文：<g1>');
       expect(translated).not.toContain('readable');
       expect(isClearlyWrongLanguageResponse(source, translated!, 'zh-Hans')).toBe(false);
       const [entityText] = await translateMicrosoftTextsWithTransport(fetch, ['Reading &copy; and & quotation "example"'], 'en', 'zh-Hans');
@@ -482,6 +496,53 @@ describe('controlled provider attribution', () => {
       expect(await (await fetch(requested)).json()).toEqual([{translations: [{text: encodeControlledTranslation('Request body')}]}]);
       await expect(fetch('https://edge.microsoft.com/translate/translatetext', {method: 'POST', body: '{}'})).rejects.toThrow('text array');
       await expect(api.snapshot()).resolves.toMatchObject({protocol: 'utf8-han-v1', active: 0});
+    } finally {api.dispose();}
+  });
+  it('encodes escaped literal angle-bracket text through Microsoft and preserves the protected code skeleton', async () => {
+    const {api} = await setup();
+    const {document, window} = parseHTML('<html><body><table><tr><td><code>Que coche de</code> &lt;insert-profane-word&gt;</td></tr></table></body></html>');
+    vi.stubGlobal('document', document);vi.stubGlobal('Node', window.Node);
+    try {
+      const owner = document.querySelector('td')!;
+      const snapshot = createTranslationSourceSnapshot(owner);
+      const translations = await translateMicrosoftTextsWithTransport(fetch, snapshot.slots.map(slot => slot.source), 'en', 'zh-Hans');
+      const wrapper = appendBilingualTranslation(owner, applyTranslationsToSnapshot(snapshot, translations), {sourceSkeleton: snapshot.clone});
+      const evidence = readControlledPageEvidenceInPage();
+      expect(assertControlledPageEvidence(evidence, 'learn-placeholder')).toMatchObject({owners: 1});
+      expect(evidence[0].output).not.toContain('insert-profane-word');
+      expect(decodeControlledTranslationText(evidence[0].output)).toBe(' <insert-profane-word>');
+      const genuine = wrapper.innerHTML;
+      wrapper.innerHTML = '<code>Que coche de</code> 测试译文：&lt;insert-profane-word&gt;';
+      expect(() => assertControlledPageEvidence(readControlledPageEvidenceInPage(), 'unencoded-echo')).toThrow('complete source');
+      wrapper.innerHTML = genuine;wrapper.querySelector('code')!.textContent = 'changed';
+      expect(() => assertControlledPageEvidence(readControlledPageEvidenceInPage(), 'changed-code')).toThrow('complete source');
+      wrapper.innerHTML = genuine;wrapper.append(' extra ordinary prose');
+      expect(() => assertControlledPageEvidence(readControlledPageEvidenceInPage(), 'extra-prose')).toThrow('complete source');
+    } finally {api.dispose();vi.unstubAllGlobals();}
+  });
+  it('encodes complete mixed literal text while preserving literal entities and rejecting changed or missing output', async () => {
+    const {api} = await setup();
+    try {
+      for (const source of ['What a <insert-profane-word> car', '<profanity> <insert-profane-word> </profanity>', 'Read &lt; and &copy; literally.', 'Café 🦊 <insert-profane-word> 中文']) {
+        const [output] = await translateMicrosoftTextsWithTransport(fetch, [source], 'en', 'zh-Hans');
+        expect(isControlledTranslationForSource(output, source)).toBe(true);
+        expect(isControlledTranslationForSource(`测试译文：${source}`, source)).toBe(false);
+        expect(isControlledTranslationForSource(output, `${source} missing`)).toBe(false);
+        expect(isControlledTranslationForSource(`${output} extra prose`, source)).toBe(false);
+      }
+      const source = 'First <alpha> then <beta>.';
+      const [output] = await translateMicrosoftTextsWithTransport(fetch, [source], 'en', 'zh-Hans');
+      const alpha = encodeControlledTranslation('alpha').replace('测试译文：', '');
+      const beta = encodeControlledTranslation('beta').replace('测试译文：', '');
+      expect(output).toContain(alpha);expect(output).toContain(beta);
+      expect(isControlledTranslationForSource(output!.replace(alpha, ''), source)).toBe(false);
+      expect(isControlledTranslationForSource(output!.replace(alpha, beta), source)).toBe(false);
+      expect(isControlledTranslationForSource(output!.replace(alpha, '__SWAP__').replace(beta, alpha).replace('__SWAP__', beta), source)).toBe(false);
+      const parts = ['First <alpha>', ' then <beta>.'];
+      const outputs = await translateMicrosoftTextsWithTransport(fetch, parts, 'en', 'zh-Hans');
+      expect(isControlledTranslationForSource(outputs.join(''), parts.join(''), parts)).toBe(true);
+      expect(isControlledTranslationForSource(outputs[0], parts.join(''), parts)).toBe(false);
+      expect(isControlledTranslationForSource(outputs.toReversed().join(''), parts.join(''), parts)).toBe(false);
     } finally {api.dispose();}
   });
   it('preserves real glossary and literal-symbol placeholders through Microsoft and restores them exactly once', async () => {

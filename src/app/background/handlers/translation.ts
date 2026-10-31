@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 origin、clientRequestId、原生合批冻结偏好、AI 多段、文档合批、内部槽校验与检测样本；文档合批仅从真实扩展文档页的数组请求保留，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
+ * 主要内容：校验 origin、clientRequestId、原生合批冻结偏好、AI 多段、文档合批、内部槽和行内代码标记校验与检测样本；文档合批仅从真实扩展文档页的数组请求保留，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
 import type {BackgroundFallbackHandler} from '@/src/services/messaging/backgroundRouter';
@@ -14,6 +14,7 @@ import type {
     TranslationRequestMessageBase,
 } from '@/src/services/translation/types';
 import {TRANSLATION_CANCEL_MESSAGE_TYPE} from '@/src/services/translation/types';
+import {isValidInlineCodeSource} from '@/src/core/translation/inlineCodeMarkers';
 
 interface TranslationRequestCandidate extends Record<string, unknown> {
     origin: unknown;
@@ -175,6 +176,15 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (candidate.validateTranslationSlots !== undefined && typeof candidate.validateTranslationSlots !== 'boolean') {
         throw new TypeError('翻译请求字段 validateTranslationSlots 必须是布尔值');
     }
+    if (candidate.validateInlineCodeTranslation !== undefined && typeof candidate.validateInlineCodeTranslation !== 'boolean') {
+        throw new TypeError('翻译请求字段 validateInlineCodeTranslation 必须是布尔值');
+    }
+    if (candidate.validateInlineCodeTranslation === true && (
+        typeof origin !== 'string' || !isValidInlineCodeSource(origin) || candidate.validateTranslationSlots === true ||
+        candidate.aiMultiSegment === true || candidate.documentBatch === true || candidate.enableAIContext !== false ||
+        Boolean(candidate.context) || Boolean(candidate.pageContext) || Boolean(candidate.discourseContext) ||
+        (candidate.glossaryContext !== undefined && candidate.glossaryContext !== 'page')
+    )) throw new TypeError('行内代码翻译请求格式无效');
     if (candidate.enableNativeBatch !== undefined && typeof candidate.enableNativeBatch !== 'boolean') {
         throw new TypeError('翻译请求字段 enableNativeBatch 必须是布尔值');
     }
@@ -211,6 +221,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
     if (import.meta.env.BROWSER !== 'userscript' && candidate.documentBatch === true) base.documentBatch = true;
     if (typeof candidate.validateTranslationSlots === 'boolean') base.validateTranslationSlots = candidate.validateTranslationSlots;
+    if (typeof candidate.validateInlineCodeTranslation === 'boolean') base.validateInlineCodeTranslation = candidate.validateInlineCodeTranslation;
     if (typeof candidate.thinkingOverride === 'boolean') base.thinkingOverride = candidate.thinkingOverride;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;
     if (candidate.glossaryIds === null) base.glossaryIds = null;

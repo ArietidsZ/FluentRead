@@ -32,8 +32,8 @@ const tables = [
     ['src/ui/translationLoadingIndicator.ts', 'HOST_IMPORTANT_STYLES'],
 ] as const;
 
-function transform(code: string, id = resolve(root, tables[0][0]), enabled = true) {
-    const plugin = createUserscriptSettingsDataPlugin(root, enabled);
+function transform(code: string, id = resolve(root, tables[0][0]), enabled = true, fullOptions = true) {
+    const plugin = createUserscriptSettingsDataPlugin(root, enabled, fullOptions);
     const run = plugin.transform as (code: string, id: string) => {code: string} | null;
     return run(code, id);
 }
@@ -64,8 +64,8 @@ describe('standalone static settings data representation', () => {
         const after = value(initializer(transformed, name));
         expect(JSON.stringify(after)).toBe(JSON.stringify(before));
         const encoded = JSON.parse(initializer(transformed, name).match(/__fluentreadDecodeSettingsData\(("[^"]+")\)/u)![1]) as string;
-        expect(encoded.startsWith('~85:')).toBe(true);
-        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before))));
+        expect(encoded.startsWith('~91:')).toBe(true);
+        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before)), undefined, true));
         expect(initializer(transformed, name)).not.toContain('eval');
         // Every other byte of the owning source stays in place; functions and declarations remain executable code.
         let restored = transformed;
@@ -88,6 +88,13 @@ describe('standalone static settings data representation', () => {
         vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
         try {
             vi.resetModules();
+            // This case checks real settings-plugin registration and complete label data.
+            // Unrelated large UI-message worker compression has its own real-worker suite.
+            // Keep its lossless baseline here; the settings AST/codec remain the real ones.
+            vi.doMock('@/userscript/buildGzip', async original => {
+                const actual = await original<typeof import('@/userscript/buildGzip')>();
+                return {...actual, gzipLargeStandaloneUserscriptData: async (data: Uint8Array) => actual.gzipUserscriptBuildData(data)};
+            });
             const {default: configuration} = await import('@/userscript/vite.config');
             const config = configuration as {plugins: Array<{name?: string; transform?: unknown}>};
             const plugin = config.plugins.find(item => item.name === 'standalone-settings-data')!;
@@ -100,9 +107,22 @@ describe('standalone static settings data representation', () => {
                 expect(JSON.stringify(value(initializer(result!.code, name)))).toBe(JSON.stringify(value(initializer(original, name))));
             }
         } finally {
+            vi.doUnmock('@/userscript/buildGzip');
             vi.unstubAllEnvs();
             vi.resetModules();
         }
+    });
+
+    it('keeps the standard build style table in Base85 with identical gzip bytes and values', () => {
+        const [path, name] = tables[2];
+        const source = readFileSync(resolve(root, path), 'utf8');
+        const transformed = transform(source, resolve(root, path), true, false)!.code;
+        const before = value(initializer(source, name));
+        const after = value(initializer(transformed, name));
+        const encoded = JSON.parse(initializer(transformed, name).match(/__fluentreadDecodeSettingsData\(("[^"]+")\)/u)![1]) as string;
+        expect(encoded.startsWith('~85:')).toBe(true);
+        expect(Buffer.from(decodeUserscriptData(encoded))).toEqual(gzipUserscriptBuildData(Buffer.from(JSON.stringify(before))));
+        expect(JSON.stringify(after)).toBe(JSON.stringify(before));
     });
 
     it('keeps all six translated prompt catalogs and their actual placeholders after synchronous decode', () => {

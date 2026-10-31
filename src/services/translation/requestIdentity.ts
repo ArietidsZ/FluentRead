@@ -15,7 +15,7 @@ import {getAliyunTranslationEndpoint} from '@/src/core/config/constants';
 import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {hasEmojiLiterals} from '@/src/core/translation/emojiLiterals';
 
-export type CacheRequestMode = 'single' | 'slot-protocol' | 'batch' | 'ai-multi-segment';
+export type CacheRequestMode = 'single' | 'slot-protocol' | 'inline-code-v1' | 'batch' | 'ai-multi-segment';
 
 export interface TranslationRequestIdentityContext {
     readonly config: TranslationProviderConfigSnapshot;

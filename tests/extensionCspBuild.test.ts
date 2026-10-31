@@ -4,6 +4,8 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {createContext, runInContext} from 'node:vm';
 import {extensionCspBuildPlugin, patchExtensionVendorSource, type ExtensionVendorSource} from '../scripts/testing/extension-csp-build';
+import {defuddleEntityBuildPlugin, patchDefuddleEntitySource, replaceDefuddleEntityDecoder} from '../scripts/testing/defuddle-entity-build';
+import {decodeTextareaHtml} from '../src/shared/text/htmlEntities';
 
 const require = createRequire(import.meta.url);
 const tesseractRequire = createRequire(require.resolve('tesseract.js'));
@@ -23,6 +25,31 @@ const patched = (kind: ExtensionVendorSource) => patchExtensionVendorSource(kind
 const sandbox = (values: Record<string, unknown> = {}) => createContext(values, {codeGeneration: {strings: false, wasm: false}});
 
 describe('extension dependency CSP packaging', () => {
+    it('固定 Defuddle UMD 入口并只替换实体解码，保留默认导出的构造器', () => {
+        const sourcePath = require.resolve('defuddle');
+        const source = fs.readFileSync(sourcePath, 'utf8');
+        const result = patchDefuddleEntitySource(source);
+        expect(fs.readFileSync(sourcePath, 'utf8')).toBe(source);
+        expect(result).not.toContain('e.decodeHTMLEntities=function(t,e){const r=t.createElement("textarea");return r.innerHTML=e,r.value}');
+        expect(() => patchDefuddleEntitySource(source + '\n')).toThrow(/Unsupported Defuddle source/);
+        const anchor = 'e.decodeHTMLEntities=function(t,e){const r=t.createElement("textarea");return r.innerHTML=e,r.value}';
+        expect(replaceDefuddleEntityDecoder(anchor)).toBe('e.decodeHTMLEntities=function(t,e){return __fluentreadDecodeTextareaHtml(e,t)}');
+        expect(() => replaceDefuddleEntityDecoder('missing')).toThrow(/Missing or ambiguous/);
+        expect(() => replaceDefuddleEntityDecoder(anchor + anchor)).toThrow(/Missing or ambiguous/);
+        const plugin = defuddleEntityBuildPlugin();
+        const transform = plugin.transform as (source: string, id: string) => {code: string} | undefined;
+        expect(transform(source, '\0virtual')).toBeUndefined();
+        expect(transform(source, sourcePath + '?commonjs-proxy')).toBeUndefined();
+        expect(transform(source, sourcePath)?.code).toBe(result);
+
+        const context = sandbox({__fluentreadDecodeTextareaHtml: decodeTextareaHtml});
+        runInContext(result.replace(/^import[^\n]+\n/u, '')
+            .replace('export default module.exports;', 'globalThis.fixtureDefuddle = module.exports;'), context);
+        expect(context.fixtureDefuddle).toBeTypeOf('function');
+        expect(Object.getOwnPropertyNames(context.fixtureDefuddle.prototype))
+            .toEqual(Object.getOwnPropertyNames(require('defuddle').prototype));
+    });
+
     it.each(Object.keys(sources) as ExtensionVendorSource[])('固定完整 %s 源码，拒绝上游变化且不修改原依赖', kind => {
         const source = original(kind);
         const result = patchExtensionVendorSource(kind, source);
@@ -93,7 +120,37 @@ describe('extension dependency CSP packaging', () => {
         const load = plugin.load as (this: unknown, id: string) => string | undefined;
         expect(load.call({emitFile}, sources['pdfjs-worker'])).toBeUndefined();
         expect(load.call({emitFile}, `${sources['pdfjs-worker']}?url`)).toBe('export default import.meta.ROLLUP_FILE_URL_fixture;');
-        expect(emitFile).toHaveBeenCalledWith({type: 'asset', name: 'pdf.worker.min.mjs', source: patched('pdfjs-worker')});
+        expect(emitFile).toHaveBeenCalledWith({type: 'asset', name: 'pdf.worker.min.mjs', source: patched('pdfjs-worker'), needsCodeReference: true});
+    });
+
+    it('摇树删除未使用的 PDF Worker，实际引用时保留 CSP 安全的资源', async () => {
+        const {rollup} = createRequire(require.resolve('vite'))('rollup');
+        const build = async (used: boolean) => {
+            const bundle = await rollup({
+                input: 'fixture-entry',
+                plugins: [{
+                    name: 'fixture',
+                    resolveId(id: string) {
+                        if (id === 'fixture-entry') return '\0fixture-entry';
+                        if (id === 'fixture-worker') return `${sources['pdfjs-worker']}?url`;
+                    },
+                    load(id: string) {
+                        if (id === '\0fixture-entry') return `import worker from 'fixture-worker'; export const value = ${used ? 'worker' : '1'};`;
+                    },
+                }, extensionCspBuildPlugin()],
+            });
+            try {
+                return (await bundle.generate({format: 'es'})).output;
+            } finally {
+                await bundle.close();
+            }
+        };
+        expect((await build(false)).filter((file: {type: string}) => file.type === 'asset')).toHaveLength(0);
+        const output = await build(true);
+        const assets = output.filter((file: {type: string}) => file.type === 'asset');
+        expect(assets).toHaveLength(1);
+        expect(assets[0].source).toBe(patched('pdfjs-worker'));
+        expect(output.find((file: {type: string}) => file.type === 'chunk').code).toContain(assets[0].fileName);
     });
 });
 

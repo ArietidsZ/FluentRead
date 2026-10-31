@@ -6,6 +6,7 @@
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
 import {cloneTranslationElementInert} from '@/src/core/translation/inertClone';
+import {getInlineCodeClass, inlineCodeNodesAreAllowed} from '@/src/core/translation/inlineCodeProtocol';
 import {isIdentifierLikeText, isTranslationTextNodeProtected} from "@/src/core/translation/text";
 import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
 import {withFullPageRestorationAnchors} from './viewportStability';
@@ -61,6 +62,12 @@ export interface BilingualTranslationReplay {
     personalCorrectionId?: string;
     sources: readonly string[];
     translations: readonly string[];
+    /** 整句行内代码协议的本地来源，仅供重放复验，不发送给服务。 */
+    inlineCodeTexts?: readonly string[];
+    /** 单个代码节点的受限属性标记，须随文字一起冻结和复验。 */
+    inlineCodeClasses?: readonly (string | null)[];
+    /** 与代码位置相邻的原生 Text（含空白），仅保存在本地。 */
+    inlineCodeSourceTexts?: readonly string[];
     targetLanguage: string;
     style: number;
     /** 首次提交已冻结的换行选项，骨架重放不得跟随后改的全局设置。 */
@@ -72,14 +79,74 @@ export interface BilingualTranslationReplay {
 export function createBilingualTranslationReplay(
     sources: readonly string[],
     translations: readonly string[],
-    options: Pick<BilingualTranslationReplay, 'targetLanguage' | 'style' | 'longParagraphLineBreak' | 'translationBeforeOriginal' | 'service' | 'displayModeOverridden'> & {sourceLanguage: string},
+    options: Pick<BilingualTranslationReplay, 'targetLanguage' | 'style' | 'longParagraphLineBreak' | 'translationBeforeOriginal' | 'service' | 'displayModeOverridden' | 'inlineCodeTexts' | 'inlineCodeSourceTexts' | 'inlineCodeClasses'> & {sourceLanguage: string},
 ): BilingualTranslationReplay {
     return {sources, translations,
+        ...(options.inlineCodeTexts ? {inlineCodeTexts: [...options.inlineCodeTexts]} : {}),
+        ...(options.inlineCodeClasses ? {inlineCodeClasses: [...options.inlineCodeClasses]} : {}),
+        ...(options.inlineCodeSourceTexts ? {inlineCodeSourceTexts: [...options.inlineCodeSourceTexts]} : {}),
         ...(import.meta.env.BROWSER !== 'userscript' ? {sourceLanguage: options.sourceLanguage} : {}),
         targetLanguage: options.targetLanguage, style: options.style,
         longParagraphLineBreak: options.longParagraphLineBreak,
         translationBeforeOriginal: options.translationBeforeOriginal,
         service: options.service, displayModeOverridden: options.displayModeOverridden};
+}
+
+/** 校验整句译文依赖的代码骨架；仅接受本状态登记的单语槽与双语工件。 */
+export function inlineCodeReplaySourceIsCurrent(node: HTMLElement, state: TranslationState): boolean {
+    const replay = state.bilingualReplay;
+    const expected = replay?.inlineCodeTexts;
+    if (!expected) return !replay?.inlineCodeSourceTexts && !replay?.inlineCodeClasses;
+    const expectedSourceTexts = replay.inlineCodeSourceTexts;
+    const expectedClasses = replay.inlineCodeClasses;
+    if (node.localName !== 'p' || !node.isConnected || expected.length === 0 ||
+        !expectedSourceTexts || expectedSourceTexts.length !== expected.length + 1 ||
+        !expectedClasses || expectedClasses.length !== expected.length ||
+        replay.sources.length !== expected.length + 1) return false;
+    const hosts = state.singleTextSlotHosts ?? [];
+    if (state.mode === 'single' ? hosts.length !== replay.sources.length : hosts.length !== 0) return false;
+    const hostSources = new Map(hosts.map(({host, source, sourceValue}) => [host, {source, sourceValue}] as const));
+    if (hostSources.size !== hosts.length) return false;
+    const children = Array.from(node.childNodes).filter(child => child !== state.spinner && child !== state.bilingualContent);
+    if (children.length !== replay.sources.length + expected.length) return false;
+    const texts: Text[] = [];
+    const codes: Element[] = [];
+    for (let index = 0; index < children.length; index += 1) {
+        const child = children[index]!;
+        if (index % 2 === 0) {
+            let text: Text;
+            if (hosts.length) {
+                const record = hostSources.get(child as HTMLElement);
+                if (!record || child.nodeType !== 1 ||
+                    !(child as Element).matches('.fluent-read-single-slot[data-fr-translation-owned="true"][translate="no"]') ||
+                    child.childNodes.length !== 1 ||
+                    child.firstChild !== record.source || record.source.data !== record.sourceValue ||
+                    hosts[index / 2]?.host !== child) return false;
+                text = record.source;
+            } else {
+                if (child.nodeType !== 3) return false;
+                text = child as Text;
+            }
+            const parts = /^(\s*)([\s\S]*?\S)(\s*)$/u.exec(text.data);
+            if (!parts || text.data !== expectedSourceTexts[index / 2] ||
+                parts[2] !== replay.sources[index / 2] || /[^\S ]/u.test(text.data)) return false;
+            texts.push(text);
+        } else {
+            if (child.nodeType !== 1) return false;
+            const code = child as Element;
+            const currentClass = getInlineCodeClass(code);
+            if (currentClass === undefined || currentClass !== expectedClasses[(index - 1) / 2] || code.childNodes.length !== 1 ||
+                code.firstChild?.nodeType !== 3 || code.textContent !== expected[(index - 1) / 2]) return false;
+            codes.push(code);
+        }
+    }
+    const core = getCurrentTranslationCore(state.scope);
+    return inlineCodeNodesAreAllowed(node, texts, codes, core.shouldStayOriginal, {
+        protectionOptions: {
+            ...(state.allowTopLevelApplicationShell === true ? {allowTopLevelApplicationShell: true, protectedElement: node} : {}),
+            ...(hosts.length ? {sourceTextSlotHosts: new Set(hosts.map(({host}) => host))} : {}),
+        },
+    });
 }
 
 interface TranslationLayoutPropertySnapshot {
@@ -114,6 +181,8 @@ export interface TranslationState {
     kind: TranslationTargetKind;
     phase: TranslationPhase;
     generation: number;
+    /** 仅布局观察器清理已脱离的 loading owner 时记录，不能视为用户恢复。 */
+    layoutDetachedDiscard?: true;
     sourceText: string;
     /** 创建请求时可见的文本槽节点身份，早于任何实时替换。 */
     sourceTextNodes?: readonly Text[];
@@ -720,6 +789,9 @@ export function setBilingualContent(
             ...replay,
             sources: [...replay.sources],
             translations: [...replay.translations],
+            ...(replay.inlineCodeTexts ? {inlineCodeTexts: [...replay.inlineCodeTexts]} : {}),
+            ...(replay.inlineCodeClasses ? {inlineCodeClasses: [...replay.inlineCodeClasses]} : {}),
+            ...(replay.inlineCodeSourceTexts ? {inlineCodeSourceTexts: [...replay.inlineCodeSourceTexts]} : {}),
         };
         state.sourceStructureSignature = getTranslationSourceStructureSignature(
             node,
@@ -1152,6 +1224,7 @@ export function tryRepairBilingualTranslationArtifact(
         state.kind !== 'content' ||
         !node.isConnected || !isTranslationApplicationShellPolicyCurrent(node, state) ||
         state.sourceStructureDirty ||
+        !inlineCodeReplaySourceIsCurrent(node, state) ||
         !currentBilingualSourceStructureMatches(node, state)
     ) return 'not-repairable';
 
@@ -1383,6 +1456,7 @@ function scheduleTranslationLayoutRefresh(owner: HTMLElement): void {
         // 从当前检查点起，在所有 MutationObserver 回调之后执行；这样全文观察器可以先
         // 注销自己的索引，再由独立悬浮翻译释放共享状态。
         if (!owner.isConnected) {
+            if (state.phase === 'loading' && !state.controller.signal.aborted) state.layoutDetachedDiscard = true;
             discardTranslation(owner, state);
             return;
         }
@@ -1576,8 +1650,13 @@ function liveSharedTranslationLayoutOverride(
         else if (!owner.isConnected) disconnectedOwners.push(owner);
     });
     disconnectedOwners.forEach((owner) => {
+        // 丢弃前一个 owner 会同步触发 abort 监听；宿主可能在回调中重新接入后续节点。
+        if (owner.isConnected) return;
         const state = states.get(owner);
-        if (state) discardTranslation(owner, state);
+        if (state) {
+            if (state.phase === 'loading' && !state.controller.signal.aborted) state.layoutDetachedDiscard = true;
+            discardTranslation(owner, state);
+        }
     });
     override = sharedLayoutOverrides.get(element);
     if (!override) return undefined;

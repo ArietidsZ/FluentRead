@@ -27,6 +27,7 @@ import {
     getTranslationOverflowGenerationIdentity,
     getTranslationState,
     isTranslationApplicationShellPolicyCurrent,
+    inlineCodeReplaySourceIsCurrent,
     getTranslationSourceStructureSignature,
     isBilingualArtifactDriftOnly,
     isTranslationSourceStructureOverflow,
@@ -365,6 +366,7 @@ export function statefulSourceAndTextSlotsAreCurrent(
     state: TranslationState,
 ): boolean {
     if (!isTranslationApplicationShellPolicyCurrent(node, state)) return false;
+    if (!inlineCodeReplaySourceIsCurrent(node, state)) return false;
     // 双语模式不改写宿主 Text；保护区后代换代时保留已捕获来源，
     // 来源 Text 换代则只接受精确同构 HTML，避免误用旧链接或标签的译文。
     if (state.phase === 'translated' && state.mode === 'bilingual' && state.kind === 'content') {
