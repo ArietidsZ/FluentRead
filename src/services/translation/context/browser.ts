@@ -2,7 +2,7 @@
  * @file src/services/translation/context/browser.ts
  *
  * 文件职责：从当前浏览器页面捕获隐私受限、大小受控的翻译上下文，为页面摘要和大模型翻译提供可读背景。
- * 主要内容：克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性；大型页面有界捕获也检查根节点及祖先，先消耗包含空白的原始字符预算再归一化，避免绕过排除与开销边界。按需加载 Defuddle core 与结构化 Markdown 适配器，失败时回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。
+ * 主要内容：通过 importNode 克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性；大型页面有界捕获也检查根节点及祖先，先消耗包含空白的原始字符预算再归一化，避免绕过排除与开销边界。按需加载 Defuddle core 与结构化 Markdown 适配器，失败时回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -161,9 +161,12 @@ function collectBoundedReadableText(doc: Document): string {
 function createDefuddleSnapshotDocument(): Document | null {
 
     // 脱离页面的 document 可防止解析器读取或修改实时页面。
-    if (document.implementation?.createHTMLDocument && document.documentElement?.outerHTML) {
+    if (document.implementation?.createHTMLDocument && document.documentElement) {
         const snapshot = document.implementation.createHTMLDocument(document.title);
-        snapshot.documentElement.innerHTML = document.documentElement.outerHTML;
+        // 复制节点保留原有 HTML/SVG/MathML 语义，避免序列化后重新解析宿主字符串。
+        // 目标 document 没有浏览上下文；清洗后才会交给正文提取器，永不插回 live DOM。
+        const root = snapshot.importNode(document.documentElement, true);
+        snapshot.replaceChild(root, snapshot.documentElement);
         sanitizePageContextSnapshot(snapshot);
         return snapshot;
     }
@@ -191,8 +194,14 @@ function captureReadablePage(): CapturedReadablePage {
     let bodySnapshot: HTMLElement | null = null;
     if (!documentSnapshot) {
         try {
-            bodySnapshot = document.body?.cloneNode(true) as HTMLElement | null;
-            if (bodySnapshot) sanitizePageContextSnapshot(bodySnapshot);
+            const body = document.body;
+            // 克隆后的 body 已脱离祖先；先在原文档检查自身及祖先是否属于排除范围。
+            if (body && typeof body.closest === 'function' && !body.closest(PAGE_CONTEXT_EXCLUDED_SELECTOR)) {
+                const clone = body.cloneNode(true) as HTMLElement;
+                // 只有清洗成功才能发布回退副本；异常时绝不返回部分清洗的正文。
+                sanitizePageContextSnapshot(clone);
+                bodySnapshot = clone;
+            }
         } catch (error) {
             console.warn('[FluentRead] failed to capture detached body snapshot:', error);
         }

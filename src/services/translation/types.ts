@@ -121,6 +121,8 @@ export interface TranslationRequestMessageBase {
     documentBatch?: boolean;
     /** 全文内部的单条槽协议；broker 按冻结术语配置逐槽校验，沿用本次请求的截止时间。 */
     validateTranslationSlots?: boolean;
+    /** 行内代码的单条标记协议；仅已验证的响应可进入独立缓存。 */
+    validateInlineCodeTranslation?: boolean;
     /** 视频字幕、文档等独立入口使用的翻译服务；普通网页请求不设置。 */
     serviceOverride?: string;
     /** 文档、翻译中心等独立入口指定的实际模型；普通网页请求不设置。 */

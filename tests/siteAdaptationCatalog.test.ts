@@ -12,7 +12,7 @@ import steamReviewFixture from './fixtures/translation-pages/steam-review-conten
 import {compileSiteRulePack, resolveSiteRule} from '@/src/core/site-adaptation/compiler';
 import {parseSiteRulePack, validateSelectors} from '@/src/core/site-adaptation/schema';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
-import {extractTranslationText, extractTranslationTextFromNodes} from '@/src/core/translation/text';
+import {createTranslationTextProtectionCache, extractTranslationText, extractTranslationTextFromNodes, isTranslationTextElementProtected} from '@/src/core/translation/text';
 import {applyTranslationsToSnapshot, buildWholeBlockTranslationSource, createTranslationSourceSnapshot} from '@/src/core/translation/serialization';
 
 const result = parseSiteRulePack({version: 1, profiles: rawProfiles, rules: rawRules});
@@ -27,6 +27,154 @@ function documentFor(html: string): Document {
 }
 
 describe('网站正文规则目录', () => {
+    it('GitLab scoped 标签的键和值同时保持原文且不漏入正文翻译源', () => {
+        // 本地结构结合公开页面观察和 GitLab UI label.vue：两个文本 span 是同一链接下的兄弟节点。
+        const document = documentFor(`<main>
+            <section id="labels" data-testid="work-item-labels"><span class="gl-label gl-label-scoped" data-testid="devops::growth"><a id="scoped-link" href="/labels/devops"><span class="gl-label-text" id="key">devops</span><span class="gl-label-text-scoped" id="value">growth</span></a></span></section>
+            <div class="md"><p id="body">A readable explanation with <a id="inline-link" href="/labels/feature"><span class="gl-label-text">feature</span><span class="gl-label-text-scoped">enhancement</span></a> remains useful.</p></div>
+        </main>`);
+        const url = new URL('https://gitlab.com/gitlab-org/gitlab/-/work_items/18924');
+        const beforePack = structuredClone(pack);
+        const oldRule = beforePack.rules.find(rule => rule.id === 'gitlab')!;
+        oldRule.protect = oldRule.protect!.filter(selector => selector !== '.gl-label-text-scoped');
+        const before = new TranslationCandidateCore({url, adapters: compileSiteRulePack(beforePack)});
+        const core = new TranslationCandidateCore({url, adapters});
+        const sources = (engine: TranslationCandidateCore) => engine.discover(document).map(candidate =>
+            extractTranslationTextFromNodes(candidate.nodes ?? [candidate.element], engine.shouldStayOriginal)).join('\n');
+        expect(sources(before)).toContain('growth');
+        expect(sources(before)).toContain('enhancement');
+        expect(sources(core)).not.toContain('growth');
+        expect(sources(core)).not.toContain('enhancement');
+        expect(sources(core)).toContain('A readable explanation');
+        for (const selector of ['#key', '#value']) expect(core.shouldStayOriginal(document.querySelector(selector)!)).toBe(true);
+        expect(core.resolve(document.querySelector('#value')!.firstChild)).toBeNull();
+        const body = document.querySelector<HTMLElement>('#body')!;
+        const original = body.innerHTML;
+        const snapshot = createTranslationSourceSnapshot(body, core.shouldStayOriginal);
+        expect(snapshot.slots.map(slot => slot.source).join(' ')).not.toContain('enhancement');
+        const output = documentFor(applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '正文译文')));
+        expect(output.querySelector('#inline-link')?.getAttribute('href')).toBe('/labels/feature');
+        expect(output.querySelector('.gl-label-text')?.textContent).toBe('feature');
+        expect(output.querySelector('.gl-label-text-scoped')?.textContent).toBe('enhancement');
+        expect(body.innerHTML).toBe(original);
+        // 新增动态标签也必须受同一静态保护规则约束。
+        document.querySelector('#labels')!.insertAdjacentHTML('beforeend', '<span class="gl-label gl-label-scoped"><a href="/labels/new"><span class="gl-label-text">group</span><span class="gl-label-text-scoped" id="dynamic-value">engagement</span></a></span>');
+        expect(core.shouldStayOriginal(document.querySelector('#dynamic-value')!)).toBe(true);
+        expect(sources(core)).not.toContain('engagement');
+        expect(core.resolve(document.querySelector('#dynamic-value')!.firstChild)).toBeNull();
+    });
+
+    it('GitLab 旧议题也保护 scoped 标签，相似类名与其他站点正文不受影响', () => {
+        const document = documentFor(`<main>
+            <span class="gl-label gl-label-scoped"><a href="/labels/feature"><span class="gl-label-text">feature</span><span class="gl-label-text-scoped" id="scoped">scoped value</span></a></span>
+            <div class="md"><p id="prose"><span class="gl-label-text-scoped-example" id="similar">A readable explanation of a scoped label stays translatable.</span></p></div>
+        </main>`);
+        const sourceFor = (engine: TranslationCandidateCore) => engine.discover(document).map(candidate =>
+            extractTranslationTextFromNodes(candidate.nodes ?? [candidate.element], engine.shouldStayOriginal)).join('\n');
+        for (const path of ['/issues/18924', '/work_items/18924']) {
+            const core = new TranslationCandidateCore({url: new URL(`https://gitlab.com/group/project/-${path}`), adapters});
+            expect(core.shouldStayOriginal(document.querySelector('#scoped')!), path).toBe(true);
+            expect(sourceFor(core), path).not.toContain('scoped value');
+            expect(core.shouldStayOriginal(document.querySelector('#similar')!), path).toBe(false);
+            expect(sourceFor(core), path).toContain('A readable explanation of a scoped label stays translatable.');
+        }
+        const otherSite = new TranslationCandidateCore({url: new URL('https://example.com/article'), adapters});
+        expect(otherSite.shouldStayOriginal(document.querySelector('#scoped')!)).toBe(false);
+        expect(sourceFor(otherSite)).toContain('scoped value');
+    });
+
+    it('GitLab 工作项复用议题正文与标签保护，明确通配路径边界', () => {
+        const adapter = adapterById.get('gitlab')!;
+        for (const raw of [
+            'https://gitlab.com/gitlab-org/gitlab/-/issues/18924',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924',
+            'https://gitlab.com/parent/nested/project/-/work_items/18924',
+            'https://gitlab.com/groups/example/-/work_items/42',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924/',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/new',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/new/form',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924/edit',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924/edit/advanced',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items/18924?next=%2Flogin#description',
+        ]) expect(adapter.matches(new URL(raw)), raw).toBe(true);
+        for (const raw of [
+            'https://gitlab.com.evil.invalid/gitlab-org/gitlab/-/work_items/18924',
+            'https://gitlab.com@evil.invalid/gitlab-org/gitlab/-/work_items/18924',
+            'https://reader.gitlab.com/gitlab-org/gitlab/-/work_items/18924',
+            'ftp://gitlab.com/gitlab-org/gitlab/-/work_items/18924',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_item/18924',
+            'https://gitlab.com/gitlab-org/gitlab/work_items/18924',
+            'https://gitlab.com/gitlab-org/gitlab/-/work_items',
+        ]) expect(adapter.matches(new URL(raw)), raw).toBe(false);
+        // 当前路径语法中的 * 可跨多段且不限定数字：new/edit 和其他子路由均会匹配，与既有议题规则一致；没有真实页面验收。
+        expect(adapter.matches(new URL('https://gitlab.com/gitlab-org/gitlab/-/work_items/18924/activity'))).toBe(true);
+        expect(adapter.matches(new URL('https://gitlab.com/gitlab-org/gitlab/-/work_items/non-numeric'))).toBe(true);
+
+        // 根据 2026-10-27 公共工作项原生 DOM 的结构缩写；不代表评论或所有 GitLab 页面。
+        const document = documentFor(`<main><div data-testid="work-item-detail">
+            <header><h1 id="title" data-testid="work-item-title">Help users set their default language</h1></header>
+            <div data-testid="work-item-description-wrapper"><div class="work-item-description description md">
+                <div data-testid="work-item-description"><h2 id="background">Background</h2>
+                <p id="body">We do, however, want to help users understand this feature.</p>
+                <ul><li id="proposal">Display a prompt that helps users change their language preference.</li></ul>
+                <p id="code-prose">Keep this technical identifier <code id="code">USER_LOCALE</code> while reading.</p>
+                <p id="mixed-prose">A readable passage around <span class="gl-label-text" id="inline-label">InternalLabelToken</span> remains translatable.</p>
+                <textarea id="nested-textarea">Draft textarea content</textarea>
+                <div contenteditable id="empty-editable"><p id="empty-child">An editable draft paragraph stays private and must remain unchanged.</p></div>
+                <div contenteditable="plaintext-only" id="plaintext-editable"><p id="plaintext-child">A plaintext editable draft must never be discovered as source.</p></div>
+                <div contenteditable="true" id="true-editable"><p id="true-child">This editable draft must never be submitted for translation.</p></div></div>
+            </div></div>
+            <div class="work-item-sidebar-container"><a id="label-link" href="/group/project/-/labels/example"><span class="gl-label-text" id="label">Category:Internationalization</span></a>
+            <a class="author-link" id="author" href="/example">Example Author</a></div>
+            <nav id="nav">Site navigation</nav><textarea id="editor">Draft body</textarea><div contenteditable="true" id="contenteditable">Draft text</div>
+        </div></main>`);
+        const url = new URL('https://gitlab.com/gitlab-org/gitlab/-/work_items/18924');
+        const core = new TranslationCandidateCore({url, adapters});
+        const owners = core.discover(document).map(candidate => candidate.element.id);
+        for (const id of ['title', 'background', 'body', 'proposal', 'code-prose', 'mixed-prose']) expect(owners, id).toContain(id);
+        for (const id of ['label', 'inline-label', 'author', 'code', 'editor', 'contenteditable', 'nested-textarea', 'empty-editable', 'empty-child', 'plaintext-editable', 'plaintext-child', 'true-editable', 'true-child', 'nav']) {
+            const node = document.querySelector(`#${id}`)!;
+            expect(isTranslationTextElementProtected(node, core.shouldStayOriginal, createTranslationTextProtectionCache()), id).toBe(true);
+            expect(owners, id).not.toContain(id);
+        }
+        const candidates = core.discover(document);
+        const mixed = candidates.find(candidate => candidate.element.id === 'mixed-prose')!;
+        const source = extractTranslationTextFromNodes(mixed.nodes ?? [mixed.element], core.shouldStayOriginal);
+        expect(source).toContain('A readable passage around');
+        expect(source).toContain('remains translatable.');
+        expect(source).not.toContain('InternalLabelToken');
+        const originalMixed = mixed.element.innerHTML;
+        const snapshot = createTranslationSourceSnapshot(mixed.element, core.shouldStayOriginal);
+        const slotSource = snapshot.slots.map(slot => slot.source).join(' ');
+        expect(slotSource).toContain('A readable passage around');
+        expect(slotSource).toContain('remains translatable.');
+        expect(slotSource).not.toContain('InternalLabelToken');
+        const translated = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '正文译文'));
+        const translatedDocument = documentFor(translated);
+        const preservedLabel = translatedDocument.querySelector('.gl-label-text');
+        expect(preservedLabel?.textContent).toBe('InternalLabelToken');
+        expect(translated).toContain('正文译文');
+        expect(mixed.element.innerHTML).toBe(originalMixed);
+        // 可命中同一正文祖先，但受保护标签不能进入该正文候选的翻译源。
+        const labelResolved = core.resolve(document.querySelector('#inline-label')!.firstChild);
+        expect(labelResolved?.element.id).toBe('mixed-prose');
+        expect(extractTranslationTextFromNodes(labelResolved!.nodes ?? [labelResolved!.element], core.shouldStayOriginal)).not.toContain('InternalLabelToken');
+        for (const id of ['nested-textarea', 'empty-child', 'plaintext-child', 'true-child']) {
+            expect(core.resolve(document.querySelector(`#${id}`)!.firstChild), id).toBeNull();
+        }
+        for (const path of ['/new', '/18924/edit', '/18924/activity']) {
+            const subpageCore = new TranslationCandidateCore({url: new URL(`https://gitlab.com/gitlab-org/gitlab/-/work_items${path}`), adapters});
+            const subpageOwners = subpageCore.discover(document).map(candidate => candidate.element.id);
+            for (const id of ['editor', 'contenteditable', 'nested-textarea', 'empty-child', 'plaintext-child', 'true-child']) {
+                expect(subpageCore.resolve(document.querySelector(`#${id}`)!.firstChild), `${path}/${id}`).toBeNull();
+                expect(isTranslationTextElementProtected(document.querySelector(`#${id}`)!, subpageCore.shouldStayOriginal, createTranslationTextProtectionCache()), `${path}/${id}`).toBe(true);
+                expect(subpageOwners, `${path}/${id}`).not.toContain(id);
+            }
+        }
+        expect(document.querySelector('#label-link')!.getAttribute('href')).toBe('/group/project/-/labels/example');
+        expect(document.querySelector('#label')!.textContent).toBe('Category:Internationalization');
+    });
+
     it('BBC 主图只保护独立署名，主图内正文和真正图注仍可翻译', () => {
         const fixture = fixtures.find(item => item.id === 'bbc-news')!;
         const url = new URL('https://www.bbc.com/future/article/20261001-five-exercises-to-help-reduce-neck-pain');
@@ -442,6 +590,64 @@ describe('网站正文规则目录', () => {
         expect(adapter.matches(new URL('https://other.bsky.app/profile/example.test'))).toBe(false);
     });
 
+    it('Bluesky 转发身份链接保留原文，同时保留正文和正文中的用户提及', () => {
+        // 结构取自公开资料页的 native-scroll-header-fixed/failure-dom.html：
+        // 原生转发链接自身无 dir，其中文身份描述位于两层 div 后的 dir=auto。
+        const document = documentFor(`<main><div data-testid="feedItem-by-author.example" role="link"><div>
+            <div></div><div><div></div><div>
+                <a id="repost" href="/profile/bsky.app" role="link" aria-label="由 Bluesky 转发" aria-pressed="false" data-no-underline="1">
+                    <svg><path d="M16.793 2.293"></path></svg><div><div><div id="repost-text" dir="auto">由 Bluesky 转发</div></div></div>
+                </a>
+                <a id="post-link" href="/profile/bsky.app/post/123" role="link" aria-label="Read post" aria-pressed="false" data-no-underline="1"><svg></svg><div><div><div dir="auto">Read post explanation</div></div></div></a>
+            </div></div><div><div id="body" data-testid="postText" dir="auto">This account mentions <a id="mention" href="/profile/bsky.app" role="link" aria-label="Bluesky profile" aria-pressed="false" data-no-underline="1"><svg><path d="M16.793 2.293"></path></svg><div><div><div dir="auto">Bluesky</div></div></div></a> in ordinary readable prose.</div></div>
+        </div></div></main>`);
+        const core = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'), adapters});
+        const repost = document.querySelector<HTMLElement>('#repost')!;
+        const repostText = document.querySelector<HTMLElement>('#repost-text')!;
+        const body = document.querySelector<HTMLElement>('#body')!;
+        const mention = document.querySelector<HTMLElement>('#mention')!;
+        const candidates = core.discover(document);
+        const sources = candidates.map(candidate => extractTranslationTextFromNodes(
+            candidate.nodes ?? [candidate.element], core.shouldStayOriginal)).join('\n');
+        // 用当前引擎和仅移除本次规则的旧规则包重现旧候选来源。
+        const beforePack = structuredClone(pack);
+        const beforeRule = beforePack.rules.find(rule => rule.id === 'bluesky-profile-metadata')!;
+        expect(beforeRule.exclude?.some(selector => selector.includes('[data-no-underline]'))).toBe(true);
+        beforeRule.exclude = beforeRule.exclude?.filter(selector => !selector.includes('[data-no-underline]'));
+        const before = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'), adapters: compileSiteRulePack(beforePack)});
+        const beforeSources = before.discover(document).map(candidate => extractTranslationTextFromNodes(
+            candidate.nodes ?? [candidate.element], before.shouldStayOriginal)).join('\n');
+        expect(beforeSources).toContain('由 Bluesky 转发');
+        expect(core.shouldStayOriginal(repost)).toBe(true);
+        // 图标可能在已译文字之后才挂载；保留父节点变更，使运行时能恢复旧译文。
+        expect(adapterById.get('bluesky-profile-metadata')!.shouldIgnoreMutation?.(repost, {url: new URL('https://bsky.app/profile/bsky.app')})).toBe(false);
+        expect(core.resolve(repostText.firstChild)).toBeNull();
+        expect(candidates.some(candidate => repost.contains(candidate.element))).toBe(false);
+        expect(sources).not.toContain('由 Bluesky 转发');
+        expect(core.shouldStayOriginal(body)).toBe(false);
+        expect(core.shouldStayOriginal(mention)).toBe(false);
+        expect(core.shouldStayOriginal(document.querySelector('#post-link')!)).toBe(false);
+        expect(sources).toContain('This account mentions');
+        expect(sources).toContain('ordinary readable prose');
+        const snapshot = createTranslationSourceSnapshot(body, core.shouldStayOriginal);
+        const rendered = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '译文'));
+        expect(rendered).toContain('/profile/bsky.app');
+        expect(repost.getAttribute('href')).toBe('/profile/bsky.app');
+        const original = repost.outerHTML;
+        const clone = repost.cloneNode(true) as HTMLElement;
+        clone.id = 'dynamic-repost';
+        repost.parentElement!.appendChild(clone);
+        expect(core.shouldStayOriginal(clone)).toBe(true);
+        expect(core.discover(document).some(candidate => clone.contains(candidate.element))).toBe(false);
+        expect(repost.outerHTML).toBe(original);
+        const quotedDocument = documentFor(`<div role="link" aria-label="Quoted post">${document.body.innerHTML}</div>`);
+        const quotedRepost = quotedDocument.querySelector('#repost')!;
+        const quotedCore = new TranslationCandidateCore({url: new URL('https://bsky.app/profile/bsky.app'), adapters});
+        expect(quotedCore.shouldStayOriginal(quotedRepost)).toBe(false);
+        const otherCore = new TranslationCandidateCore({url: new URL('https://example.com/profile/bsky.app'), adapters});
+        expect(otherCore.shouldStayOriginal(repost)).toBe(false);
+    });
+
     it('Bluesky 引用卡片只保护直接身份栏，引用正文、嵌套引用及提及链接仍由通用引擎翻译', () => {
         const fixture = blueskyQuoteFixture;
         const url = new URL(fixture.url);
@@ -749,10 +955,18 @@ describe('网站正文规则目录', () => {
                 if (rule.id === 'facebook-public-post') {
                     expect(standalone.protect?.length).toBe(2);
                     expect(standalone.watchIgnore).toEqual(standalone.protect);
+                } else if (rule.id === 'microsoft-learn-translator-v3-parameters') {
+                    expect(standalone.literalTokens).toHaveLength(4);
+                    expect(standalone.exclude ?? []).toEqual([]);
                 } else {
                     expect(rule.id).toBe(blueskyMetadataFixture.id);
                     expect(standalone.exclude?.length, rule.id).toBeGreaterThan(0);
-                    expect(standalone.watchIgnore, rule.id).toEqual(expect.arrayContaining(standalone.exclude!));
+                    // 转发链接的 SVG 可晚于文字挂载；即使之后被排除，仍需观察父节点变化以撤销先前译文。
+                    const lateRepost = standalone.exclude!.find(selector => selector.includes('[data-no-underline]'));
+                    expect(lateRepost).toBeTruthy();
+                    expect(standalone.watchIgnore, rule.id).not.toContain(lateRepost);
+                    expect(standalone.watchIgnore, rule.id).toEqual(expect.arrayContaining(
+                        standalone.exclude!.filter(selector => selector !== lateRepost)));
                 }
             }
         }

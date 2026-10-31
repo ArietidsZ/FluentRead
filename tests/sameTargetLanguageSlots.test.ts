@@ -11,7 +11,9 @@ import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
 
 const runtime = vi.hoisted(() => ({
     requests: [] as Array<{kind: 'text' | 'batch'; origins: string[]; options: Record<string, unknown>}>,
+    textContexts: [] as string[],
     fail: 0,
+    nextError: undefined as unknown,
     pending: null as null | {resolve: () => void},
     preflight: vi.fn<(text: string, target: string, excluded: readonly string[], signal?: AbortSignal) => Promise<boolean>>(),
     config: {
@@ -35,6 +37,11 @@ const runtime = vi.hoisted(() => ({
 
 async function respond(kind: 'text' | 'batch', origins: string[], options: Record<string, unknown>): Promise<string[]> {
     runtime.requests.push({kind, origins, options});
+    if (runtime.nextError) {
+        const error = runtime.nextError;
+        runtime.nextError = undefined;
+        throw error;
+    }
     if (runtime.fail > 0) {
         runtime.fail -= 1;
         throw new Error('provider unavailable');
@@ -49,8 +56,10 @@ async function respond(kind: 'text' | 'batch', origins: string[], options: Recor
 vi.mock('@/src/services/config/store', () => ({config: runtime.config}));
 vi.mock('@/src/services/translation/languagePreflight', () => ({shouldSkipTranslationWithEvidence: runtime.preflight}));
 vi.mock('@/src/services/translation/client', () => ({
-    translateText: async (origin: string, _context: string, options: Record<string, unknown>) =>
-        (await respond('text', [origin], options))[0],
+    translateText: async (origin: string, context: string, options: Record<string, unknown>) => {
+        runtime.textContexts.push(context);
+        return (await respond('text', [origin], options))[0];
+    },
     translateTextBatch: (origins: readonly string[], _context: string, options: Record<string, unknown>) =>
         respond('batch', [...origins], options),
 }));
@@ -59,11 +68,14 @@ import {
     captureFullPageTranslationConfig,
     clearFullPageTranslationRequestCache,
     createSnapshotTranslateOptions,
+    tryTranslateInlineCodeSentence,
     translateTextSlots,
     type FullPageTranslationSessionCache,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {createFullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {identifyTextLanguage} from '@/src/core/language/identify';
+import {TranslationRequestError, TRANSLATION_ERROR_MARKER} from '@/src/services/translation/errors';
 import {collectLiveTranslationTextSlots, extractTranslationText, serializeTranslationSlots} from '@/src/core/translation/public';
 
 const german = 'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.';
@@ -89,13 +101,264 @@ function submitted(): string[] {
 beforeEach(() => {
     vi.stubGlobal('document', {title: 'Release notes', location: {href: 'https://example.test/releases'}, URL: 'https://example.test/releases'});
     runtime.requests = [];
+    runtime.textContexts = [];
     runtime.fail = 0;
+    runtime.nextError = undefined;
     runtime.pending = null;
     runtime.preflight.mockReset().mockResolvedValue(false);
-    Object.assign(runtime.config, {service: 'microsoft', from: 'auto', to: 'de', excludedLanguages: [], enableAIMultiSegment: false});
+    Object.assign(runtime.config, {service: 'microsoft', from: 'auto', to: 'de', excludedLanguages: [], enableAIMultiSegment: false,
+        enableAIContext: false, glossaryEnabled: false, glossaryLibraries: []});
 });
 
 describe('原始槽的补充证据与快照', () => {
+    it('自动源语言下日文受标记影响变成混合语时回退，不改变源语言', async () => {
+        Object.assign(runtime.config, {service: 'myMemory', from: 'auto', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = '変数 __FRCODE_0123456789abcdef_0__ は同じではありません。';
+        const detectionText = '変数   は同じではありません。';
+        expect(identifyTextLanguage(detectionText)).toMatchObject({status: 'identified', languages: ['ja']});
+        expect(identifyTextLanguage(source).status).toBe('mixed');
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.requests).toEqual([]);
+        expect(runtime.preflight).not.toHaveBeenCalled();
+    });
+
+    it('MDN 英文在自动源语言下标记前后识别一致，试探保留原 auto 配置', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', from: 'auto', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = 'But, the variable __FRCODE_0123456789abcdef_0__ is not the same as __FRCODE_0123456789abcdef_1__ because JavaScript is case sensitive.';
+        const detectionText = 'But, the variable   is not the same as   because JavaScript is case sensitive.';
+        expect(identifyTextLanguage(detectionText)).toMatchObject({status: 'identified', languages: ['en']});
+        expect(identifyTextLanguage(source)).toMatchObject({status: 'identified', languages: ['en']});
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b', 'c'], captureFullPageTranslationConfig())).toEqual(['a', 'b', 'c']);
+        expect(runtime.requests[0]?.options.sourceLanguage).toBe('auto');
+        expect(runtime.requests[0]?.options.sourceLanguageDetectionText).toBe(detectionText);
+    });
+
+    it('显式源语言不会被试探门禁覆盖或重设', async () => {
+        Object.assign(runtime.config, {service: 'myMemory', from: 'ja', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = '変数 __FRCODE_0123456789abcdef_0__ は同じではありません。';
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], captureFullPageTranslationConfig())).toEqual(['a', 'b']);
+        expect(runtime.requests[0]?.options.sourceLanguage).toBe('ja');
+    });
+
+    it('行内代码试探只发送标记正文，以无标记文字检测语言并冻结缓存设置', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const snapshot = captureFullPageTranslationConfig();
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different from __FRCODE_0123456789abcdef_1__.';
+        const decode = vi.fn((value: string) => value.startsWith('T:') ? ['变量', '不同', '。'] : null);
+        const result = await tryTranslateInlineCodeSentence(source, decode, snapshot);
+        expect(result).toEqual(['变量', '不同', '。']);
+        expect(runtime.preflight).toHaveBeenCalledWith('The variable   is different from  .', 'zh-Hans', [], undefined);
+        expect(runtime.requests).toHaveLength(1);
+        expect(runtime.textContexts).toEqual(['']);
+        expect(runtime.requests[0]).toMatchObject({kind: 'text', origins: [source], options: {
+            serviceOverride: 'freeTranslation', useCache: true, validateInlineCodeTranslation: true, skipLanguageDetection: true,
+            sourceLanguageDetectionText: 'The variable   is different from  .', enableAIContext: false,
+        }});
+        expect(decode).toHaveBeenCalledWith(`T:${source}`);
+        runtime.requests.length = 0;
+        await tryTranslateInlineCodeSentence(source, decode, {...snapshot, useCache: false});
+        expect(runtime.requests[0]?.options).toMatchObject({useCache: false, validateInlineCodeTranslation: true});
+    });
+
+    it('试探遵守目标与排除语言、上下文开关和无效响应回退', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const snapshot = captureFullPageTranslationConfig();
+        runtime.preflight.mockResolvedValueOnce(true);
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).toBeNull();
+        expect(runtime.requests).toEqual([]);
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], {...snapshot, enableAIContext: true})).toBeNull();
+        expect(await tryTranslateInlineCodeSentence(source, () => null, snapshot)).toBeNull();
+        expect(runtime.requests).toHaveLength(1);
+        expect(await tryTranslateInlineCodeSentence('The variable __FRCODE_invalid__ is different.', () => ['ignored'], snapshot)).toBeNull();
+        expect(runtime.requests).toHaveLength(1);
+    });
+
+    it.each([
+        '__FRCODE_0123456789abcdef_0__   ',
+        'The variable __FRCODE_0123456789abcdef_0__ and __FRCODE_invalid__ are different.',
+    ])('标记之外没有正文或仍有不完整标记时不发送试探', async source => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const decode = vi.fn();
+        expect(await tryTranslateInlineCodeSentence(source, decode, captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.preflight).not.toHaveBeenCalled();
+        expect(runtime.requests).toEqual([]);
+        expect(decode).not.toHaveBeenCalled();
+    });
+
+    it('实际术语可能覆盖标记或词库版本变化时不发送试探', async () => {
+        const marker = '__FRCODE_0123456789abcdef_0__';
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: true, enableAIContext: false,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [],
+                entries: [{id: 'marker', source: marker, target: 'replacement', caseSensitive: true}]}]});
+        const source = `The variable ${marker} is different.`;
+        const snapshot = captureFullPageTranslationConfig();
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).toBeNull();
+        expect(runtime.requests).toEqual([]);
+        Object.assign(runtime.config, {glossaryLibraries: []});
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).toBeNull();
+        expect(runtime.requests).toEqual([]);
+    });
+
+    it('不适用的长术语不能掩盖另一个词条跨越标记的命中', async () => {
+        const marker = '__FRCODE_0123456789abcdef_0__';
+        const longPrefix = 'These words describe a long technical description of the following variable';
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: true, enableAIContext: false,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [],
+                entries: [{id: 'long', source: longPrefix, target: 'x', caseSensitive: true},
+                    {id: 'cross', source: `variable ${marker}`, target: 'y', caseSensitive: true}]}]});
+        const source = `${longPrefix} ${marker} is different.`;
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.requests).toEqual([]);
+    });
+
+    it('普通正文命中术语时回退，避免后台替换扩张整句', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: true, enableAIContext: false,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [],
+                entries: [{id: 'term', source: 'variable', target: '变量', caseSensitive: false}]}]});
+        const snapshot = captureFullPageTranslationConfig();
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], snapshot)).toBeNull();
+        expect(runtime.requests).toEqual([]);
+    });
+
+    it('启用词库但没有词条命中时仍可试探', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: true, enableAIContext: false,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [],
+                entries: [{id: 'term', source: 'keyboard', target: '键盘', caseSensitive: false}]}]});
+        const snapshot = captureFullPageTranslationConfig();
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], snapshot)).toEqual(['a', 'b']);
+        expect(runtime.requests[0]?.options.glossaryRevision).toBe(snapshot.glossaryRevision);
+        expect(runtime.requests[0]?.options.glossaryIds).toEqual(snapshot.glossaryIds);
+    });
+
+    it.each([[64, true], [65, false]])('启用 %i 个未命中术语时按词库上限决定是否试探', async (count, allowed) => {
+        const entries = Array.from({length: count}, (_, index) => ({
+            id: `term-${index}`, source: `keyboard-${index}`, target: `键盘-${index}`, caseSensitive: true,
+        }));
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans', glossaryEnabled: true,
+            glossaryLibraries: [{id: 'terms', name: 'terms', enabled: true, sourceLanguage: 'en', targetLanguage: 'zh-Hans', domains: [], entries}]});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const result = await tryTranslateInlineCodeSentence(source, () => ['变量', '不同'], captureFullPageTranslationConfig());
+        expect(result).toEqual(allowed ? ['变量', '不同'] : null);
+        expect(runtime.requests).toHaveLength(allowed ? 1 : 0);
+    });
+
+    it.each(['🚀', '1️⃣', '🇨🇳', '👩🏽‍💻'])('包含受保护 emoji %s 时不试探', async emoji => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = `The variable __FRCODE_0123456789abcdef_0__ is different ${emoji}.`;
+        expect(await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.requests).toEqual([]);
+        expect(runtime.preflight).not.toHaveBeenCalled();
+    });
+
+    it('异步语言预检后发现来源过期，不发送试探', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const evidence = deferredBoolean();
+        runtime.preflight.mockReturnValueOnce(evidence.promise);
+        let current = true;
+        const pending = tryTranslateInlineCodeSentence('The variable __FRCODE_0123456789abcdef_0__ is different.',
+            () => ['ignored'], captureFullPageTranslationConfig(), undefined, undefined, () => current);
+        current = false;
+        evidence.resolve(false);
+        expect(await pending).toBeNull();
+        expect(runtime.requests).toEqual([]);
+    });
+
+    it('供应商返回前来源失效时丢弃响应，不解码旧结果', async () => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const decode = vi.fn(() => ['变量', '不同']);
+        let current = true;
+        runtime.pending = {resolve: () => {}};
+        const pending = tryTranslateInlineCodeSentence(source, decode, captureFullPageTranslationConfig(),
+            undefined, undefined, () => current);
+        await vi.waitFor(() => expect(runtime.requests).toHaveLength(1));
+        current = false;
+        runtime.pending!.resolve();
+        expect(await pending).toBeNull();
+        expect(decode).not.toHaveBeenCalled();
+    });
+
+    it('预检期间取消或 provider 出错时传播错误，不悄悄发回退请求', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const snapshot = captureFullPageTranslationConfig();
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const controller = new AbortController();
+        const evidence = deferredBoolean();
+        runtime.preflight.mockReturnValueOnce(evidence.promise);
+        const pending = tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot, controller.signal);
+        controller.abort();
+        evidence.resolve(false);
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.requests).toEqual([]);
+        runtime.fail = 1;
+        await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).rejects.toThrow('provider unavailable');
+        expect(runtime.requests).toHaveLength(1);
+    });
+
+    it.each([
+        ['UNTRANSLATED_RESPONSE', 'response'], ['WRONG_LANGUAGE_RESPONSE', 'response'],
+        ['TRANSLATION_SLOT_RESPONSE_INVALID', 'response'], ['GLOSSARY_PLACEHOLDER_INVALID', 'unknown'],
+    ] as const)('有明确结构化内容错误 %s 时交给既有逐槽路径', async (code, kind) => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        runtime.nextError = new TranslationRequestError({marker: TRANSLATION_ERROR_MARKER, message: 'provider response', kind, retryable: false, code});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        expect(await tryTranslateInlineCodeSentence(source, () => ['ignored'], captureFullPageTranslationConfig())).toBeNull();
+        expect(runtime.requests).toHaveLength(1);
+    });
+
+    it.each(['authentication', 'rate-limit', 'network', 'timeout', 'bad-request', 'provider'] as const)(
+        '即使携带内容代码，%s 错误也不能被当作可回退的响应异常', async kind => {
+            Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+            const error = new TranslationRequestError({marker: TRANSLATION_ERROR_MARKER, message: kind, kind, retryable: false, code: 'UNTRANSLATED_RESPONSE'});
+            runtime.nextError = error;
+            const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+            await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], captureFullPageTranslationConfig())).rejects.toBe(error);
+        });
+
+    it('未结构化错误及中止不因带内容代码而被忽略', async () => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        const snapshot = captureFullPageTranslationConfig();
+        const ordinary = Object.assign(new Error('provider failed'), {code: 'UNTRANSLATED_RESPONSE'});
+        runtime.nextError = ordinary;
+        await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).rejects.toBe(ordinary);
+        const abort = Object.assign(new Error('aborted'), {name: 'AbortError', code: 'GLOSSARY_PLACEHOLDER_INVALID'});
+        runtime.nextError = abort;
+        await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], snapshot)).rejects.toBe(abort);
+    });
+
+    it('没有错误代码的结构化响应异常原样传播', async () => {
+        Object.assign(runtime.config, {from: 'en', to: 'zh-Hans'});
+        const error = new TranslationRequestError({marker: TRANSLATION_ERROR_MARKER, message: 'invalid response', kind: 'response', retryable: false});
+        runtime.nextError = error;
+        const source = 'The variable __FRCODE_0123456789abcdef_0__ is different.';
+        await expect(tryTranslateInlineCodeSentence(source, () => ['ignored'], captureFullPageTranslationConfig())).rejects.toBe(error);
+        expect(runtime.requests).toHaveLength(1);
+    });
+
+    it.each([
+        ['ASCII', '', 450, true], ['ASCII', '', 451, false],
+        ['多字节', ' early é ', 450, true], ['多字节', ' early é ', 451, false],
+    ])('%s %s 标记正文为 %i 字节时按 UTF-8 预算判断', async (_label, unicode, bytes, allowed) => {
+        Object.assign(runtime.config, {service: 'freeTranslation', to: 'zh-Hans', glossaryEnabled: false, glossaryLibraries: [], enableAIContext: false});
+        const head = `This English paragraph explains the variable __FRCODE_0123456789abcdef_0__${unicode} and compares the values. `;
+        const count = new TextEncoder().encode(head).length;
+        const source = head + 'English readable sentence '.repeat(40).slice(0, bytes - count);
+        expect(new TextEncoder().encode(source).length).toBe(bytes);
+        if (unicode && bytes === 451) expect(source.length).toBeLessThanOrEqual(450);
+        const result = await tryTranslateInlineCodeSentence(source, () => ['a', 'b'], captureFullPageTranslationConfig());
+        if (allowed) {
+            expect(result).toEqual(['a', 'b']);
+            expect(runtime.requests).toHaveLength(1);
+        } else {
+            expect(result).toBeNull();
+            expect(runtime.requests).toEqual([]);
+            expect(runtime.preflight).not.toHaveBeenCalled();
+        }
+    });
     it('显式排除快照透传 client，全跳过无需构造结构包', async () => {
         Object.assign(runtime.config, {service: 'openai', to: 'de', excludedLanguages: ['en']});
         const snapshot = captureFullPageTranslationConfig();
